@@ -28,16 +28,16 @@ export function ProtectedRoute({
     );
   }
 
-  // If no user, redirect to login
-  if (!user) {
+  // If Spotify is required but not authenticated, redirect to login
+  if (requireSpotify && !spotifyAuthenticated) {
     return <Navigate to='/login' replace />;
   }
 
-  // If Spotify is required but not authenticated, redirect to login
-  if (requireSpotify && !spotifyAuthenticated) {
-    return <Navigate to='/login?spotify_required=true' replace />;
+  // If no user and Spotify is required, redirect to login
+  if (!user && requireSpotify) {
+    return <Navigate to='/login' replace />;
   }
 
-  // User is authenticated (and Spotify if required)
+  // User is authenticated with Spotify
   return <>{children}</>;
 }

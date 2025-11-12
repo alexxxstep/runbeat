@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../services/supabase';
 import { api } from '../services/api';
 
 export interface User {
@@ -12,87 +11,40 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [spotifyAuthenticated, setSpotifyAuthenticated] = useState(false);
-  const [checkingSpotify, setCheckingSpotify] = useState(true);
 
   const checkSpotifyAuth = async (userId: string) => {
     try {
-      setCheckingSpotify(true);
+      setLoading(true);
       const status = await api.checkSpotifyAuthStatus(userId);
       setSpotifyAuthenticated(status.authenticated);
+      if (status.authenticated) {
+        setUser({
+          id: userId,
+          spotify_user_id: status.spotify_user_id,
+        });
+      }
     } catch (error) {
       console.error('Failed to check Spotify auth status:', error);
       setSpotifyAuthenticated(false);
+      setUser(null);
     } finally {
-      setCheckingSpotify(false);
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email,
-        });
-        // Check Spotify auth status
-        checkSpotifyAuth(session.user.id);
-      } else {
-        setLoading(false);
-        setCheckingSpotify(false);
-      }
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email,
-        });
-        // Check Spotify auth status
-        checkSpotifyAuth(session.user.id);
-      } else {
-        setUser(null);
-        setSpotifyAuthenticated(false);
-        setLoading(false);
-        setCheckingSpotify(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signInWithGoogle = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
-
-      if (error) {
-        console.error('Google auth error:', error);
-        throw error;
-      }
-    } catch (error) {
-      console.error('Failed to initiate Google auth:', error);
-      throw error;
+    // Check if there's a user_id in localStorage (from Spotify callback)
+    const storedUserId = localStorage.getItem('spotify_user_id');
+    if (storedUserId) {
+      checkSpotifyAuth(storedUserId);
+    } else {
+      setLoading(false);
     }
-  };
+  }, []);
 
   const signInWithSpotify = async () => {
     try {
-      // Pass user_id if user is already authenticated (e.g., via Google)
-      const { auth_url } = await api.initiateSpotifyAuth(user?.id);
+      const { auth_url } = await api.initiateSpotifyAuth();
       window.location.href = auth_url;
     } catch (error) {
       console.error('Failed to initiate Spotify auth:', error);
@@ -101,20 +53,21 @@ export function useAuth() {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    localStorage.removeItem('spotify_user_id');
     setUser(null);
+    setSpotifyAuthenticated(false);
   };
 
   return {
     user,
-    loading: loading || checkingSpotify,
+    loading,
     spotifyAuthenticated,
-    signInWithGoogle,
     signInWithSpotify,
     signOut,
     refreshSpotifyStatus: () => {
-      if (user?.id) {
-        checkSpotifyAuth(user.id);
+      const storedUserId = localStorage.getItem('spotify_user_id');
+      if (storedUserId) {
+        checkSpotifyAuth(storedUserId);
       }
     },
   };

@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../services/supabase';
 import { LoadingSpinner } from '../components/Shared/LoadingSpinner';
 
 export function AuthCallbackPage() {
@@ -16,38 +15,16 @@ export function AuthCallbackPage() {
 
         if (userId && spotifyUserId) {
           // This is Spotify OAuth callback
-          // Supabase session should already be established
-          const { data, error } = await supabase.auth.getSession();
-
-          if (error || !data.session) {
-            console.error('Auth callback error:', error);
-            navigate('/login?error=auth_failed');
-            return;
-          }
+          // Store user_id in localStorage for future checks
+          localStorage.setItem('spotify_user_id', userId);
 
           // Successfully authenticated with Spotify
           navigate('/');
           return;
         }
 
-        // This is Google OAuth callback
-        // Supabase automatically handles the OAuth callback
-        const { data, error } = await supabase.auth.getSession();
-
-        if (error) {
-          console.error('Auth callback error:', error);
-          navigate('/login?error=auth_failed');
-          return;
-        }
-
-        if (data.session) {
-          // Successfully authenticated with Google
-          // Redirect to login to connect Spotify
-          navigate('/login');
-        } else {
-          // No session found
-          navigate('/login?error=no_session');
-        }
+        // If no params, redirect to login
+        navigate('/login?error=no_params');
       } catch (error) {
         console.error('Failed to handle auth callback:', error);
         navigate('/login?error=callback_failed');
