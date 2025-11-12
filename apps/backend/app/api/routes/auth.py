@@ -3,17 +3,18 @@ Spotify OAuth authentication endpoints.
 """
 import secrets
 import urllib.parse
+from datetime import datetime, timedelta
 from typing import Optional
+
+import spotipy
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from loguru import logger
-from datetime import datetime, timedelta
+from spotipy.oauth2 import SpotifyOAuth
 
 from app.core.config import settings
-from app.services.supabase_service import SupabaseService
 from app.schemas.auth import SpotifyAuthResponse
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
+from app.services.supabase_service import SupabaseService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -27,7 +28,10 @@ def get_spotify_oauth() -> SpotifyOAuth:
         client_id=settings.SPOTIFY_CLIENT_ID,
         client_secret=settings.SPOTIFY_CLIENT_SECRET,
         redirect_uri=settings.SPOTIFY_REDIRECT_URI,
-        scope="user-read-private user-read-email user-top-read playlist-modify-private playlist-modify-public",
+        scope=(
+            "user-read-private user-read-email user-top-read "
+            "playlist-modify-private playlist-modify-public"
+        ),
         cache_path=None,  # We'll handle token storage in Supabase
     )
 
@@ -35,7 +39,10 @@ def get_spotify_oauth() -> SpotifyOAuth:
 @router.get("/spotify", response_model=SpotifyAuthResponse)
 async def spotify_auth(
     user_id: Optional[str] = Query(
-        None, description="User ID (optional, for linking Spotify to existing user)"
+        None,
+        description=(
+            "User ID (optional, for linking Spotify to existing user)"
+        ),
     ),
 ):
     """
@@ -53,14 +60,17 @@ async def spotify_auth(
             "used": False,
         }
 
-        # Store user_id in state if provided (for linking Spotify to Google Auth user)
+        # Store user_id in state if provided
+        # (for linking Spotify to Google Auth user)
         if user_id:
             oauth_states[state]["user_id"] = user_id
             logger.info(f"Storing user_id {user_id} in OAuth state")
 
         # Build authorization URL
         oauth = get_spotify_oauth()
-        auth_url = oauth.get_authorize_url(state=state)
+        auth_url = oauth.get_authorize_url(
+            state=state
+        )
 
         logger.info(f"Spotify OAuth initiated with state: {state[:8]}...")
 
@@ -88,41 +98,55 @@ async def spotify_callback(
         # Check for errors
         if error:
             logger.error(f"Spotify OAuth error: {error}")
-            return RedirectResponse(
-                url=f"{settings.CORS_ORIGINS[0]}/auth/error?error={urllib.parse.quote(error)}"
+            error_url = (
+                f"{settings.CORS_ORIGINS[0]}/auth/error?"
+                f"error={urllib.parse.quote(error)}"
             )
+            return RedirectResponse(url=error_url)
 
         # Validate state
         if state not in oauth_states:
             logger.error(f"Invalid OAuth state: {state[:8]}...")
-            return RedirectResponse(
-                url=f"{settings.CORS_ORIGINS[0]}/auth/error?error=invalid_state"
+            error_url = (
+                f"{settings.CORS_ORIGINS[0]}/auth/error?error=invalid_state"
             )
+            return RedirectResponse(url=error_url)
 
         state_data = oauth_states[state]
         if state_data["used"]:
             logger.error(f"OAuth state already used: {state[:8]}...")
-            return RedirectResponse(
-                url=f"{settings.CORS_ORIGINS[0]}/auth/error?error=state_already_used"
+            error_url = (
+                f"{settings.CORS_ORIGINS[0]}/auth/error?"
+                f"error=state_already_used"
             )
+            return RedirectResponse(url=error_url)
 
         # Check state expiration (5 minutes)
         if datetime.now() - state_data["created_at"] > timedelta(minutes=5):
             logger.error(f"OAuth state expired: {state[:8]}...")
             del oauth_states[state]
-            return RedirectResponse(
-                url=f"{settings.CORS_ORIGINS[0]}/auth/error?error=state_expired"
+            error_url = (
+                f"{settings.CORS_ORIGINS[0]}/auth/error?error=state_expired"
             )
+            return RedirectResponse(url=error_url)
 
         # Mark state as used
         state_data["used"] = True
 
         # Exchange code for token
         oauth = get_spotify_oauth()
-        token_info = oauth.get_access_token(code, as_dict=False)
+        token_info = oauth.get_access_token(code, as_dict=True)
+
+        # Validate token_info is a dict
+        if not isinstance(token_info, dict):
+            logger.error(
+                f"Expected dict from get_access_token, got {type(token_info)}"
+            )
+            raise ValueError("Invalid token response from Spotify")
 
         # Get user info from Spotify
-        spotify = spotipy.Spotify(auth=token_info)
+        access_token = token_info["access_token"]
+        spotify = spotipy.Spotify(auth=access_token)
         user_info = spotify.current_user()
 
         spotify_user_id = user_info["id"]
@@ -160,7 +184,7 @@ async def spotify_callback(
             )
 
         expires_at = datetime.now() + \
-            timedelta(seconds=token_info["expires_in"])
+            timedelta(seconds=token_info.get("expires_in", 3600))
 
         if existing_user.data:
             # Update existing user
@@ -168,7 +192,7 @@ async def spotify_callback(
             supabase.table("users").update(
                 {
                     "spotify_user_id": spotify_user_id,
-                    "spotify_access_token": token_info["access_token"],
+                    "spotify_access_token": access_token,
                     "spotify_refresh_token": token_info.get("refresh_token"),
                     "spotify_token_expires_at": expires_at.isoformat(),
                     "updated_at": datetime.now().isoformat(),
@@ -188,8 +212,10 @@ async def spotify_callback(
                             "id": user_id,
                             "email": email,
                             "spotify_user_id": spotify_user_id,
-                            "spotify_access_token": token_info["access_token"],
-                            "spotify_refresh_token": token_info.get("refresh_token"),
+                            "spotify_access_token": access_token,
+                            "spotify_refresh_token": (
+                                token_info.get("refresh_token")
+                            ),
                             "spotify_token_expires_at": expires_at.isoformat(),
                             "preferences": {
                                 "top_genres": [],
@@ -203,7 +229,7 @@ async def spotify_callback(
                 )
                 logger.info(
                     f"Upserted user {user_id} with Spotify connection"
-                )
+                )  # noqa: E501
             else:
                 # Create new user
                 new_user = (
@@ -212,8 +238,10 @@ async def spotify_callback(
                         {
                             "email": email,
                             "spotify_user_id": spotify_user_id,
-                            "spotify_access_token": token_info["access_token"],
-                            "spotify_refresh_token": token_info.get("refresh_token"),
+                            "spotify_access_token": access_token,
+                            "spotify_refresh_token": (
+                                token_info.get("refresh_token")
+                            ),
                             "spotify_token_expires_at": expires_at.isoformat(),
                             "preferences": {
                                 "top_genres": [],
@@ -226,7 +254,8 @@ async def spotify_callback(
                 )
                 user_id = new_user.data[0]["id"]
                 logger.info(
-                    f"Created new user {user_id} with Spotify ID {spotify_user_id}"
+                    f"Created new user {user_id} "
+                    f"with Spotify ID {spotify_user_id}"
                 )
 
         # Clean up old states (keep last 100)
@@ -240,19 +269,25 @@ async def spotify_callback(
                 del oauth_states[old_state]
 
         # Redirect to frontend with success
-        return RedirectResponse(
-            url=f"{settings.CORS_ORIGINS[0]}/auth/success?user_id={user_id}&spotify_user_id={spotify_user_id}"
+        success_url = (
+            f"{settings.CORS_ORIGINS[0]}/auth/success?"
+            f"user_id={user_id}&spotify_user_id={spotify_user_id}"
         )
+        return RedirectResponse(url=success_url)
 
     except Exception as e:
         logger.error(f"Failed to handle Spotify callback: {e}")
-        return RedirectResponse(
-            url=f"{settings.CORS_ORIGINS[0]}/auth/error?error={urllib.parse.quote(str(e))}"
+        error_url = (
+            f"{settings.CORS_ORIGINS[0]}/auth/error?"
+            f"error={urllib.parse.quote(str(e))}"
         )
+        return RedirectResponse(url=error_url)
 
 
 @router.get("/spotify/status")
-async def spotify_auth_status(user_id: str = Query(..., description="User ID")):
+async def spotify_auth_status(
+    user_id: str = Query(..., description="User ID")
+):
     """
     Check Spotify authentication status for a user.
     """
@@ -273,7 +308,10 @@ async def spotify_auth_status(user_id: str = Query(..., description="User ID")):
         expires_at = user_data.get("spotify_token_expires_at")
 
         if not expires_at:
-            return {"authenticated": False, "message": "User not authenticated with Spotify"}
+            return {
+                "authenticated": False,
+                "message": "User not authenticated with Spotify"
+            }
 
         # Check if token is expired
         expires_datetime = datetime.fromisoformat(
