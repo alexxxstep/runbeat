@@ -1,12 +1,13 @@
 """
 Spotify Service for API integration.
 """
+from typing import Dict, List, Optional
+
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
+
 from app.core.config import settings
 from loguru import logger
-from typing import List, Dict, Optional
-import asyncio
 
 
 class SpotifyService:
@@ -14,6 +15,22 @@ class SpotifyService:
 
     def __init__(self):
         """Initialize Spotify client credentials."""
+        # Validate credentials are set
+        if (not settings.SPOTIFY_CLIENT_ID or
+                not settings.SPOTIFY_CLIENT_SECRET):
+            logger.error("Spotify credentials are missing!")
+            raise ValueError(
+                "SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set"
+            )
+
+        # Log partial credentials for debugging (first 10 chars only)
+        secret_display = (
+            "*" * 10 if settings.SPOTIFY_CLIENT_SECRET else "MISSING"
+        )
+        logger.debug(
+            f"Spotify Client ID: {settings.SPOTIFY_CLIENT_ID[:10]}... "
+            f"Secret: {secret_display}"
+        )
         self.client_credentials = SpotifyClientCredentials(
             client_id=settings.SPOTIFY_CLIENT_ID,
             client_secret=settings.SPOTIFY_CLIENT_SECRET,
@@ -109,7 +126,29 @@ class SpotifyService:
             # Create Spotify client - ensure credentials are valid
             try:
                 sp = spotipy.Spotify(
-                    client_credentials_manager=self.client_credentials)
+                    client_credentials_manager=self.client_credentials
+                )
+
+                # Test authentication by getting access token
+                try:
+                    token_info = self.client_credentials.get_access_token()
+                    if not token_info:
+                        logger.error(
+                            "Failed to get Spotify access token - "
+                            "credentials may be invalid"
+                        )
+                        raise Exception(
+                            "Spotify authentication failed: "
+                            "no access token received"
+                        )
+                    logger.debug("Spotify access token obtained successfully")
+                except Exception as token_error:
+                    logger.error(
+                        f"Failed to get Spotify access token: {token_error}"
+                    )
+                    raise Exception(
+                        f"Spotify authentication failed: {token_error}"
+                    )
             except Exception as auth_error:
                 logger.error(f"Failed to create Spotify client: {auth_error}")
                 raise
@@ -130,15 +169,13 @@ class SpotifyService:
                 "target_energy": target_energy,
             }
 
-            # Add tempo parameters - Spotify API may have issues with all three together
-            # Try using just min/max_tempo first, as they define a range
+            # Add tempo parameters
+            # NOTE: Spotify API may reject requests with target_tempo +
+            # min/max_tempo together. Start with just min/max_tempo
+            # to define the range
             rec_params["min_tempo"] = min_tempo
             rec_params["max_tempo"] = max_tempo
-
-            # Only add target_tempo if it's within the range and different from midpoint
-            midpoint = (min_tempo + max_tempo) / 2
-            if abs(target_tempo - midpoint) > 5:  # Only if significantly different
-                rec_params["target_tempo"] = target_tempo
+            # Don't add target_tempo initially - will retry with it if needed
 
             # Add seeds (at least one required)
             # spotipy expects lists, not strings
@@ -149,45 +186,84 @@ class SpotifyService:
 
             logger.debug(f"Spotify recommendations params: {rec_params}")
 
-            # Try the request with full parameters first
+            # Try the request - start without target_tempo to avoid conflicts
             results = None
             last_error = None
 
             try:
+                # First attempt: min/max_tempo only (no target_tempo)
+                logger.debug(
+                    f"Attempting recommendations with params: {rec_params}"
+                )
                 results = sp.recommendations(**rec_params)
+                logger.debug("Recommendations request successful")
             except Exception as spotify_error:
                 last_error = spotify_error
                 error_str = str(spotify_error).lower()
+                logger.warning(f"Recommendations failed: {spotify_error}")
 
-                # If 404 or parameter error, try simplified parameters
-                if "404" in error_str or "not found" in error_str or "parameter" in error_str:
-                    logger.warning(
-                        f"Recommendations failed with full params, trying simplified: {spotify_error}"
+                # If 404, it might be authentication or endpoint issue
+                if "404" in error_str or "not found" in error_str:
+                    logger.error(
+                        "404 error - this may indicate: "
+                        "1) Invalid Spotify credentials, "
+                        "2) Spotify API endpoint issue, or "
+                        "3) Parameter format problem"
                     )
 
-                    # Try without target_tempo
-                    if "target_tempo" in rec_params:
-                        rec_params_simple = rec_params.copy()
-                        rec_params_simple.pop("target_tempo", None)
-                        logger.debug(
-                            f"Retry params (no target_tempo): {rec_params_simple}")
-                        try:
-                            results = sp.recommendations(**rec_params_simple)
-                        except Exception as e2:
-                            last_error = e2
-                            # Try with just seeds and energy
-                            rec_params_minimal = {
-                                "limit": limit,
-                                "target_energy": target_energy,
-                            }
-                            if seed_genres_list:
-                                rec_params_minimal["seed_genres"] = seed_genres_list
-                            if seed_artists_list:
-                                rec_params_minimal["seed_artists"] = seed_artists_list
-                            logger.debug(
-                                f"Retry params (minimal): {rec_params_minimal}")
-                            results = sp.recommendations(**rec_params_minimal)
+                    # Try minimal request (just seeds and energy, no tempo)
+                    logger.info(
+                        "Retrying with minimal parameters "
+                        "(no tempo constraints)"
+                    )
+                    rec_params_minimal = {
+                        "limit": limit,
+                        "target_energy": target_energy,
+                    }
+                    if seed_genres_list:
+                        rec_params_minimal["seed_genres"] = seed_genres_list
+                    if seed_artists_list:
+                        rec_params_minimal["seed_artists"] = seed_artists_list
+                    logger.debug(
+                        f"Retry params (minimal): {rec_params_minimal}")
+                    try:
+                        results = sp.recommendations(**rec_params_minimal)
+                        logger.info(
+                            "Minimal request succeeded - "
+                            "tempo parameters may be causing issues"
+                        )
+                    except Exception as e2:
+                        last_error = e2
+                        logger.error(f"Even minimal request failed: {e2}")
+                        raise Exception(
+                            f"Spotify API request failed. "
+                            f"This may indicate invalid credentials "
+                            f"or API issue. Last error: {last_error}"
+                        )
+                # For other errors, try without tempo parameters
+                elif "parameter" in error_str or "invalid" in error_str:
+                    logger.warning(
+                        "Parameter error detected, "
+                        "trying without tempo constraints"
+                    )
+                    rec_params_no_tempo = {
+                        "limit": limit,
+                        "target_energy": target_energy,
+                    }
+                    if seed_genres_list:
+                        rec_params_no_tempo["seed_genres"] = seed_genres_list
+                    if seed_artists_list:
+                        rec_params_no_tempo["seed_artists"] = seed_artists_list
+                    logger.debug(
+                        f"Retry params (no tempo): {rec_params_no_tempo}"
+                    )
+                    try:
+                        results = sp.recommendations(**rec_params_no_tempo)
+                    except Exception as e2:
+                        last_error = e2
+                        raise
                 else:
+                    # For other errors, raise immediately
                     raise
 
             if results is None:

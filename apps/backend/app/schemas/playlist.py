@@ -42,8 +42,10 @@ class PlaylistGenerateRequest(BaseModel):
 class PlaylistGenerateResponse(BaseModel):
     """Response schema for playlist generation."""
 
-    playlist_id: Optional[str] = Field(None, description="Playlist ID (if saved)")
-    spotify_url: Optional[str] = Field(None, description="Spotify playlist URL")
+    playlist_id: Optional[str] = Field(
+        None, description="Playlist ID (if saved)")
+    spotify_url: Optional[str] = Field(
+        None, description="Spotify playlist URL")
     tracks: list = Field(..., description="List of tracks")
     total_duration: float = Field(..., description="Total duration in seconds")
     total_tracks: int = Field(..., description="Number of tracks")
@@ -62,4 +64,3 @@ class PlaylistGenerateResponse(BaseModel):
                 "generation_time_seconds": 8.5,
             }
         }
-

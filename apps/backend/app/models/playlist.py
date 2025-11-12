@@ -21,7 +21,8 @@ class Track(BaseModel):
     # Audio features
     tempo: float = Field(..., description="BPM (tempo)")
     bpm: float = Field(..., description="BPM (alias for tempo)")
-    energy: float = Field(..., ge=0.0, le=1.0, description="Energy level (0-1)")
+    energy: float = Field(..., ge=0.0, le=1.0,
+                          description="Energy level (0-1)")
     danceability: float = Field(
         ..., ge=0.0, le=1.0, description="Danceability (0-1)"
     )
@@ -78,4 +79,3 @@ class PlaylistData(BaseModel):
         if "total_tracks" not in data and "tracks" in data:
             data["total_tracks"] = len(data["tracks"])
         super().__init__(**data)
-

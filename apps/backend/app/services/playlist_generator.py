@@ -56,7 +56,8 @@ class PlaylistGenerator:
         logger.debug(f"Scored {len(scored)} tracks")
 
         # 4. Optimize selection
-        selected = self._optimize_selection(scored, workout.duration_minutes * 60)
+        selected = self._optimize_selection(
+            scored, workout.duration_minutes * 60)
         logger.info(f"Selected {len(selected)} tracks for playlist")
 
         total_duration = sum(t.duration_ms for t in selected) / 1000
@@ -328,7 +329,8 @@ class PlaylistGenerator:
             )
 
             # Calculate scores
-            bpm_score = self._bpm_match_score(track.bpm, best_segment["bpm_range"])
+            bpm_score = self._bpm_match_score(
+                track.bpm, best_segment["bpm_range"])
             energy_score = track.energy  # Already 0-1
             affinity_score = self._calculate_affinity(track, user_prefs)
 
@@ -426,11 +428,11 @@ class PlaylistGenerator:
             # Add track
             selected.append(track)
             current_duration += track.duration_ms / 1000
-            artist_count[track.artist_id] = artist_count.get(track.artist_id, 0) + 1
+            artist_count[track.artist_id] = artist_count.get(
+                track.artist_id, 0) + 1
 
             # Check if target reached
             if current_duration >= target_duration * 0.95:
                 break
 
         return selected
-
