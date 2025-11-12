@@ -37,7 +37,8 @@ async def test_spotify_service():
 
         print(f"[OK] Got {len(tracks)} recommendations")
         if tracks:
-            print(f"First track: {tracks[0].get('name', 'Unknown')} by {tracks[0].get('artists', [{}])[0].get('name', 'Unknown')}")
+            print(
+                f"First track: {tracks[0].get('name', 'Unknown')} by {tracks[0].get('artists', [{}])[0].get('name', 'Unknown')}")
 
         return True, spotify
 
@@ -72,7 +73,8 @@ async def test_playlist_generation(spotify_service):
             "avg_bpm": 145,
         }
 
-        print(f"Generating playlist for {workout.type} workout, {workout.duration_minutes} min...")
+        print(
+            f"Generating playlist for {workout.type} workout, {workout.duration_minutes} min...")
         start_time = time.time()
 
         playlist = await generator.generate(workout, user_prefs)
@@ -81,13 +83,15 @@ async def test_playlist_generation(spotify_service):
 
         print(f"[OK] Playlist generated successfully!")
         print(f"Total tracks: {playlist.total_tracks}")
-        print(f"Total duration: {playlist.total_duration:.1f} seconds ({playlist.total_duration/60:.1f} minutes)")
+        print(
+            f"Total duration: {playlist.total_duration:.1f} seconds ({playlist.total_duration/60:.1f} minutes)")
         print(f"Generation time: {generation_time:.2f} seconds")
 
         if playlist.tracks:
             print(f"\nFirst 3 tracks:")
             for i, track in enumerate(playlist.tracks[:3], 1):
-                print(f"  {i}. {track.name} - {track.artist} (BPM: {track.bpm:.0f})")
+                print(
+                    f"  {i}. {track.name} - {track.artist} (BPM: {track.bpm:.0f})")
 
         return True
 
@@ -125,4 +129,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

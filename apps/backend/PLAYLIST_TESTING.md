@@ -9,6 +9,7 @@ pytest tests/test_playlist_generator.py -v
 ```
 
 **Результати:**
+
 - ✅ test_calculate_target_bpm - PASSED
 - ✅ test_create_segments_steady - PASSED
 - ✅ test_bpm_match_score - PASSED
@@ -17,6 +18,7 @@ pytest tests/test_playlist_generator.py -v
 ### ⚠️ Інтеграційні тести - Потребують Spotify credentials
 
 Для тестування з реальним Spotify API потрібні credentials в `.env`:
+
 - `SPOTIFY_CLIENT_ID`
 - `SPOTIFY_CLIENT_SECRET`
 
@@ -31,6 +33,7 @@ python test_spotify_simple.py
 ```
 
 Якщо credentials правильні, ви побачите:
+
 ```
 [OK] Spotify credentials found
 [OK] Got 5 tracks!
@@ -43,6 +46,7 @@ python test_playlist_generation.py
 ```
 
 Очікуваний результат:
+
 ```
 [OK] Playlist generated successfully!
 Total tracks: 15
@@ -53,11 +57,13 @@ Generation time: 8.5 seconds
 ### Крок 3: Тестування через HTTP endpoint
 
 1. **Запустіть сервер:**
+
    ```bash
    uvicorn app.main:app --reload
    ```
 
 2. **Тестуйте через curl:**
+
    ```bash
    curl -X POST "http://localhost:8000/playlists/generate" \
      -H "Content-Type: application/json" \
@@ -107,6 +113,7 @@ Generation time: 8.5 seconds
 ```
 
 **Очікуваний результат:**
+
 - 3 сегменти (warm-up, main, cool-down)
 - BPM ranges: 105-115, 120-130, 100-110
 - ~15-20 треків
@@ -130,6 +137,7 @@ Generation time: 8.5 seconds
 ```
 
 **Очікуваний результат:**
+
 - 5 сегментів з прогресією BPM
 - BPM ranges: 120-130 → 160-170
 - ~20-25 треків
@@ -153,6 +161,7 @@ Generation time: 8.5 seconds
 ```
 
 **Очікуваний результат:**
+
 - 8 сегментів (4 work + 4 rest)
 - Work BPM: 140-155, Rest BPM: 115-125
 - ~20-25 треків
@@ -165,6 +174,7 @@ Generation time: 8.5 seconds
 ### Помилка: "Spotify credentials not found"
 
 **Рішення:**
+
 1. Перевірте що `.env` файл існує в `apps/backend/`
 2. Перевірте що `SPOTIFY_CLIENT_ID` та `SPOTIFY_CLIENT_SECRET` встановлені
 3. Перезапустіть сервер після додавання credentials
@@ -172,11 +182,13 @@ Generation time: 8.5 seconds
 ### Помилка: "404 Not Found" від Spotify API
 
 **Можливі причини:**
+
 1. Неправильні credentials
 2. Spotify API змінив формат запитів
 3. Rate limit досягнуто
 
 **Рішення:**
+
 1. Перевірте credentials в Spotify Dashboard
 2. Перевірте що credentials активні
 3. Зачекайте кілька хвилин якщо rate limit
@@ -184,11 +196,13 @@ Generation time: 8.5 seconds
 ### Помилка: "Empty playlist generated"
 
 **Можливі причини:**
+
 1. BPM ranges занадто вузькі
 2. Немає треків що відповідають критеріям
 3. Помилка в алгоритмі оптимізації
 
 **Рішення:**
+
 1. Спробуйте ширші BPM ranges
 2. Додайте більше genres в user_preferences
 3. Перевірте логи для деталей
@@ -232,4 +246,3 @@ curl -X POST "https://ваш-проект.railway.app/playlists/generate" \
 ---
 
 **Статус:** ✅ Playlist Generator готовий до тестування з реальними Spotify credentials!
-

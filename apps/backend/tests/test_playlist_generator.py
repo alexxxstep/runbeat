@@ -157,4 +157,3 @@ def test_calculate_affinity(mock_spotify_service):
 
     affinity = generator._calculate_affinity(track, user_prefs)
     assert affinity > 0.5  # Should be higher due to matches
-

@@ -3,6 +3,7 @@
 ## Що реалізовано:
 
 ### 1. **SpotifyService** (`app/services/spotify_service.py`)
+
 - ✅ Інтеграція з Spotify API через `spotipy`
 - ✅ Client credentials authentication
 - ✅ Методи:
@@ -13,10 +14,12 @@
   - `create_playlist()` - створення плейлисту в Spotify
 
 ### 2. **Playlist Models** (`app/models/playlist.py`)
+
 - ✅ `Track` - модель треку з audio features (BPM, energy, danceability, etc.)
 - ✅ `PlaylistData` - модель плейлисту з треками та метаданими
 
 ### 3. **PlaylistGenerator** (`app/services/playlist_generator.py`)
+
 - ✅ Core algorithm для генерації плейлистів
 - ✅ Підтримка типів тренувань:
   - `steady` - рівномірний біг (warm-up, main, cool-down)
@@ -30,19 +33,23 @@
   4. Оптимізація вибору (artist diversity, BPM transitions)
 
 ### 4. **Playlist Schemas** (`app/schemas/playlist.py`)
+
 - ✅ `PlaylistGenerateRequest` - запит на генерацію
 - ✅ `PlaylistGenerateResponse` - відповідь з плейлистом
 
 ### 5. **Playlist Endpoint** (`app/api/routes/playlists.py`)
+
 - ✅ `POST /playlists/generate` - генерація плейлисту
 - ✅ Підтримка workout parameters та user preferences
 - ✅ Вимірювання часу генерації
 
 ### 6. **Підключення**
+
 - ✅ Playlist router підключено до `main.py`
 - ✅ Endpoint доступний на `/playlists/generate`
 
 ### 7. **Тести** (`tests/test_playlist_generator.py`)
+
 - ✅ Unit тести для PlaylistGenerator
 - ✅ Тести для BPM calculation, segment creation, scoring
 
@@ -72,6 +79,7 @@ Content-Type: application/json
 ```
 
 **Відповідь:**
+
 ```json
 {
   "playlist_id": null,
@@ -103,15 +111,18 @@ Content-Type: application/json
 ## Наступні кроки для тестування:
 
 1. **Встановити залежності:**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 2. **Перевірити Spotify credentials:**
+
    - `SPOTIFY_CLIENT_ID` в `.env`
    - `SPOTIFY_CLIENT_SECRET` в `.env`
 
 3. **Протестувати endpoint:**
+
    ```bash
    # Запустити сервер
    uvicorn app.main:app --reload
@@ -134,4 +145,3 @@ Content-Type: application/json
 ---
 
 **Статус:** ✅ Playlist Generator створено та готовий до тестування!
-

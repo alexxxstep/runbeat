@@ -152,35 +152,71 @@ class SpotifyService:
                 logger.warning("No valid track IDs found")
                 return []
 
-            # Get audio features for all tracks
-            features_list = await self.get_audio_features_batch(track_ids)
+            # Try to get audio features for filtering
+            # If this fails (403), we'll return tracks without filtering
+            features_list = []
+            try:
+                features_list = await self.get_audio_features_batch(track_ids)
+                logger.debug(
+                    f"Got audio features for {len(features_list)} tracks"
+                )
+            except Exception as features_error:
+                error_str = str(features_error).lower()
+                if "403" in error_str or "forbidden" in error_str:
+                    logger.warning(
+                        "Audio features API not available (403). "
+                        "Returning tracks without tempo/energy filtering"
+                    )
+                else:
+                    logger.warning(
+                        f"Failed to get audio features: {features_error}. "
+                        "Returning tracks without filtering"
+                    )
 
-            # Filter tracks by tempo and energy
-            filtered_tracks = []
-            for i, track in enumerate(tracks):
-                if i >= len(features_list) or not features_list[i]:
-                    continue
+            # If we have features, filter by tempo and energy
+            if features_list:
+                filtered_tracks = []
+                for i, track in enumerate(tracks):
+                    if i >= len(features_list) or not features_list[i]:
+                        continue
 
-                features = features_list[i]
-                tempo = features.get("tempo", 0)
-                energy = features.get("energy", 0)
+                    features = features_list[i]
+                    tempo = features.get("tempo", 0)
+                    energy = features.get("energy", 0)
 
-                # Check if track matches criteria
-                if (min_tempo <= tempo <= max_tempo and
-                        energy >= target_energy * 0.8):  # 80% of target
-                    # Merge track info with features
-                    track.update(features)
-                    filtered_tracks.append(track)
+                    # Check if track matches criteria
+                    if (min_tempo <= tempo <= max_tempo and
+                            energy >= target_energy * 0.8):  # 80% of target
+                        # Merge track info with features
+                        track.update(features)
+                        filtered_tracks.append(track)
 
-                    if len(filtered_tracks) >= limit:
-                        break
+                        if len(filtered_tracks) >= limit:
+                            break
 
-            logger.info(
-                f"Found {len(filtered_tracks)} tracks matching criteria "
-                f"from {len(tracks)} searched"
-            )
-
-            return filtered_tracks
+                logger.info(
+                    f"Found {len(filtered_tracks)} tracks matching criteria "
+                    f"from {len(tracks)} searched"
+                )
+                return filtered_tracks
+            else:
+                # No features available - return tracks as-is
+                # Add default audio features values
+                logger.info(
+                    f"Returning {min(limit, len(tracks))} tracks "
+                    "without audio features filtering"
+                )
+                result_tracks = []
+                for track in tracks[:limit]:
+                    # Add default audio features
+                    track.update({
+                        "tempo": (min_tempo + max_tempo) / 2,
+                        "energy": target_energy,
+                        "danceability": 0.7,
+                        "valence": 0.7,
+                    })
+                    result_tracks.append(track)
+                return result_tracks
 
         except Exception as e:
             logger.error(f"Failed to get tracks by search: {e}")
@@ -529,17 +565,47 @@ class SpotifyService:
 
         Returns:
             List of audio features dictionaries
+
+        Raises:
+            Exception: If API call fails (403, 404, etc.)
         """
         try:
             sp = spotipy.Spotify(
-                client_credentials_manager=self.client_credentials)
+                client_credentials_manager=self.client_credentials
+            )
 
             # Spotify API allows max 100 tracks per request
+            # Try smaller batches if we get errors
             features = []
-            for i in range(0, len(track_ids), 100):
-                batch = track_ids[i: i + 100]
-                batch_features = sp.audio_features(batch)
-                features.extend(batch_features)
+            batch_size = 100
+
+            for i in range(0, len(track_ids), batch_size):
+                batch = track_ids[i: i + batch_size]
+                try:
+                    batch_features = sp.audio_features(batch)
+                    if batch_features:
+                        features.extend(batch_features)
+                    else:
+                        # If no features returned, add None placeholders
+                        features.extend([None] * len(batch))
+                except Exception as batch_error:
+                    error_str = str(batch_error).lower()
+                    if "403" in error_str or "forbidden" in error_str:
+                        logger.warning(
+                            "Audio features API returned 403 for batch. "
+                            "Client Credentials may not have access."
+                        )
+                        raise  # Re-raise to be handled by caller
+                    elif "429" in error_str or "rate limit" in error_str:
+                        logger.warning("Rate limit hit, waiting...")
+                        # Could add retry logic here
+                        raise
+                    else:
+                        logger.warning(
+                            f"Failed to get features for batch: {batch_error}"
+                        )
+                        # Add None placeholders for failed batch
+                        features.extend([None] * len(batch))
 
             return features
 

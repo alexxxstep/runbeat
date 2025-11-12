@@ -40,7 +40,8 @@ try:
     print(f"[OK] Got {len(tracks)} tracks!")
 
     if tracks:
-        print(f"\nFirst track: {tracks[0]['name']} by {tracks[0]['artists'][0]['name']}")
+        print(
+            f"\nFirst track: {tracks[0]['name']} by {tracks[0]['artists'][0]['name']}")
 
 except Exception as e:
     print(f"[ERROR] Spotify API test failed: {e}")
@@ -49,4 +50,3 @@ except Exception as e:
     exit(1)
 
 print("\n[SUCCESS] Spotify API connection works!")
-
