@@ -1,9 +1,10 @@
 """
 Health check endpoints.
 """
-from fastapi import APIRouter
 from datetime import datetime, timezone
 from typing import Dict
+
+from fastapi import APIRouter
 
 router = APIRouter(prefix="/health", tags=["health"])
 
