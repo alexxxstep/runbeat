@@ -61,7 +61,7 @@ export function useChat() {
   );
 
   const generatePlaylist = useCallback(
-    async (workout: Workout, userId?: string) => {
+    async (workout: Workout, _userId?: string) => {
       setIsLoading(true);
       setError(null);
 

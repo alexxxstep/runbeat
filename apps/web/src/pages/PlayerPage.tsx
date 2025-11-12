@@ -1,5 +1,4 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 import { usePlaylist } from '../hooks/usePlaylist';
 import { TrackCard } from '../components/Player/TrackCard';
 import { LoadingSpinner } from '../components/Shared/LoadingSpinner';

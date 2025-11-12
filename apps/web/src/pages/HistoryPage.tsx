@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { usePlaylistHistory } from '../hooks/usePlaylistHistory';
 import { LoadingSpinner } from '../components/Shared/LoadingSpinner';
 

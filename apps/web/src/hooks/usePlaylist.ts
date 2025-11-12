@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { api } from '../services/api';
 import type { Playlist } from '../types';
 
 export function usePlaylist(playlistId?: string) {
