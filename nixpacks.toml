@@ -1,14 +1,25 @@
 # Nixpacks configuration for Railway
 # This file should be in the root of the repository for monorepo support
 
-[phases.setup]
-nixPkgs = ["python311"]
+# Explicitly tell Nixpacks this is a Python project
+[providers]
+python = "3.11"
 
+[phases.setup]
+nixPkgs = ["python311", "pip"]
+
+# Install dependencies from backend directory
 [phases.install]
 cmds = [
-  "cd apps/backend && pip install -r requirements.txt"
+  "pip install --upgrade pip",
+  "pip install -r apps/backend/requirements.txt"
 ]
 
+# Set working directory and start command
 [start]
 cmd = "cd apps/backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+
+# Set Python path so imports work correctly
+[variables]
+PYTHONPATH = "apps/backend"
 
