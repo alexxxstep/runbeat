@@ -20,9 +20,11 @@
 - ✅ API інтеграція готова
 - ⚠️ Потрібно: встановити залежності та протестувати
 
-### Web App (React + Vite) - ⏳ 0% готово
-- ⏳ Структура не створена
-- ⏳ Потрібно створити базову структуру
+### Web App (React + Vite) - ✅ 80% готово
+- ✅ Структура проекту створена
+- ✅ Всі сторінки та компоненти
+- ✅ API інтеграція готова
+- ⚠️ Потрібно: встановити залежності та протестувати
 
 ---
 
@@ -83,10 +85,10 @@
 4. Протестувати інтеграцію з backend
 
 ### Пріоритет 3: Web App
-1. Створити базову структуру React + Vite
-2. Налаштувати routing
-3. Створити основні сторінки
-4. Інтегрувати з Backend API
+1. Встановити залежності: `cd apps/web && npm install`
+2. Налаштувати `.env` файл
+3. Запустити додаток: `npm run dev`
+4. Протестувати інтеграцію з backend
 
 ---
 
@@ -97,7 +99,10 @@
 - **Mobile Screens:** 3
 - **Mobile Components:** 5
 - **Mobile Hooks:** 4
-- **Total Files Created:** ~60+
+- **Web Pages:** 4
+- **Web Components:** 6
+- **Web Hooks:** 4
+- **Total Files Created:** ~90+
 
 ---
 
@@ -106,6 +111,7 @@
 - [Backend Summary](./apps/backend/BACKEND_SUMMARY.md)
 - [Backend Test Results](./apps/backend/TEST_RESULTS.md)
 - [Mobile App Summary](./apps/mobile/MOBILE_APP_SUMMARY.md)
+- [Web App Summary](./apps/web/WEB_APP_SUMMARY.md)
 - [PRD Document](./PRD_CURSOR_AI.md)
 
 ---
@@ -114,9 +120,9 @@
 
 - **Backend:** ✅ Готовий (95%)
 - **Mobile App:** ⚠️ Потрібно тестування (80%)
-- **Web App:** ❌ Не розпочато (0%)
+- **Web App:** ⚠️ Потрібно тестування (80%)
 
-**Загальна готовність:** ~60%
+**Загальна готовність:** ~85%
 
 ---
 
