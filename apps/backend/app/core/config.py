@@ -2,8 +2,11 @@
 Application configuration using Pydantic Settings.
 """
 import os
+import json
 from pydantic_settings import BaseSettings
-from typing import List, Optional
+from pydantic import field_validator
+from typing import List, Optional, Union
+from loguru import logger
 
 
 class Settings(BaseSettings):
@@ -26,11 +29,35 @@ class Settings(BaseSettings):
     # App Settings
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:19006"]
+    CORS_ORIGINS: Union[List[str], str] = [
+        "http://localhost:3000", "http://localhost:19006"]
 
     # Railway/Deployment
     PORT: int = 8000
     RAILWAY_PUBLIC_DOMAIN: Optional[str] = None
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: Union[List[str], str]) -> List[str]:
+        """Parse CORS_ORIGINS from JSON string or comma-separated string."""
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            # Try parsing as JSON first
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+            # If not JSON, try comma-separated
+            if "," in v:
+                return [origin.strip() for origin in v.split(",")]
+
+            # Single string
+            return [v.strip()]
+        return v
 
     class Config:
         env_file = ".env"
@@ -46,7 +73,8 @@ if not _settings.SPOTIFY_REDIRECT_URI:
         _settings.SPOTIFY_REDIRECT_URI = f"https://{_settings.RAILWAY_PUBLIC_DOMAIN}/auth/spotify/callback"
     elif _settings.ENVIRONMENT == "production":
         # Try to get from Railway environment variables
-        railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("RAILWAY_STATIC_URL")
+        railway_domain = os.getenv(
+            "RAILWAY_PUBLIC_DOMAIN") or os.getenv("RAILWAY_STATIC_URL")
         if railway_domain:
             _settings.SPOTIFY_REDIRECT_URI = f"https://{railway_domain}/auth/spotify/callback"
         else:
@@ -57,3 +85,5 @@ if not _settings.SPOTIFY_REDIRECT_URI:
 
 settings = _settings
 
+# Log CORS settings on startup
+logger.info(f"CORS_ORIGINS configured: {settings.CORS_ORIGINS}")

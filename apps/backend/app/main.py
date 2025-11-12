@@ -51,10 +51,10 @@ async def startup_event():
     """Initialize services on startup."""
     logger.info(f"RunBeat API starting in {settings.ENVIRONMENT} mode")
     logger.info(f"Log level: {settings.LOG_LEVEL}")
+    logger.info(f"CORS allowed origins: {settings.CORS_ORIGINS}")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown."""
     logger.info("RunBeat API shutting down")
-

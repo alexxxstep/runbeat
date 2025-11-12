@@ -7,36 +7,62 @@
 #### 1. Backend API не доступний
 
 **Перевірка:**
+
 - Відкрийте консоль браузера (F12)
 - Перевірте, чи є запити до API
 - Перевірте URL в консолі (має бути видно при запуску в dev режимі)
 
 **Рішення:**
+
 - Переконайтеся, що Backend запущений
 - Перевірте, чи правильний `VITE_API_URL` в `.env` файлі
 - Для production: перевірте Railway domain backend сервісу
 
-#### 2. CORS помилка
+#### 2. CORS помилка ⚠️ НАЙЧАСТІША ПРОБЛЕМА
 
 **Симптоми:**
-- В консолі браузера помилка про CORS
-- "Access-Control-Allow-Origin" помилка
 
-**Рішення:**
-- Перевірте `CORS_ORIGINS` в Backend environment variables
-- Додайте Web App domain до `CORS_ORIGINS`:
-  ```bash
-  CORS_ORIGINS=["https://your-web-railway-domain.up.railway.app"]
-  ```
+- В консолі браузера помилка: `Access to XMLHttpRequest ... has been blocked by CORS policy`
+- "Access-Control-Allow-Origin" помилка
+- "Network Error" в чаті
+
+**Швидке рішення:**
+
+1. **Відкрийте Railway Dashboard**
+
+   - Перейдіть до **Backend service** (не Web App!)
+   - Відкрийте **Variables**
+
+2. **Додайте/оновіть змінну:**
+
+   - **Назва:** `CORS_ORIGINS`
+   - **Значення:** `["https://runbeatweb-production.up.railway.app"]`
+
+   ⚠️ **Важливо:** Використовуйте подвійні лапки, квадратні дужки!
+
+3. **Передеплойте Backend**
+
+   - Railway автоматично передеплоїть
+   - Дочекайтеся завершення
+
+4. **Перевірте логи Backend:**
+
+   - Має бути: `CORS_ORIGINS configured: ['https://runbeatweb-production.up.railway.app']`
+
+5. **Очистіть кеш браузера** або відкрийте в режимі інкогніто
+
+**Детальна інструкція:** Дивіться [CORS_FIX.md](../backend/CORS_FIX.md)
 
 #### 3. Неправильний API URL
 
 **Перевірка:**
+
 - Відкрийте консоль браузера
 - Має бути лог: `API URL: ...`
 - Перевірте, чи URL правильний
 
 **Рішення:**
+
 - Створіть/оновіть `.env` файл в `apps/web`:
   ```bash
   VITE_API_URL=https://your-backend-railway-domain.up.railway.app
@@ -46,10 +72,12 @@
 #### 4. Backend не відповідає
 
 **Перевірка:**
+
 - Відкрийте backend URL в браузері: `https://your-backend-domain/health`
 - Має повернутися `{"status": "healthy", ...}`
 
 **Рішення:**
+
 - Перевірте Railway logs для Backend
 - Перевірте, чи Backend запущений
 - Перевірте environment variables в Railway
@@ -57,9 +85,11 @@
 #### 5. Timeout помилка
 
 **Симптоми:**
+
 - "Час очікування вичерпано" помилка
 
 **Рішення:**
+
 - Backend може бути перевантажений
 - Перевірте Railway metrics
 - Спробуйте знову через кілька секунд
@@ -68,11 +98,13 @@
 
 1. **Відкрийте консоль браузера (F12)**
 2. **Перевірте Network tab:**
+
    - Чи є запити до `/chat/message`?
    - Який статус код?
    - Яка помилка?
 
 3. **Перевірте Console tab:**
+
    - Чи є помилки?
    - Чи є лог `API URL: ...`?
 
@@ -99,12 +131,14 @@ NODE_ENV=production
 Якщо тестуєте локально:
 
 1. **Backend має бути запущений:**
+
    ```bash
    cd apps/backend
    uvicorn app.main:app --reload
    ```
 
 2. **Web App має бути запущений:**
+
    ```bash
    cd apps/web
    npm run dev
@@ -118,10 +152,12 @@ NODE_ENV=production
 ### Production деплой
 
 1. **Перевірте Railway domains:**
+
    - Backend domain: `https://your-backend-domain.up.railway.app`
    - Web App domain: `https://your-web-domain.up.railway.app`
 
 2. **Оновіть CORS в Backend:**
+
    ```bash
    CORS_ORIGINS=["https://your-web-domain.up.railway.app"]
    ```
@@ -133,7 +169,7 @@ NODE_ENV=production
 ---
 
 **Якщо проблема залишається:**
+
 1. Перевірте Railway logs для обох сервісів
 2. Перевірте консоль браузера для деталей
 3. Спробуйте зробити curl запит до backend напряму
-
