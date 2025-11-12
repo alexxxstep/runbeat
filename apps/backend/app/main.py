@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from app.core.config import settings
-from app.api.routes import health
+from app.api.routes import health, chat
 
 # Configure logger
 import os
@@ -39,6 +39,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router, tags=["health"])
+app.include_router(chat.router, tags=["chat"])
 
 
 @app.on_event("startup")
