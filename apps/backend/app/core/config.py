@@ -87,3 +87,13 @@ settings = _settings
 
 # Log CORS settings on startup
 logger.info(f"CORS_ORIGINS configured: {settings.CORS_ORIGINS}")
+
+# Log Spotify redirect URI for debugging
+if settings.SPOTIFY_REDIRECT_URI:
+    logger.info(
+        f"SPOTIFY_REDIRECT_URI configured: {settings.SPOTIFY_REDIRECT_URI}")
+else:
+    logger.warning(
+        "SPOTIFY_REDIRECT_URI not set! "
+        "Please set it in Railway Variables or .env file"
+    )
