@@ -2,7 +2,7 @@
 Health check endpoints.
 """
 from fastapi import APIRouter
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict
 
 router = APIRouter(prefix="/health", tags=["health"])
@@ -16,7 +16,7 @@ async def health_check() -> Dict[str, str]:
     """
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "service": "runbeat-api",
     }
 
@@ -30,7 +30,7 @@ async def readiness_check() -> Dict[str, str]:
     # TODO: Add database connection check
     return {
         "status": "ready",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -42,6 +42,6 @@ async def liveness_check() -> Dict[str, str]:
     """
     return {
         "status": "alive",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
