@@ -153,14 +153,82 @@ class SpotifyService:
                 logger.error(f"Failed to create Spotify client: {auth_error}")
                 raise
 
-            # Spotify API requires at least one seed (genre or artist)
+            # Spotify API requires at least one seed (genre, artist, or track)
             # Must have at least 1 seed, max 5 total seeds
             seed_genres_list = list(seed_genres[:2]) if seed_genres else []
             seed_artists_list = list(seed_artists[:2]) if seed_artists else []
+            seed_tracks_list = []
 
-            # If no seeds provided, use default genres
+            # If no seeds provided, get popular tracks to use as seeds
+            # This is a workaround for Client Credentials limitations
+            # seed_tracks are more reliable than seed_genres
+            # with Client Credentials
             if not seed_genres_list and not seed_artists_list:
-                seed_genres_list = ["pop", "rock"]
+                logger.debug(
+                    "No seeds provided, fetching popular tracks for seeds"
+                )
+                try:
+                    # Method 1: Try to get tracks from featured playlists
+                    try:
+                        featured = sp.featured_playlists(limit=1)
+                        playlists = featured.get("playlists", {}).get(
+                            "items", []
+                        )
+                        if playlists:
+                            playlist_id = playlists[0]["id"]
+                            playlist_tracks = sp.playlist_tracks(
+                                playlist_id, limit=5
+                            )
+                            tracks = [
+                                item["track"]
+                                for item in playlist_tracks.get("items", [])
+                                if (item.get("track") and
+                                    item["track"].get("id"))
+                            ]
+                            seed_tracks_list = [t["id"] for t in tracks[:5]]
+                            if seed_tracks_list:
+                                logger.debug(
+                                    f"Found {len(seed_tracks_list)} tracks "
+                                    "from featured playlist"
+                                )
+                    except Exception as playlist_error:
+                        logger.debug(
+                            f"Featured playlists failed: {playlist_error}"
+                        )
+                        # Method 2: Search for popular tracks
+                        try:
+                            search_results = sp.search(
+                                q="year:2023 OR year:2024",
+                                type="track",
+                                limit=5,
+                                market="US"
+                            )
+                            tracks = search_results.get("tracks", {}).get(
+                                "items", []
+                            )
+                            seed_tracks_list = [
+                                t["id"] for t in tracks[:5] if t.get("id")
+                            ]
+                            if seed_tracks_list:
+                                logger.debug(
+                                    f"Found {len(seed_tracks_list)} tracks "
+                                    "from search"
+                                )
+                        except Exception as search_error:
+                            logger.warning(
+                                f"Search also failed: {search_error}"
+                            )
+
+                    # Fallback to genres if all methods fail
+                    if not seed_tracks_list:
+                        seed_genres_list = ["pop", "rock"]
+                        logger.debug("Using default genres as fallback")
+                except Exception as general_error:
+                    logger.warning(
+                        f"Failed to get seed tracks: {general_error}. "
+                        "Using default genres"
+                    )
+                    seed_genres_list = ["pop", "rock"]
 
             # Build recommendations parameters
             # Start with minimal required parameters
@@ -179,10 +247,15 @@ class SpotifyService:
 
             # Add seeds (at least one required)
             # spotipy expects lists, not strings
-            if seed_genres_list:
-                rec_params["seed_genres"] = seed_genres_list
-            if seed_artists_list:
-                rec_params["seed_artists"] = seed_artists_list
+            # Prefer seed_tracks over seed_genres (more reliable)
+            if seed_tracks_list:
+                rec_params["seed_tracks"] = seed_tracks_list[:5]
+                logger.debug(f"Using {len(seed_tracks_list)} track seeds")
+            else:
+                if seed_genres_list:
+                    rec_params["seed_genres"] = seed_genres_list
+                if seed_artists_list:
+                    rec_params["seed_artists"] = seed_artists_list
 
             logger.debug(f"Spotify recommendations params: {rec_params}")
 
@@ -220,10 +293,20 @@ class SpotifyService:
                         "limit": limit,
                         "target_energy": target_energy,
                     }
-                    if seed_genres_list:
-                        rec_params_minimal["seed_genres"] = seed_genres_list
-                    if seed_artists_list:
-                        rec_params_minimal["seed_artists"] = seed_artists_list
+                    # Try seed_tracks first (most reliable)
+                    if seed_tracks_list:
+                        rec_params_minimal["seed_tracks"] = (
+                            seed_tracks_list[:5]
+                        )
+                    else:
+                        if seed_genres_list:
+                            rec_params_minimal["seed_genres"] = (
+                                seed_genres_list
+                            )
+                        if seed_artists_list:
+                            rec_params_minimal["seed_artists"] = (
+                                seed_artists_list
+                            )
                     logger.debug(
                         f"Retry params (minimal): {rec_params_minimal}")
                     try:
@@ -250,10 +333,20 @@ class SpotifyService:
                         "limit": limit,
                         "target_energy": target_energy,
                     }
-                    if seed_genres_list:
-                        rec_params_no_tempo["seed_genres"] = seed_genres_list
-                    if seed_artists_list:
-                        rec_params_no_tempo["seed_artists"] = seed_artists_list
+                    # Try seed_tracks first (most reliable)
+                    if seed_tracks_list:
+                        rec_params_no_tempo["seed_tracks"] = (
+                            seed_tracks_list[:5]
+                        )  # noqa: E501
+                    else:
+                        if seed_genres_list:
+                            rec_params_no_tempo["seed_genres"] = (
+                                seed_genres_list
+                            )
+                        if seed_artists_list:
+                            rec_params_no_tempo["seed_artists"] = (
+                                seed_artists_list
+                            )
                     logger.debug(
                         f"Retry params (no tempo): {rec_params_no_tempo}"
                     )
