@@ -13,6 +13,11 @@ import type {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+// Log API URL for debugging (only in development)
+if (import.meta.env.DEV) {
+  console.log('API URL:', API_URL);
+}
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -24,6 +29,51 @@ class ApiClient {
         'Content-Type': 'application/json',
       },
     });
+
+    // Add request interceptor for logging
+    this.client.interceptors.request.use(
+      (config) => {
+        if (import.meta.env.DEV) {
+          console.log('API Request:', config.method?.toUpperCase(), config.url);
+        }
+        return config;
+      },
+      (error) => {
+        console.error('API Request Error:', error);
+        return Promise.reject(error);
+      }
+    );
+
+    // Add response interceptor for error handling
+    this.client.interceptors.response.use(
+      (response) => {
+        return response;
+      },
+      (error) => {
+        // Better error handling
+        if (error.code === 'ECONNABORTED') {
+          console.error('API Request timeout');
+          return Promise.reject(new Error('Час очікування вичерпано. Спробуйте ще раз.'));
+        }
+
+        if (error.response) {
+          // Server responded with error status
+          const status = error.response.status;
+          const message = error.response.data?.detail || error.response.data?.message || `Помилка сервера: ${status}`;
+          console.error('API Error Response:', status, message);
+          return Promise.reject(new Error(message));
+        } else if (error.request) {
+          // Request was made but no response received
+          console.error('API No Response:', error.request);
+          console.error('API URL was:', API_URL);
+          return Promise.reject(new Error('Не вдалося підключитися до сервера. Перевірте, чи працює backend API.'));
+        } else {
+          // Something else happened
+          console.error('API Error:', error.message);
+          return Promise.reject(new Error(error.message || 'Невідома помилка'));
+        }
+      }
+    );
   }
 
   // Chat endpoints

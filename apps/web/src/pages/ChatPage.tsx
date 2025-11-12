@@ -3,10 +3,11 @@ import { useChat } from '../hooks/useChat';
 import { MessageBubble } from '../components/Chat/MessageBubble';
 import { InputBar } from '../components/Chat/InputBar';
 import { TypingIndicator } from '../components/Chat/TypingIndicator';
+import { ErrorDisplay } from '../components/Shared/ErrorDisplay';
 
 export function ChatPage() {
   const navigate = useNavigate();
-  const { messages, sendMessage, generatePlaylist, isLoading } = useChat();
+  const { messages, sendMessage, generatePlaylist, isLoading, error } = useChat();
 
   const handleSend = async (text: string) => {
     const workout = await sendMessage(text);
@@ -33,7 +34,20 @@ export function ChatPage() {
             <p className="text-sm mt-2">
               Опиши своє тренування, і я створю для тебе плейлист
             </p>
+            {import.meta.env.DEV && (
+              <p className="text-xs mt-4 text-gray-400">
+                API URL: {import.meta.env.VITE_API_URL || 'http://localhost:8000'}
+              </p>
+            )}
           </div>
+        )}
+        {error && (
+          <ErrorDisplay
+            error={error}
+            onDismiss={() => {
+              // Error will be cleared on next message
+            }}
+          />
         )}
         {messages.map((message) => (
           <MessageBubble key={message.id} message={message} />

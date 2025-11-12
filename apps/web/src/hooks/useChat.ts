@@ -41,8 +41,16 @@ export function useChat() {
 
         return null;
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : 'Failed to send message';
+        // Better error handling
+        let errorMessage = 'Не вдалося відправити повідомлення';
+
+        if (err instanceof Error) {
+          errorMessage = err.message;
+          console.error('Chat error:', err);
+        } else {
+          console.error('Unknown chat error:', err);
+        }
+
         setError(errorMessage);
 
         const errorMsg: Message = {
