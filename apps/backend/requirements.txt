@@ -1,0 +1,26 @@
+# Core dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.2
+pydantic-settings==2.1.0
+
+# Database & Auth
+supabase==2.3.0
+httpx==0.25.2
+
+# AI/LLM
+openai==1.7.2
+
+# Spotify
+spotipy==2.23.0
+
+# Utils
+python-dotenv==1.0.0
+loguru==0.7.2
+
+# Dev/Test
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+ruff==0.1.6
+
