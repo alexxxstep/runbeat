@@ -1,7 +1,7 @@
 """
 Playlist Generator - Core algorithm for generating workout playlists.
 """
-from typing import List, Dict
+from typing import List, Dict, Optional
 from app.models.workout import Workout
 from app.models.playlist import Track, PlaylistData
 from app.services.spotify_service import SpotifyService
@@ -28,6 +28,7 @@ class PlaylistGenerator:
         self,
         workout: Workout,
         user_preferences: Dict,
+        interval_stages: Optional[List[Dict]] = None,
     ) -> PlaylistData:
         """
         Main generation method.
@@ -35,6 +36,7 @@ class PlaylistGenerator:
         Args:
             workout: Workout parameters
             user_preferences: User preferences (genres, artists, etc.)
+            interval_stages: Custom interval stages (optional)
 
         Returns:
             PlaylistData with selected tracks
@@ -44,7 +46,7 @@ class PlaylistGenerator:
         )
 
         # 1. Create workout segments
-        segments = self._create_segments(workout)
+        segments = self._create_segments(workout, interval_stages)
         logger.debug(f"Created {len(segments)} segments")
 
         # 2. Fetch candidate tracks (parallel)
@@ -68,12 +70,15 @@ class PlaylistGenerator:
             total_tracks=len(selected),
         )
 
-    def _create_segments(self, workout: Workout) -> List[Dict]:
+    def _create_segments(
+        self, workout: Workout, interval_stages: Optional[List[Dict]] = None
+    ) -> List[Dict]:
         """
         Create workout segments with BPM ranges.
 
         Args:
             workout: Workout parameters
+            interval_stages: Custom interval stages (for intervals type)
 
         Returns:
             List of segment dictionaries with BPM ranges
@@ -117,29 +122,46 @@ class PlaylistGenerator:
             return segments
 
         elif workout.type == "intervals":
-            # Intervals: alternate between work and rest segments
-            target_bpm = self._calculate_target_bpm(workout.intensity)
-            # Simplified: assume equal work/rest ratio
-            segment_duration = workout.duration_minutes / 8  # 4 work + 4 rest
-            segments = []
-            for i in range(8):
-                if i % 2 == 0:  # Work segment
+            # Intervals: use custom stages if provided, otherwise default
+            if interval_stages and len(interval_stages) > 0:
+                segments = []
+                for stage in interval_stages:
                     segments.append(
                         {
-                            "name": f"work_{i//2 + 1}",
-                            "duration": segment_duration,
-                            "bpm_range": [target_bpm - 5, target_bpm + 10],
+                            "name": stage.get("name", "stage"),
+                            "duration": stage.get("duration_minutes", 5),
+                            "bpm_range": stage.get("bpm_range", [140, 160]),
+                            "hr_zone": stage.get("hr_zone", [130, 150]),
                         }
                     )
-                else:  # Rest segment
-                    segments.append(
-                        {
-                            "name": f"rest_{i//2 + 1}",
-                            "duration": segment_duration,
-                            "bpm_range": [target_bpm - 30, target_bpm - 20],
-                        }
-                    )
-            return segments
+                logger.info(
+                    f"Using {len(segments)} custom interval stages"
+                )
+                return segments
+            else:
+                # Default: alternate between work and rest segments
+                target_bpm = self._calculate_target_bpm(workout.intensity)
+                # Simplified: assume equal work/rest ratio
+                segment_duration = workout.duration_minutes / 8  # 4 work + 4 rest
+                segments = []
+                for i in range(8):
+                    if i % 2 == 0:  # Work segment
+                        segments.append(
+                            {
+                                "name": f"work_{i//2 + 1}",
+                                "duration": segment_duration,
+                                "bpm_range": [target_bpm - 5, target_bpm + 10],
+                            }
+                        )
+                    else:  # Rest segment
+                        segments.append(
+                            {
+                                "name": f"rest_{i//2 + 1}",
+                                "duration": segment_duration,
+                                "bpm_range": [target_bpm - 30, target_bpm - 20],
+                            }
+                        )
+                return segments
 
         elif workout.type == "fartlek":
             # Fartlek: varied pace segments
@@ -408,6 +430,7 @@ class PlaylistGenerator:
         """
         selected = []
         artist_count = {}
+        track_names = set()  # Track unique track names
         current_duration = 0
 
         for item in scored_tracks:
@@ -421,12 +444,21 @@ class PlaylistGenerator:
             if artist_count.get(track.artist_id, 0) >= 2:
                 continue
 
+            # Check for duplicate track names (case-insensitive)
+            track_name_lower = track.name.lower().strip()
+            if track_name_lower in track_names:
+                logger.debug(
+                    f"Skipping duplicate track name: {track.name}"
+                )
+                continue
+
             # Check BPM transition (smooth < 15 BPM jump)
             if selected and abs(selected[-1].bpm - track.bpm) > 15:
                 continue
 
             # Add track
             selected.append(track)
+            track_names.add(track_name_lower)
             current_duration += track.duration_ms / 1000
             artist_count[track.artist_id] = artist_count.get(
                 track.artist_id, 0) + 1

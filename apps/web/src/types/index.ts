@@ -67,6 +67,12 @@ export interface PlaylistGenerateRequest {
     avg_bpm?: number;
   };
   user_id?: string;
+  interval_stages?: Array<{
+    name: string;
+    duration_minutes: number;
+    hr_zone: [number, number];
+    bpm_range: [number, number];
+  }>;
 }
 
 export interface PlaylistGenerateResponse {

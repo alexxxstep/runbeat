@@ -2,8 +2,22 @@
 Playlist API schemas.
 """
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from app.models.workout import Workout
+
+
+class IntervalStage(BaseModel):
+    """Interval stage schema."""
+
+    name: str = Field(..., description="Stage name")
+    duration_minutes: float = Field(...,
+                                    description="Stage duration in minutes")
+    hr_zone: List[int] = Field(
+        ..., min_length=2, max_length=2, description="Heart rate zone [min, max]"
+    )
+    bpm_range: List[int] = Field(
+        ..., min_length=2, max_length=2, description="BPM range [min, max]"
+    )
 
 
 class PlaylistGenerateRequest(BaseModel):
@@ -20,6 +34,9 @@ class PlaylistGenerateRequest(BaseModel):
     )
     user_id: Optional[str] = Field(
         None, description="User ID (optional, for creating Spotify playlist)"
+    )
+    interval_stages: Optional[List[IntervalStage]] = Field(
+        None, description="Custom interval stages (for intervals workout type)"
     )
 
     class Config:

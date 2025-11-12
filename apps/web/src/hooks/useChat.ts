@@ -66,15 +66,36 @@ export function useChat() {
   }, []);
 
   const generatePlaylist = useCallback(
-    async (workout: Workout, userId?: string) => {
+    async (
+      workout: Workout,
+      userId?: string,
+      genres?: string[],
+      intervalStages?: Array<{
+        id: string;
+        name: string;
+        durationMinutes: number;
+        hrZone: [number, number];
+        bpmRange: [number, number];
+      }>
+    ) => {
       setIsLoading(true);
       setError(null);
 
       try {
         const response = await api.generatePlaylist({
           workout,
-          user_preferences: {},
+          user_preferences: {
+            top_genres: genres || [],
+            top_artists: [],
+            avg_bpm: 145,
+          },
           user_id: userId,
+          interval_stages: intervalStages?.map((stage) => ({
+            name: stage.name,
+            duration_minutes: stage.durationMinutes,
+            hr_zone: stage.hrZone,
+            bpm_range: stage.bpmRange,
+          })),
         });
 
         // Add playlist message to chat
@@ -114,10 +135,16 @@ export function useChat() {
     []
   );
 
+  const clearMessages = useCallback(() => {
+    setMessages([]);
+    setError(null);
+  }, []);
+
   return {
     messages,
     sendMessage,
     generatePlaylist,
+    clearMessages,
     isLoading,
     error,
   };

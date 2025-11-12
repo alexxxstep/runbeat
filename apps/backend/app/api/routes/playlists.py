@@ -64,9 +64,22 @@ async def generate_playlist(
         )
 
         # Generate playlist
+        interval_stages = None
+        if request.interval_stages:
+            interval_stages = [
+                {
+                    "name": stage.name,
+                    "duration_minutes": stage.duration_minutes,
+                    "hr_zone": stage.hr_zone,
+                    "bpm_range": stage.bpm_range,
+                }
+                for stage in request.interval_stages
+            ]
+
         playlist_data = await generator.generate(
             workout=request.workout,
             user_preferences=request.user_preferences or {},
+            interval_stages=interval_stages,
         )
 
         generation_time = time.time() - start_time
@@ -109,7 +122,7 @@ async def generate_playlist(
                     )
                     # Get user email from Supabase Auth (if available)
                     # For now, create minimal entry
-                    new_user = (
+                    (
                         supabase.table("users")
                         .insert(
                             {
@@ -242,6 +255,57 @@ async def generate_playlist(
                         logger.info(
                             f"Playlist created in Spotify: {spotify_url}"
                         )
+
+                        # Save playlist to database
+                        try:
+                            # First, create or get workout record
+                            workout_result = (
+                                supabase.table("workouts")
+                                .insert(
+                                    {
+                                        "user_id": request.user_id,
+                                        "type": request.workout.type,
+                                        "duration_minutes": (
+                                            request.workout.duration_minutes
+                                        ),
+                                        "intensity": request.workout.intensity,
+                                        "hr_zones": request.workout.hr_zones,
+                                    }
+                                )
+                                .execute()
+                            )
+                            workout_db_id = workout_result.data[0]["id"]
+
+                            # Save playlist to database
+                            playlist_db_result = (
+                                supabase.table("playlists")
+                                .insert(
+                                    {
+                                        "user_id": request.user_id,
+                                        "workout_id": workout_db_id,
+                                        "spotify_playlist_id": playlist_id,
+                                        "spotify_url": spotify_url,
+                                        "tracks": tracks_dict,
+                                        "total_duration_seconds": int(
+                                            playlist_data.total_duration
+                                        ),
+                                        "generation_time_seconds": (
+                                            generation_time
+                                        ),
+                                    }
+                                )
+                                .execute()
+                            )
+                            logger.info(
+                                f"Playlist saved to database: "
+                                f"{playlist_db_result.data[0]['id']}"
+                            )
+                        except Exception as db_error:
+                            logger.error(
+                                f"Failed to save playlist to database: "
+                                f"{db_error}"
+                            )
+                            # Continue - playlist is created in Spotify anyway
                     else:
                         logger.warning(
                             "No track URIs available to create playlist"
@@ -339,4 +403,72 @@ async def get_playlist_history(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get playlist history: {str(e)}",
+        )
+
+
+@router.delete("/{playlist_id}")
+async def delete_playlist(
+    playlist_id: str,
+    user_id: str = Query(..., description="User ID"),
+    supabase: SupabaseService = Depends(get_supabase_service),
+) -> dict:
+    """
+    Delete a playlist from database.
+
+    Args:
+        playlist_id: Playlist ID (database ID, not Spotify ID)
+        user_id: User ID
+        supabase: SupabaseService dependency
+
+    Returns:
+        Success message
+
+    Raises:
+        HTTPException: If deletion fails or playlist not found
+    """
+    try:
+        logger.info(
+            f"Deleting playlist {playlist_id} for user {user_id}"
+        )
+
+        # Check if playlist exists and belongs to user
+        playlist_result = (
+            supabase.get_client()
+            .table("playlists")
+            .select("id, user_id")
+            .eq("id", playlist_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+        if not playlist_result.data:
+            raise HTTPException(
+                status_code=404,
+                detail="Playlist not found or access denied"
+            )
+
+        # Delete playlist from database
+        (
+            supabase.get_client()
+            .table("playlists")
+            .delete()
+            .eq("id", playlist_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+        logger.info(f"Playlist {playlist_id} deleted successfully")
+
+        return {
+            "success": True,
+            "message": "Playlist deleted successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete playlist: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete playlist: {str(e)}",
         )

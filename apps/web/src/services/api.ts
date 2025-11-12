@@ -112,6 +112,13 @@ class ApiClient {
     return response.data;
   }
 
+  async deletePlaylist(playlistId: string, userId: string) {
+    const response = await this.client.delete(`/playlists/${playlistId}`, {
+      params: { user_id: userId },
+    });
+    return response.data;
+  }
+
   // Auth endpoints
   async initiateSpotifyAuth(userId?: string) {
     const params = userId ? { user_id: userId } : {};
