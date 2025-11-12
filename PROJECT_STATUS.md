@@ -108,11 +108,16 @@
 
 ## 🔗 Корисні посилання
 
+### Документація
+- [API Documentation](./docs/API.md) - Повна документація API
+- [Deployment Guide](./docs/DEPLOYMENT.md) - Інструкції з деплою
+- [PRD Document](./PRD_CURSOR_AI.md) - Product Requirements Document
+
+### Підсумки розробки
 - [Backend Summary](./apps/backend/BACKEND_SUMMARY.md)
 - [Backend Test Results](./apps/backend/TEST_RESULTS.md)
 - [Mobile App Summary](./apps/mobile/MOBILE_APP_SUMMARY.md)
 - [Web App Summary](./apps/web/WEB_APP_SUMMARY.md)
-- [PRD Document](./PRD_CURSOR_AI.md)
 
 ---
 

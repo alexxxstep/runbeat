@@ -1,10 +1,10 @@
 # RunBeat - Product Requirements Document (Cursor AI Optimized)
 
-**Version:** 2.0 - Mobile-First MVP  
-**Date:** 12.11.2025  
-**Status:** Ready for Development  
-**AI Assistant:** Cursor AI  
-**Developer:** Alex  
+**Version:** 2.0 - Mobile-First MVP
+**Date:** 12.11.2025
+**Status:** Ready for Development
+**AI Assistant:** Cursor AI
+**Developer:** Alex
 **LLM Provider:** OpenAI GPT-4
 
 ---
@@ -94,7 +94,7 @@ ruff==0.1.6
 
 ### Infrastructure
 - **Backend:** Railway (https://railway.app)
-- **Web:** Vercel (https://vercel.com)
+- **Web:** Railway (https://railway.app)
 - **Mobile:** Expo EAS (https://expo.dev)
 - **Database:** Supabase (https://supabase.com)
 
@@ -358,7 +358,7 @@ async def send_message(
     Parse user message with OpenAI GPT-4
     Extract workout parameters
     """
-    
+
     # LLM prompt for workout extraction
     prompt = f"""
 You are RunBeat AI assistant. Parse the user's workout request into structured JSON.
@@ -400,18 +400,18 @@ Examples:
 
 Return ONLY valid JSON.
 """
-    
+
     # Call OpenAI
     response = await llm.parse_workout(prompt)
     workout_params = response.parsed_json
-    
+
     if workout_params.get("needs_clarification"):
         return ChatResponse(
             message=workout_params["clarification_question"],
             workout=None,
             needs_clarification=True,
         )
-    
+
     workout = Workout(**workout_params)
     return ChatResponse(
         message=f"Зрозумів! Генерую плейлист на {workout.duration_minutes} хв...",
@@ -430,10 +430,10 @@ import json
 class LLMService:
     def __init__(self):
         self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    
+
     async def parse_workout(self, prompt: str) -> dict:
         """Parse workout intent using GPT-4"""
-        
+
         response = await self.client.chat.completions.create(
             model=settings.OPENAI_MODEL,
             messages=[
@@ -443,13 +443,13 @@ class LLMService:
             temperature=0.3,  # Lower for more consistent parsing
             max_tokens=500,
         )
-        
+
         content = response.choices[0].message.content
-        
+
         # Strip markdown if present
         if content.startswith("```json"):
             content = content.replace("```json\n", "").replace("```\n", "").replace("```", "")
-        
+
         parsed = json.loads(content)
         return type('Response', (), {'parsed_json': parsed})()
 ```
@@ -471,37 +471,37 @@ class PlaylistGenerator:
     """
     Single-class playlist generator (simplified from 7 agents)
     """
-    
+
     def __init__(self, spotify: SpotifyService):
         self.spotify = spotify
-    
+
     async def generate(
         self,
         workout: Workout,
         user_preferences: Dict,
     ) -> PlaylistData:
         """Main generation method"""
-        
+
         # 1. Create workout segments
         segments = self._create_segments(workout)
-        
+
         # 2. Fetch candidate tracks (parallel)
         candidates = await self._fetch_candidates(segments, user_preferences)
-        
+
         # 3. Score tracks
         scored = self._score_tracks(candidates, segments, user_preferences)
-        
+
         # 4. Optimize selection
         selected = self._optimize_selection(scored, workout.duration_minutes * 60)
-        
+
         return PlaylistData(
             tracks=selected,
             total_duration=sum(t.duration_ms for t in selected) / 1000,
         )
-    
+
     def _create_segments(self, workout: Workout) -> List[Dict]:
         """Create workout segments with BPM ranges"""
-        
+
         if workout.type == "steady":
             target_bpm = self._calculate_target_bpm(workout.intensity)
             return [
@@ -509,12 +509,12 @@ class PlaylistGenerator:
                 {"name": "main", "duration": workout.duration_minutes-10, "bpm_range": [target_bpm-5, target_bpm+5]},
                 {"name": "cool-down", "duration": 5, "bpm_range": [target_bpm-25, target_bpm-15]},
             ]
-        
+
         elif workout.type == "progressive":
             start_bpm = self._calculate_target_bpm("low")
             end_bpm = self._calculate_target_bpm("high")
             num_segments = 5
-            
+
             segments = []
             for i in range(num_segments):
                 progress = i / (num_segments - 1)
@@ -525,10 +525,10 @@ class PlaylistGenerator:
                     "bpm_range": [current_bpm-5, current_bpm+5],
                 })
             return segments
-        
+
         # Add intervals, fartlek logic here
         return []
-    
+
     def _calculate_target_bpm(self, intensity: str) -> int:
         """Calculate target BPM from intensity"""
         intensity_map = {
@@ -537,29 +537,29 @@ class PlaylistGenerator:
             "high": 165,     # Fast pace
         }
         return intensity_map.get(intensity, 145)
-    
+
     async def _fetch_candidates(self, segments: List[Dict], user_prefs: Dict) -> List[Track]:
         """Fetch candidate tracks for all segments (parallel)"""
-        
+
         tasks = [
             self._fetch_for_segment(seg, user_prefs)
             for seg in segments
         ]
-        
+
         results = await asyncio.gather(*tasks)
-        
+
         all_candidates = []
         for tracks in results:
             all_candidates.extend(tracks)
-        
+
         return all_candidates
-    
+
     async def _fetch_for_segment(self, segment: Dict, user_prefs: Dict) -> List[Track]:
         """Fetch tracks for one segment"""
-        
+
         bpm_min, bpm_max = segment["bpm_range"]
         target_bpm = int((bpm_min + bpm_max) / 2)
-        
+
         # Use Spotify Recommendations API
         tracks = await self.spotify.get_recommendations(
             seed_genres=user_prefs.get("top_genres", [])[:2],
@@ -570,9 +570,9 @@ class PlaylistGenerator:
             target_energy=0.7,  # High energy for workouts
             limit=20,
         )
-        
+
         return tracks
-    
+
     def _score_tracks(
         self,
         candidates: List[Track],
@@ -580,32 +580,32 @@ class PlaylistGenerator:
         user_prefs: Dict,
     ) -> List[Dict]:
         """Score tracks based on BPM, energy, user affinity"""
-        
+
         scored = []
-        
+
         for track in candidates:
             # Find best matching segment
             best_segment = min(segments, key=lambda s: abs(
                 (s["bpm_range"][0] + s["bpm_range"][1])/2 - track.bpm
             ))
-            
+
             # Calculate scores
             bpm_score = self._bpm_match_score(track.bpm, best_segment["bpm_range"])
             energy_score = track.energy  # Already 0-1
             affinity_score = self._calculate_affinity(track, user_prefs)
-            
+
             # Weighted total
             total = bpm_score * 0.40 + energy_score * 0.25 + affinity_score * 0.35
-            
+
             scored.append({
                 "track": track,
                 "score": total,
                 "segment": best_segment["name"],
             })
-        
+
         scored.sort(key=lambda x: x["score"], reverse=True)
         return scored
-    
+
     def _bpm_match_score(self, bpm: float, bpm_range: List[int]) -> float:
         """Calculate BPM match score (0-1)"""
         min_bpm, max_bpm = bpm_range
@@ -614,56 +614,56 @@ class PlaylistGenerator:
         # Penalty for out of range
         distance = min(abs(bpm - min_bpm), abs(bpm - max_bpm))
         return max(0, 1 - distance / 20)  # 20 BPM tolerance
-    
+
     def _calculate_affinity(self, track: Track, user_prefs: Dict) -> float:
         """Calculate user affinity score (0-1)"""
         score = 0.5  # Base score
-        
+
         # Genre match
         if any(g in user_prefs.get("top_genres", []) for g in track.genres):
             score += 0.3
-        
+
         # Artist match
         if track.artist_id in user_prefs.get("top_artists", []):
             score += 0.2
-        
+
         return min(1.0, score)
-    
+
     def _optimize_selection(
         self,
         scored_tracks: List[Dict],
         target_duration: int,  # seconds
     ) -> List[Track]:
         """Select optimal tracks with constraints"""
-        
+
         selected = []
         artist_count = {}
         current_duration = 0
-        
+
         for item in scored_tracks:
             track = item["track"]
-            
+
             # Check duration
             if current_duration + track.duration_ms/1000 > target_duration * 1.15:
                 continue
-            
+
             # Check artist diversity (max 2 per artist)
             if artist_count.get(track.artist_id, 0) >= 2:
                 continue
-            
+
             # Check BPM transition (smooth < 15 BPM jump)
             if selected and abs(selected[-1].bpm - track.bpm) > 15:
                 continue
-            
+
             # Add track
             selected.append(track)
             current_duration += track.duration_ms / 1000
             artist_count[track.artist_id] = artist_count.get(track.artist_id, 0) + 1
-            
+
             # Check if target reached
             if current_duration >= target_duration * 0.95:
                 break
-        
+
         return selected
 ```
 
@@ -685,11 +685,11 @@ class SpotifyService:
             client_id=settings.SPOTIFY_CLIENT_ID,
             client_secret=settings.SPOTIFY_CLIENT_SECRET,
         )
-    
+
     def get_user_client(self, access_token: str) -> spotipy.Spotify:
         """Get Spotify client with user's access token"""
         return spotipy.Spotify(auth=access_token)
-    
+
     async def get_user_top_tracks(
         self,
         user_client: spotipy.Spotify,
@@ -698,7 +698,7 @@ class SpotifyService:
         """Get user's top tracks"""
         results = user_client.current_user_top_tracks(limit=limit, time_range='medium_term')
         return results['items']
-    
+
     async def get_user_top_artists(
         self,
         user_client: spotipy.Spotify,
@@ -707,7 +707,7 @@ class SpotifyService:
         """Get user's top artists"""
         results = user_client.current_user_top_artists(limit=limit, time_range='medium_term')
         return results['items']
-    
+
     async def get_recommendations(
         self,
         seed_genres: List[str],
@@ -719,9 +719,9 @@ class SpotifyService:
         limit: int = 20,
     ) -> List[Dict]:
         """Get track recommendations from Spotify"""
-        
+
         sp = spotipy.Spotify(client_credentials_manager=self.client_credentials)
-        
+
         results = sp.recommendations(
             seed_genres=seed_genres[:2],  # Max 2
             seed_artists=seed_artists[:2],  # Max 2
@@ -731,19 +731,19 @@ class SpotifyService:
             max_tempo=max_tempo,
             target_energy=target_energy,
         )
-        
+
         return results['tracks']
-    
+
     async def get_audio_features_batch(
         self,
         track_ids: List[str],
     ) -> List[Dict]:
         """Get audio features for multiple tracks (batch)"""
-        
+
         sp = spotipy.Spotify(client_credentials_manager=self.client_credentials)
         features = sp.audio_features(track_ids)
         return features
-    
+
     async def create_playlist(
         self,
         user_client: spotipy.Spotify,
@@ -753,7 +753,7 @@ class SpotifyService:
         description: str = "Generated by RunBeat AI",
     ) -> Dict:
         """Create playlist in user's Spotify account"""
-        
+
         # Create playlist
         playlist = user_client.user_playlist_create(
             user=user_id,
@@ -761,14 +761,14 @@ class SpotifyService:
             public=False,
             description=description,
         )
-        
+
         # Add tracks
         if tracks:
             user_client.playlist_add_items(
                 playlist_id=playlist['id'],
                 items=tracks,
             )
-        
+
         return {
             'id': playlist['id'],
             'url': playlist['external_urls']['spotify'],
@@ -797,7 +797,7 @@ export function ChatScreen() {
 
   const handleSend = async (text: string) => {
     const response = await sendMessage(text);
-    
+
     // If playlist generated, navigate to player
     if (response?.playlist_id) {
       navigation.navigate('Player', { playlistId: response.playlist_id });
@@ -805,7 +805,7 @@ export function ChatScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
@@ -843,12 +843,12 @@ export function useChat() {
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMessage]);
-    
+
     setIsLoading(true);
     try {
       // Call backend
       const response = await api.chat.sendMessage(text);
-      
+
       // Add AI response
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -858,13 +858,13 @@ export function useChat() {
         workout: response.workout,
       };
       setMessages(prev => [...prev, aiMessage]);
-      
+
       // If playlist ready, trigger generation
       if (response.workout && !response.needs_clarification) {
         const playlistResponse = await api.playlists.generate({
           workout: response.workout,
         });
-        
+
         return playlistResponse;
       }
     } catch (error) {
@@ -907,7 +907,7 @@ coding_standards:
     - Lint with ruff
     - Docstrings for all functions
     - Follow PEP 8
-  
+
   typescript:
     - Use TypeScript strict mode
     - Functional components only (no classes)
@@ -915,7 +915,7 @@ coding_standards:
     - Format with prettier
     - Lint with ESLint
     - Explicit return types for functions
-  
+
   naming:
     - Files: snake_case for Python, PascalCase for React components
     - Variables: snake_case (Python), camelCase (TypeScript)
@@ -929,7 +929,7 @@ architecture:
     - All Spotify calls through SpotifyService
     - LLM calls through LLMService
     - Keep playlist_generator.py simple and readable
-  
+
   frontend:
     - Screens for main views
     - Components for reusable UI
@@ -1049,7 +1049,7 @@ reminders:
 ### Technical Requirements
 - [ ] Backend API deployed on Railway
 - [ ] Mobile app (iOS + Android) builds
-- [ ] Web app deployed on Vercel
+- [ ] Web app deployed on Railway
 - [ ] Supabase database configured
 - [ ] All tests passing (>60% coverage)
 - [ ] No critical bugs
@@ -1137,10 +1137,10 @@ npm run dev
 
 ---
 
-**Status:** Ready for Development 🚀  
-**Start Date:** 12.11.2025  
-**Target MVP:** 02.12.2025 (3 weeks)  
-**AI Assistant:** Cursor AI with GPT-4  
+**Status:** Ready for Development 🚀
+**Start Date:** 12.11.2025
+**Target MVP:** 02.12.2025 (3 weeks)
+**AI Assistant:** Cursor AI with GPT-4
 **Developer:** Alex
 
 **Let's build RunBeat!** 💪🎵🏃‍♂️

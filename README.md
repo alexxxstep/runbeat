@@ -87,7 +87,10 @@ npm run dev
 ## 📚 Documentation
 
 - [PRD](./PRD_CURSOR_AI.md) - Product Requirements Document
-- [Backend README](./apps/backend/README.md) - Backend setup and API docs
+- [API Documentation](./docs/API.md) - Complete API reference
+- [Deployment Guide](./docs/DEPLOYMENT.md) - Deployment instructions
+- [Project Status](./PROJECT_STATUS.md) - Current project status
+- [Backend README](./apps/backend/README.md) - Backend setup guide
 
 ## 🎯 MVP Goals
 
