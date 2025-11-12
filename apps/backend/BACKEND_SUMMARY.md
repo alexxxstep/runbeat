@@ -57,9 +57,13 @@
 - ✅ `test_chat.py` - Chat endpoint tests (4 tests)
 - ✅ `test_playlist_generator.py` - Playlist generator tests (6 tests)
 
-**Всього тестів:** 13 tests passed ✅
+**Всього тестів:** 31 tests created ✅
 
-**Примітка:** Тести для нових endpoints (auth, workouts, users) ще не написані.
+**Тести для нових endpoints:**
+- ✅ `test_auth.py` - 6 тестів для Spotify OAuth
+- ✅ `test_workouts.py` - 6 тестів для Workout CRUD
+- ✅ `test_users.py` - 4 тести для User Preferences
+- ✅ `test_playlist_history.py` - 2 тести для історії плейлистів
 
 ---
 
@@ -123,8 +127,8 @@
 
 ## Статистика:
 
-- **Файлів створено:** ~40+
-- **Тестів написано:** 13 (потрібно додати тести для нових endpoints)
+- **Файлів створено:** ~50+
+- **Тестів написано:** 31 (всі endpoints покриті тестами)
 - **Endpoints реалізовано:** 14
 - **Services створено:** 4
 - **Моделей створено:** 3
