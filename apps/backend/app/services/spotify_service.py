@@ -97,6 +97,95 @@ class SpotifyService:
             logger.error(f"Failed to get user top artists: {e}")
             raise
 
+    async def get_tracks_by_search(
+        self,
+        seed_genres: List[str],
+        min_tempo: int,
+        max_tempo: int,
+        target_energy: float,
+        limit: int = 20,
+    ) -> List[Dict]:
+        """
+        Get tracks using Search API as fallback when Recommendations fails.
+        Searches for tracks and filters by audio features.
+
+        Args:
+            seed_genres: List of genre seeds
+            min_tempo: Minimum BPM
+            max_tempo: Maximum BPM
+            target_energy: Target energy level (0-1)
+            limit: Number of tracks to return
+
+        Returns:
+            List of track dictionaries with audio features
+        """
+        try:
+            sp = spotipy.Spotify(
+                client_credentials_manager=self.client_credentials
+            )
+
+            # Build search query from genres
+            genres = seed_genres[:2] if seed_genres else ["pop", "rock"]
+            query_parts = [f"genre:{g}" for g in genres]
+            query = " OR ".join(query_parts)
+
+            logger.debug(f"Searching tracks with query: {query}")
+
+            # Search for tracks (get more than limit to filter)
+            search_results = sp.search(
+                q=query,
+                type="track",
+                limit=min(50, limit * 3),  # Get more to filter
+                market="US"
+            )
+
+            tracks = search_results.get("tracks", {}).get("items", [])
+
+            if not tracks:
+                logger.warning("No tracks found in search")
+                return []
+
+            # Get track IDs
+            track_ids = [t["id"] for t in tracks if t.get("id")]
+
+            if not track_ids:
+                logger.warning("No valid track IDs found")
+                return []
+
+            # Get audio features for all tracks
+            features_list = await self.get_audio_features_batch(track_ids)
+
+            # Filter tracks by tempo and energy
+            filtered_tracks = []
+            for i, track in enumerate(tracks):
+                if i >= len(features_list) or not features_list[i]:
+                    continue
+
+                features = features_list[i]
+                tempo = features.get("tempo", 0)
+                energy = features.get("energy", 0)
+
+                # Check if track matches criteria
+                if (min_tempo <= tempo <= max_tempo and
+                        energy >= target_energy * 0.8):  # 80% of target
+                    # Merge track info with features
+                    track.update(features)
+                    filtered_tracks.append(track)
+
+                    if len(filtered_tracks) >= limit:
+                        break
+
+            logger.info(
+                f"Found {len(filtered_tracks)} tracks matching criteria "
+                f"from {len(tracks)} searched"
+            )
+
+            return filtered_tracks
+
+        except Exception as e:
+            logger.error(f"Failed to get tracks by search: {e}")
+            raise
+
     async def get_recommendations(
         self,
         seed_genres: List[str],
@@ -276,19 +365,40 @@ class SpotifyService:
                 logger.warning(f"Recommendations failed: {spotify_error}")
 
                 # If 404, it might be authentication or endpoint issue
+                # Recommendations API may not work with Client Credentials
                 if "404" in error_str or "not found" in error_str:
                     logger.error(
-                        "404 error - this may indicate: "
-                        "1) Invalid Spotify credentials, "
+                        "404 error - Recommendations API not available. "
+                        "This may indicate: "
+                        "1) Client Credentials don't have access, "
                         "2) Spotify API endpoint issue, or "
                         "3) Parameter format problem"
                     )
 
-                    # Try minimal request (just seeds and energy, no tempo)
+                    # If 404 on first try, immediately use Search API fallback
+                    # Recommendations API likely doesn't work
+                    # with Client Credentials
                     logger.info(
-                        "Retrying with minimal parameters "
-                        "(no tempo constraints)"
+                        "Recommendations API returned 404, "
+                        "using Search API fallback immediately"
                     )
+                    try:
+                        return await self.get_tracks_by_search(
+                            seed_genres=seed_genres_list,
+                            min_tempo=min_tempo,
+                            max_tempo=max_tempo,
+                            target_energy=target_energy,
+                            limit=limit,
+                        )
+                    except Exception as search_error:
+                        logger.error(
+                            f"Search API fallback failed: {search_error}"
+                        )
+                        # Still try minimal request as last resort
+                        logger.info(
+                            "Retrying with minimal parameters "
+                            "(no tempo constraints)"
+                        )
                     rec_params_minimal = {
                         "limit": limit,
                         "target_energy": target_energy,
@@ -318,11 +428,29 @@ class SpotifyService:
                     except Exception as e2:
                         last_error = e2
                         logger.error(f"Even minimal request failed: {e2}")
-                        raise Exception(
-                            f"Spotify API request failed. "
-                            f"This may indicate invalid credentials "
-                            f"or API issue. Last error: {last_error}"
+                        # Final fallback: use Search API instead
+                        logger.info(
+                            "Recommendations API failed, "
+                            "falling back to Search API"
                         )
+                        try:
+                            return await self.get_tracks_by_search(
+                                seed_genres=seed_genres_list,
+                                min_tempo=min_tempo,
+                                max_tempo=max_tempo,
+                                target_energy=target_energy,
+                                limit=limit,
+                            )
+                        except Exception as search_fallback_error:
+                            logger.error(
+                                f"Search API fallback also failed: "
+                                f"{search_fallback_error}"
+                            )
+                            raise Exception(
+                                f"Spotify API request failed. "
+                                f"Recommendations and Search both failed. "
+                                f"Last error: {last_error}"
+                            )
                 # For other errors, try without tempo parameters
                 elif "parameter" in error_str or "invalid" in error_str:
                     logger.warning(
