@@ -5,6 +5,7 @@ import { MessageBubble } from '../components/Chat/MessageBubble';
 import { InputBar } from '../components/Chat/InputBar';
 import { TypingIndicator } from '../components/Chat/TypingIndicator';
 import { ErrorDisplay } from '../components/Shared/ErrorDisplay';
+import type { Message } from '../types';
 
 export function ChatPage() {
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ export function ChatPage() {
       try {
         const playlist = await generatePlaylist(workout, user?.id);
         if (playlist?.spotify_url) {
-          // Open Spotify playlist URL
+          // Open Spotify playlist URL in new tab
           window.open(playlist.spotify_url, '_blank');
         } else if (playlist?.playlist_id) {
           navigate(`/player/${playlist.playlist_id}`);

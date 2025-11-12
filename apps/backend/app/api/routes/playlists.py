@@ -2,15 +2,19 @@
 Playlist generation endpoints.
 """
 import time
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
-from typing import List, Optional
-from datetime import datetime
 
-from app.services.spotify_service import SpotifyService
+from app.core.config import settings
+from app.schemas.playlist import (
+    PlaylistGenerateRequest,
+    PlaylistGenerateResponse,
+)
 from app.services.playlist_generator import PlaylistGenerator
+from app.services.spotify_service import SpotifyService
 from app.services.supabase_service import SupabaseService
-from app.schemas.playlist import PlaylistGenerateRequest, PlaylistGenerateResponse
 
 router = APIRouter(prefix="/playlists", tags=["playlists"])
 
@@ -88,7 +92,10 @@ async def generate_playlist(
                 supabase = SupabaseService().get_client()
                 user_data = (
                     supabase.table("users")
-                    .select("spotify_user_id, spotify_access_token")
+                    .select(
+                        "spotify_user_id, spotify_access_token, "
+                        "spotify_refresh_token, spotify_token_expires_at"
+                    )
                     .eq("id", request.user_id)
                     .execute()
                 )
@@ -124,6 +131,70 @@ async def generate_playlist(
                 if user_data.data and user_data.data[0].get("spotify_access_token"):
                     spotify_user_id = user_data.data[0]["spotify_user_id"]
                     access_token = user_data.data[0]["spotify_access_token"]
+                    refresh_token = user_data.data[0].get(
+                        "spotify_refresh_token")
+                    expires_at_str = user_data.data[0].get(
+                        "spotify_token_expires_at"
+                    )
+
+                    # Check if token is expired and refresh if needed
+                    if expires_at_str:
+                        try:
+                            expires_at = datetime.fromisoformat(
+                                expires_at_str.replace("Z", "+00:00")
+                            )
+                            # Refresh if expires in less than 5 minutes
+                            if datetime.now(expires_at.tzinfo) >= (
+                                expires_at - timedelta(minutes=5)
+                            ):
+                                if refresh_token:
+                                    logger.info(
+                                        f"Refreshing expired token for user "
+                                        f"{request.user_id}"
+                                    )
+                                    # Refresh token using SpotifyOAuth
+                                    from spotipy.oauth2 import SpotifyOAuth
+
+                                    oauth = SpotifyOAuth(
+                                        client_id=settings.SPOTIFY_CLIENT_ID,
+                                        client_secret=settings.SPOTIFY_CLIENT_SECRET,
+                                        redirect_uri=settings.SPOTIFY_REDIRECT_URI,
+                                    )
+                                    token_info = oauth.refresh_access_token(
+                                        refresh_token
+                                    )
+
+                                    # Update token in database
+                                    new_expires_at = datetime.now() + timedelta(
+                                        seconds=token_info.get(
+                                            "expires_in", 3600)
+                                    )
+                                    supabase.table("users").update(
+                                        {
+                                            "spotify_access_token": token_info[
+                                                "access_token"
+                                            ],
+                                            "spotify_refresh_token": token_info.get(
+                                                "refresh_token", refresh_token
+                                            ),
+                                            "spotify_token_expires_at": (
+                                                new_expires_at.isoformat()
+                                            ),
+                                            "updated_at": datetime.now().isoformat(),
+                                        }
+                                    ).eq("id", request.user_id).execute()
+
+                                    access_token = token_info["access_token"]
+                                    logger.info("Token refreshed successfully")
+                                else:
+                                    logger.warning(
+                                        f"No refresh token for user {request.user_id}"
+                                    )
+                        except Exception as token_error:
+                            logger.warning(
+                                f"Failed to check/refresh token: {token_error}. "
+                                "Trying with current token"
+                            )
 
                     # Create Spotify client with user token
                     user_client = spotify_service.get_user_client(access_token)

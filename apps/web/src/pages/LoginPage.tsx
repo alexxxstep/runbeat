@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/Shared/Button';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, signInWithSpotify, loading, spotifyAuthenticated } = useAuth();
+  const error = searchParams.get('error');
 
   useEffect(() => {
     // If user is authenticated with Spotify, redirect to home
@@ -29,6 +31,21 @@ export function LoginPage() {
         <p className='text-gray-600 dark:text-gray-400 text-center mb-8'>
           Увійдіть через Spotify, щоб почати створювати плейлисти для тренувань
         </p>
+
+        {error && (
+          <div className='mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg'>
+            <p className='text-red-800 dark:text-red-200 text-sm font-medium'>
+              Помилка авторизації
+            </p>
+            <p className='text-red-600 dark:text-red-300 text-xs mt-1'>
+              {error === 'no_params'
+                ? 'Відсутні параметри авторизації'
+                : error === 'callback_failed'
+                ? 'Не вдалося обробити авторизацію'
+                : decodeURIComponent(error)}
+            </p>
+          </div>
+        )}
 
         <div className='space-y-4'>
           <Button

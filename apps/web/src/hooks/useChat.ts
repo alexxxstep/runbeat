@@ -76,11 +76,36 @@ export function useChat() {
           user_preferences: {},
           user_id: userId,
         });
+
+        // Add playlist message to chat
+        if (response) {
+          const playlistMessage: Message = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: response.spotify_url
+              ? '✅ Плейлист успішно створено в Spotify!'
+              : '✅ Плейлист успішно згенеровано!',
+            timestamp: new Date(),
+            playlist: response,
+          };
+          setMessages((prev) => [...prev, playlistMessage]);
+        }
+
         return response;
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : 'Failed to generate playlist';
         setError(errorMessage);
+
+        // Add error message to chat
+        const errorMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `❌ Помилка: ${errorMessage}`,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+
         return null;
       } finally {
         setIsLoading(false);

@@ -8,6 +8,7 @@ export interface Message {
   content: string;
   timestamp: Date;
   workout?: Workout;
+  playlist?: Playlist;
 }
 
 export interface Workout {

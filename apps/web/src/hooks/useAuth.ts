@@ -64,10 +64,10 @@ export function useAuth() {
     spotifyAuthenticated,
     signInWithSpotify,
     signOut,
-    refreshSpotifyStatus: () => {
+    refreshSpotifyStatus: async () => {
       const storedUserId = localStorage.getItem('spotify_user_id');
       if (storedUserId) {
-        checkSpotifyAuth(storedUserId);
+        await checkSpotifyAuth(storedUserId);
       }
     },
   };

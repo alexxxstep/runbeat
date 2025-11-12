@@ -268,9 +268,9 @@ async def spotify_callback(
             for old_state, _ in sorted_states[100:]:
                 del oauth_states[old_state]
 
-        # Redirect to frontend with success
+        # Redirect to frontend callback with success params
         success_url = (
-            f"{settings.CORS_ORIGINS[0]}/auth/success?"
+            f"{settings.CORS_ORIGINS[0]}/auth/callback?"
             f"user_id={user_id}&spotify_user_id={spotify_user_id}"
         )
         return RedirectResponse(url=success_url)
@@ -278,7 +278,7 @@ async def spotify_callback(
     except Exception as e:
         logger.error(f"Failed to handle Spotify callback: {e}")
         error_url = (
-            f"{settings.CORS_ORIGINS[0]}/auth/error?"
+            f"{settings.CORS_ORIGINS[0]}/auth/callback?"
             f"error={urllib.parse.quote(str(e))}"
         )
         return RedirectResponse(url=error_url)
