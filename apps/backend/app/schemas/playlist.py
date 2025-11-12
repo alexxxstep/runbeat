@@ -18,6 +18,9 @@ class PlaylistGenerateRequest(BaseModel):
         },
         description="User preferences (genres, artists, etc.)",
     )
+    user_id: Optional[str] = Field(
+        None, description="User ID (optional, for creating Spotify playlist)"
+    )
 
     class Config:
         json_schema_extra = {

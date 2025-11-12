@@ -33,10 +33,17 @@ def get_spotify_oauth() -> SpotifyOAuth:
 
 
 @router.get("/spotify", response_model=SpotifyAuthResponse)
-async def spotify_auth():
+async def spotify_auth(
+    user_id: Optional[str] = Query(
+        None, description="User ID (optional, for linking Spotify to existing user)"
+    ),
+):
     """
     Initiate Spotify OAuth flow.
     Returns authorization URL for user to visit.
+
+    Args:
+        user_id: Optional user ID to link Spotify account to existing user
     """
     try:
         # Generate state for CSRF protection
@@ -45,6 +52,11 @@ async def spotify_auth():
             "created_at": datetime.now(),
             "used": False,
         }
+
+        # Store user_id in state if provided (for linking Spotify to Google Auth user)
+        if user_id:
+            oauth_states[state]["user_id"] = user_id
+            logger.info(f"Storing user_id {user_id} in OAuth state")
 
         # Build authorization URL
         oauth = get_spotify_oauth()
@@ -119,21 +131,43 @@ async def spotify_callback(
         # Save or update user in Supabase
         supabase = SupabaseService().get_client()
 
-        # Check if user exists
-        existing_user = (
-            supabase.table("users")
-            .select("id, spotify_user_id")
-            .eq("spotify_user_id", spotify_user_id)
-            .execute()
-        )
+        # Try to get user_id from state (if provided during OAuth flow)
+        # Otherwise, check if user exists by spotify_user_id
+        user_id = None
+        if state in oauth_states and "user_id" in oauth_states[state]:
+            user_id = oauth_states[state]["user_id"]
+            logger.info(
+                f"Found user_id from OAuth state: {user_id}"
+            )
 
-        expires_at = datetime.now() + timedelta(seconds=token_info["expires_in"])
+        # Check if user exists by spotify_user_id or by user_id
+        existing_user = None
+        if user_id:
+            existing_user = (
+                supabase.table("users")
+                .select("id, spotify_user_id")
+                .eq("id", user_id)
+                .execute()
+            )
+
+        if not existing_user or not existing_user.data:
+            # Try to find by spotify_user_id
+            existing_user = (
+                supabase.table("users")
+                .select("id, spotify_user_id")
+                .eq("spotify_user_id", spotify_user_id)
+                .execute()
+            )
+
+        expires_at = datetime.now() + \
+            timedelta(seconds=token_info["expires_in"])
 
         if existing_user.data:
             # Update existing user
             user_id = existing_user.data[0]["id"]
             supabase.table("users").update(
                 {
+                    "spotify_user_id": spotify_user_id,
                     "spotify_access_token": token_info["access_token"],
                     "spotify_refresh_token": token_info.get("refresh_token"),
                     "spotify_token_expires_at": expires_at.isoformat(),
@@ -143,27 +177,57 @@ async def spotify_callback(
 
             logger.info(f"Updated user {user_id} with new Spotify token")
         else:
-            # Create new user
-            new_user = (
-                supabase.table("users")
-                .insert(
-                    {
-                        "email": email,
-                        "spotify_user_id": spotify_user_id,
-                        "spotify_access_token": token_info["access_token"],
-                        "spotify_refresh_token": token_info.get("refresh_token"),
-                        "spotify_token_expires_at": expires_at.isoformat(),
-                        "preferences": {
-                            "top_genres": [],
-                            "top_artists": [],
-                            "avg_bpm": 145,
+            # Create new user or update if user_id provided
+            if user_id:
+                # User exists in Supabase Auth but not in users table
+                # Use upsert to create or update
+                upsert_result = (
+                    supabase.table("users")
+                    .upsert(
+                        {
+                            "id": user_id,
+                            "email": email,
+                            "spotify_user_id": spotify_user_id,
+                            "spotify_access_token": token_info["access_token"],
+                            "spotify_refresh_token": token_info.get("refresh_token"),
+                            "spotify_token_expires_at": expires_at.isoformat(),
+                            "preferences": {
+                                "top_genres": [],
+                                "top_artists": [],
+                                "avg_bpm": 145,
+                            },
                         },
-                    }
+                        on_conflict="id",
+                    )
+                    .execute()
                 )
-                .execute()
-            )
-            user_id = new_user.data[0]["id"]
-            logger.info(f"Created new user {user_id} with Spotify ID {spotify_user_id}")
+                logger.info(
+                    f"Upserted user {user_id} with Spotify connection"
+                )
+            else:
+                # Create new user
+                new_user = (
+                    supabase.table("users")
+                    .insert(
+                        {
+                            "email": email,
+                            "spotify_user_id": spotify_user_id,
+                            "spotify_access_token": token_info["access_token"],
+                            "spotify_refresh_token": token_info.get("refresh_token"),
+                            "spotify_token_expires_at": expires_at.isoformat(),
+                            "preferences": {
+                                "top_genres": [],
+                                "top_artists": [],
+                                "avg_bpm": 145,
+                            },
+                        }
+                    )
+                    .execute()
+                )
+                user_id = new_user.data[0]["id"]
+                logger.info(
+                    f"Created new user {user_id} with Spotify ID {spotify_user_id}"
+                )
 
         # Clean up old states (keep last 100)
         if len(oauth_states) > 100:
@@ -212,7 +276,8 @@ async def spotify_auth_status(user_id: str = Query(..., description="User ID")):
             return {"authenticated": False, "message": "User not authenticated with Spotify"}
 
         # Check if token is expired
-        expires_datetime = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        expires_datetime = datetime.fromisoformat(
+            expires_at.replace("Z", "+00:00"))
         is_expired = datetime.now(expires_datetime.tzinfo) >= expires_datetime
 
         return {
@@ -230,4 +295,3 @@ async def spotify_auth_status(user_id: str = Query(..., description="User ID")):
             status_code=500,
             detail=f"Failed to check authentication status: {str(e)}",
         )
-

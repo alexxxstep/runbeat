@@ -42,9 +42,33 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const signInWithGoogle = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) {
+        console.error('Google auth error:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Failed to initiate Google auth:', error);
+      throw error;
+    }
+  };
+
   const signInWithSpotify = async () => {
     try {
-      const { auth_url } = await api.initiateSpotifyAuth();
+      // Pass user_id if user is already authenticated (e.g., via Google)
+      const { auth_url } = await api.initiateSpotifyAuth(user?.id);
       window.location.href = auth_url;
     } catch (error) {
       console.error('Failed to initiate Spotify auth:', error);
@@ -60,8 +84,8 @@ export function useAuth() {
   return {
     user,
     loading,
+    signInWithGoogle,
     signInWithSpotify,
     signOut,
   };
 }
-

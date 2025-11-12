@@ -65,6 +65,7 @@ export interface PlaylistGenerateRequest {
     top_artists?: string[];
     avg_bpm?: number;
   };
+  user_id?: string;
 }
 
 export interface PlaylistGenerateResponse {
@@ -81,4 +82,3 @@ export interface UserPreferences {
   top_artists: string[];
   avg_bpm: number;
 }
-

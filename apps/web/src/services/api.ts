@@ -53,20 +53,29 @@ class ApiClient {
         // Better error handling
         if (error.code === 'ECONNABORTED') {
           console.error('API Request timeout');
-          return Promise.reject(new Error('Час очікування вичерпано. Спробуйте ще раз.'));
+          return Promise.reject(
+            new Error('Час очікування вичерпано. Спробуйте ще раз.')
+          );
         }
 
         if (error.response) {
           // Server responded with error status
           const status = error.response.status;
-          const message = error.response.data?.detail || error.response.data?.message || `Помилка сервера: ${status}`;
+          const message =
+            error.response.data?.detail ||
+            error.response.data?.message ||
+            `Помилка сервера: ${status}`;
           console.error('API Error Response:', status, message);
           return Promise.reject(new Error(message));
         } else if (error.request) {
           // Request was made but no response received
           console.error('API No Response:', error.request);
           console.error('API URL was:', API_URL);
-          return Promise.reject(new Error('Не вдалося підключитися до сервера. Перевірте, чи працює backend API.'));
+          return Promise.reject(
+            new Error(
+              'Не вдалося підключитися до сервера. Перевірте, чи працює backend API.'
+            )
+          );
         } else {
           // Something else happened
           console.error('API Error:', error.message);
@@ -104,8 +113,9 @@ class ApiClient {
   }
 
   // Auth endpoints
-  async initiateSpotifyAuth() {
-    const response = await this.client.get('/auth/spotify');
+  async initiateSpotifyAuth(userId?: string) {
+    const params = userId ? { user_id: userId } : {};
+    const response = await this.client.get('/auth/spotify', { params });
     return response.data;
   }
 
@@ -163,10 +173,7 @@ class ApiClient {
     return response.data;
   }
 
-  async updateUserPreferences(
-    userId: string,
-    preferences: UserPreferences
-  ) {
+  async updateUserPreferences(userId: string, preferences: UserPreferences) {
     const response = await this.client.put(`/users/${userId}/preferences`, {
       preferences,
     });
@@ -175,4 +182,3 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
-
