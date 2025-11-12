@@ -106,7 +106,13 @@ class SpotifyService:
             List of track dictionaries with audio features
         """
         try:
-            sp = spotipy.Spotify(client_credentials_manager=self.client_credentials)
+            # Create Spotify client - ensure credentials are valid
+            try:
+                sp = spotipy.Spotify(
+                    client_credentials_manager=self.client_credentials)
+            except Exception as auth_error:
+                logger.error(f"Failed to create Spotify client: {auth_error}")
+                raise
 
             # Spotify API requires at least one seed (genre or artist)
             # Must have at least 1 seed, max 5 total seeds
@@ -118,13 +124,21 @@ class SpotifyService:
                 seed_genres_list = ["pop", "rock"]
 
             # Build recommendations parameters
+            # Start with minimal required parameters
             rec_params = {
                 "limit": limit,
-                "target_tempo": target_tempo,
-                "min_tempo": min_tempo,
-                "max_tempo": max_tempo,
                 "target_energy": target_energy,
             }
+
+            # Add tempo parameters - Spotify API may have issues with all three together
+            # Try using just min/max_tempo first, as they define a range
+            rec_params["min_tempo"] = min_tempo
+            rec_params["max_tempo"] = max_tempo
+
+            # Only add target_tempo if it's within the range and different from midpoint
+            midpoint = (min_tempo + max_tempo) / 2
+            if abs(target_tempo - midpoint) > 5:  # Only if significantly different
+                rec_params["target_tempo"] = target_tempo
 
             # Add seeds (at least one required)
             # spotipy expects lists, not strings
@@ -134,9 +148,60 @@ class SpotifyService:
                 rec_params["seed_artists"] = seed_artists_list
 
             logger.debug(f"Spotify recommendations params: {rec_params}")
-            results = sp.recommendations(**rec_params)
+
+            # Try the request with full parameters first
+            results = None
+            last_error = None
+
+            try:
+                results = sp.recommendations(**rec_params)
+            except Exception as spotify_error:
+                last_error = spotify_error
+                error_str = str(spotify_error).lower()
+
+                # If 404 or parameter error, try simplified parameters
+                if "404" in error_str or "not found" in error_str or "parameter" in error_str:
+                    logger.warning(
+                        f"Recommendations failed with full params, trying simplified: {spotify_error}"
+                    )
+
+                    # Try without target_tempo
+                    if "target_tempo" in rec_params:
+                        rec_params_simple = rec_params.copy()
+                        rec_params_simple.pop("target_tempo", None)
+                        logger.debug(
+                            f"Retry params (no target_tempo): {rec_params_simple}")
+                        try:
+                            results = sp.recommendations(**rec_params_simple)
+                        except Exception as e2:
+                            last_error = e2
+                            # Try with just seeds and energy
+                            rec_params_minimal = {
+                                "limit": limit,
+                                "target_energy": target_energy,
+                            }
+                            if seed_genres_list:
+                                rec_params_minimal["seed_genres"] = seed_genres_list
+                            if seed_artists_list:
+                                rec_params_minimal["seed_artists"] = seed_artists_list
+                            logger.debug(
+                                f"Retry params (minimal): {rec_params_minimal}")
+                            results = sp.recommendations(**rec_params_minimal)
+                else:
+                    raise
+
+            if results is None:
+                logger.error("All recommendation attempts failed")
+                if last_error:
+                    raise last_error
+                raise Exception("Failed to get recommendations from Spotify")
 
             tracks = results.get("tracks", [])
+
+            if not tracks:
+                logger.warning(
+                    "No tracks returned from Spotify recommendations")
+                return []
 
             # Get audio features for all tracks
             track_ids = [track["id"] for track in tracks]
@@ -151,6 +216,8 @@ class SpotifyService:
 
         except Exception as e:
             logger.error(f"Failed to get recommendations: {e}")
+            import traceback
+            logger.debug(f"Traceback: {traceback.format_exc()}")
             raise
 
     async def get_audio_features_batch(
@@ -167,12 +234,13 @@ class SpotifyService:
             List of audio features dictionaries
         """
         try:
-            sp = spotipy.Spotify(client_credentials_manager=self.client_credentials)
+            sp = spotipy.Spotify(
+                client_credentials_manager=self.client_credentials)
 
             # Spotify API allows max 100 tracks per request
             features = []
             for i in range(0, len(track_ids), 100):
-                batch = track_ids[i : i + 100]
+                batch = track_ids[i: i + 100]
                 batch_features = sp.audio_features(batch)
                 features.extend(batch_features)
 
@@ -215,7 +283,7 @@ class SpotifyService:
             # Add tracks in batches (max 100 per request)
             if tracks:
                 for i in range(0, len(tracks), 100):
-                    batch = tracks[i : i + 100]
+                    batch = tracks[i: i + 100]
                     user_client.playlist_add_items(
                         playlist_id=playlist["id"],
                         items=batch,
@@ -230,4 +298,3 @@ class SpotifyService:
         except Exception as e:
             logger.error(f"Failed to create playlist: {e}")
             raise
-
