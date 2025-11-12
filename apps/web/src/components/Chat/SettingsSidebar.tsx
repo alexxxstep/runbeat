@@ -329,7 +329,7 @@ export function SettingsSidebar({
               </button>
             </div>
             <div className='space-y-3'>
-              {localSettings.intervalStages?.map((stage, index) => (
+              {localSettings.intervalStages?.map((stage) => (
                 <div
                   key={stage.id}
                   className='p-3 bg-gray-50 dark:bg-gray-700 rounded-lg'

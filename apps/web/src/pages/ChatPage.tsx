@@ -92,7 +92,7 @@ export function ChatPage() {
         refreshTrigger={refreshTrigger}
         collapsed={historyCollapsed}
         onToggleCollapse={() => setHistoryCollapsed(!historyCollapsed)}
-        onPlaylistClick={(playlistId, spotifyUrl) => {
+        onPlaylistClick={(_playlistId, spotifyUrl) => {
           if (spotifyUrl) {
             window.open(spotifyUrl, '_blank');
           }
