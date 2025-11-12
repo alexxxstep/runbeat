@@ -1,0 +1,14 @@
+# Nixpacks configuration for Railway
+# This file should be in the root of the repository for monorepo support
+
+[phases.setup]
+nixPkgs = ["python311"]
+
+[phases.install]
+cmds = [
+  "cd apps/backend && pip install -r requirements.txt"
+]
+
+[start]
+cmd = "cd apps/backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+
