@@ -5,7 +5,6 @@ import { MessageBubble } from '../components/Chat/MessageBubble';
 import { InputBar } from '../components/Chat/InputBar';
 import { TypingIndicator } from '../components/Chat/TypingIndicator';
 import { ErrorDisplay } from '../components/Shared/ErrorDisplay';
-import type { Message } from '../types';
 
 // Template queries for quick selection
 const templateQueries = [
