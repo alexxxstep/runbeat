@@ -11,6 +11,22 @@ export interface User {
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [spotifyAuthenticated, setSpotifyAuthenticated] = useState(false);
+  const [checkingSpotify, setCheckingSpotify] = useState(true);
+
+  const checkSpotifyAuth = async (userId: string) => {
+    try {
+      setCheckingSpotify(true);
+      const status = await api.checkSpotifyAuthStatus(userId);
+      setSpotifyAuthenticated(status.authenticated);
+    } catch (error) {
+      console.error('Failed to check Spotify auth status:', error);
+      setSpotifyAuthenticated(false);
+    } finally {
+      setCheckingSpotify(false);
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Check for existing session
@@ -20,8 +36,12 @@ export function useAuth() {
           id: session.user.id,
           email: session.user.email,
         });
+        // Check Spotify auth status
+        checkSpotifyAuth(session.user.id);
+      } else {
+        setLoading(false);
+        setCheckingSpotify(false);
       }
-      setLoading(false);
     });
 
     // Listen for auth changes
@@ -33,10 +53,14 @@ export function useAuth() {
           id: session.user.id,
           email: session.user.email,
         });
+        // Check Spotify auth status
+        checkSpotifyAuth(session.user.id);
       } else {
         setUser(null);
+        setSpotifyAuthenticated(false);
+        setLoading(false);
+        setCheckingSpotify(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -83,9 +107,15 @@ export function useAuth() {
 
   return {
     user,
-    loading,
+    loading: loading || checkingSpotify,
+    spotifyAuthenticated,
     signInWithGoogle,
     signInWithSpotify,
     signOut,
+    refreshSpotifyStatus: () => {
+      if (user?.id) {
+        checkSpotifyAuth(user.id);
+      }
+    },
   };
 }

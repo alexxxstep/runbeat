@@ -3,6 +3,7 @@ Spotify OAuth authentication endpoints.
 """
 import secrets
 import urllib.parse
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from loguru import logger
@@ -10,8 +11,7 @@ from datetime import datetime, timedelta
 
 from app.core.config import settings
 from app.services.supabase_service import SupabaseService
-from app.services.spotify_service import SpotifyService
-from app.schemas.auth import SpotifyAuthResponse, SpotifyCallbackResponse
+from app.schemas.auth import SpotifyAuthResponse
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
@@ -181,7 +181,7 @@ async def spotify_callback(
             if user_id:
                 # User exists in Supabase Auth but not in users table
                 # Use upsert to create or update
-                upsert_result = (
+                (
                     supabase.table("users")
                     .upsert(
                         {

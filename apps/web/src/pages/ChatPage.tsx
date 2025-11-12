@@ -5,11 +5,10 @@ import { MessageBubble } from '../components/Chat/MessageBubble';
 import { InputBar } from '../components/Chat/InputBar';
 import { TypingIndicator } from '../components/Chat/TypingIndicator';
 import { ErrorDisplay } from '../components/Shared/ErrorDisplay';
-import { SpotifyConnectBanner } from '../components/Shared/SpotifyConnectBanner';
 
 export function ChatPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, spotifyAuthenticated } = useAuth();
   const { messages, sendMessage, generatePlaylist, isLoading, error } =
     useChat();
 
@@ -32,10 +31,15 @@ export function ChatPage() {
     }
   };
 
+  // This should not be reached if ProtectedRoute is working correctly,
+  // but add a safety check just in case
+  if (!user || !spotifyAuthenticated) {
+    return null;
+  }
+
   return (
     <div className='flex flex-col h-screen bg-gray-50 dark:bg-gray-900'>
       <div className='flex-1 overflow-y-auto p-4 space-y-4'>
-        <SpotifyConnectBanner />
         {messages.length === 0 && (
           <div className='text-center text-gray-500 mt-8'>
             <p className='text-lg'>Привіт! Я RunBeat AI</p>
