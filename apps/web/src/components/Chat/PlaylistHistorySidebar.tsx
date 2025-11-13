@@ -10,6 +10,7 @@ interface PlaylistHistorySidebarProps {
   refreshTrigger?: number; // Trigger refresh when this changes
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  activeWorkoutId?: string | null; // ID of currently active workout
 }
 
 export function PlaylistHistorySidebar({
@@ -19,6 +20,7 @@ export function PlaylistHistorySidebar({
   refreshTrigger,
   collapsed = false,
   onToggleCollapse,
+  activeWorkoutId,
 }: PlaylistHistorySidebarProps) {
   const {
     playlists,
@@ -134,7 +136,7 @@ export function PlaylistHistorySidebar({
   }
 
   return (
-    <div className='w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300'>
+    <div className='flex-[2] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 min-w-0'>
       <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center'>
         <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>
           Історія
@@ -200,31 +202,89 @@ export function PlaylistHistorySidebar({
                   moderate: 'Середня',
                   high: 'Висока',
                 };
+                const isActive = activeWorkoutId === workout.id;
+
+                // Get workout type name with full label
+                const workoutType = workoutTypeLabels[workout.type] || workout.type;
+                const workoutTypeFullName = workoutType === 'Прогресивна'
+                  ? 'Прогресивна пробіжка'
+                  : workoutType === 'Стабільна'
+                  ? 'Стабільна пробіжка'
+                  : workoutType === 'Інтервальна'
+                  ? 'Інтервальна пробіжка'
+                  : 'Фартлек пробіжка';
+
+                // Format duration
+                const hours = Math.floor(workout.duration_minutes / 60);
+                const minutes = workout.duration_minutes % 60;
+                const durationText = hours > 0
+                  ? `${hours} год ${minutes} хв`
+                  : `${minutes} хв`;
+
+                // Check if workout has genres
+                const hasGenres = workout.genres && workout.genres.length > 0;
+                const genresText = hasGenres
+                  ? workout.genres!.slice(0, 3).join(', ') + (workout.genres!.length > 3 ? '...' : '')
+                  : null;
+
+                // Check if workout has interval stages
+                const hasStages = workout.interval_stages && workout.interval_stages.length > 0;
+                const stagesCount = hasStages ? workout.interval_stages!.length : 0;
 
                 return (
                   <div
                     key={workout.id}
-                    className='bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors group'
+                    className={`rounded-lg p-3 cursor-pointer transition-all group border-2 ${
+                      isActive
+                        ? 'bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 border-blue-500 dark:border-blue-600 shadow-xl transform scale-[1.02]'
+                        : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/50 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700'
+                    }`}
                     onClick={() => handleWorkoutClick(workout.id)}
                   >
                     <div className='flex justify-between items-start mb-2'>
                       <div className='flex-1 min-w-0'>
-                        <p className='text-xs font-medium text-gray-900 dark:text-white truncate'>
-                          {workoutTypeLabels[workout.type] || workout.type}
-                        </p>
-                        <p className='text-xs text-gray-500 dark:text-gray-400 truncate'>
+                        <div className='flex items-center gap-2 mb-1'>
+                          <p
+                            className={`text-sm font-bold truncate ${
+                              isActive
+                                ? 'text-white'
+                                : 'text-gray-900 dark:text-white'
+                            }`}
+                          >
+                            {workoutTypeFullName}
+                          </p>
+                          {isActive && (
+                            <span className='flex-shrink-0 px-2 py-0.5 text-xs font-bold bg-white/30 text-white rounded-full border border-white/50'>
+                              ✓ Активний
+                            </span>
+                          )}
+                        </div>
+                        <p
+                          className={`text-xs mb-2 ${
+                            isActive
+                              ? 'text-blue-100'
+                              : 'text-gray-500 dark:text-gray-400'
+                          }`}
+                        >
                           {new Date(workout.created_at).toLocaleDateString(
                             'uk-UA',
                             {
                               day: 'numeric',
                               month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
                             }
                           )}
                         </p>
                       </div>
                       <button
                         onClick={(e) => handleWorkoutDelete(e, workout.id)}
-                        className='opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity ml-2'
+                        className={`opacity-0 group-hover:opacity-100 transition-opacity ml-2 p-1 rounded ${
+                          isActive
+                            ? 'text-white/90 hover:text-white hover:bg-white/20'
+                            : 'text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20'
+                        }`}
                         title='Видалити'
                       >
                         <svg
@@ -242,12 +302,45 @@ export function PlaylistHistorySidebar({
                         </svg>
                       </button>
                     </div>
-                    <div className='text-xs text-gray-700 dark:text-gray-300'>
-                      <p>
-                        {workout.duration_minutes} хв •{' '}
-                        {intensityLabels[workout.intensity] ||
-                          workout.intensity}
-                      </p>
+                    <div
+                      className={`text-xs space-y-1.5 ${
+                        isActive
+                          ? 'text-blue-50'
+                          : 'text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      <div className='flex items-center gap-2 flex-wrap'>
+                        <span className='font-semibold flex items-center gap-1'>
+                          ⏱️ <span>{durationText}</span>
+                        </span>
+                        <span className='font-semibold flex items-center gap-1'>
+                          💪 <span>{intensityLabels[workout.intensity] || workout.intensity}</span>
+                        </span>
+                      </div>
+                      {workout.hr_zones && workout.hr_zones.length >= 2 && (
+                        <p className='flex items-center gap-1'>
+                          <span>❤️</span>
+                          <span>ЧСС: {workout.hr_zones[0]} - {workout.hr_zones[1]} уд/хв</span>
+                        </p>
+                      )}
+                      {hasGenres && (
+                        <p className={`flex items-start gap-1 ${isActive ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'}`}>
+                          <span>🎵</span>
+                          <span className='truncate'>{genresText}</span>
+                        </p>
+                      )}
+                      {hasStages && (
+                        <p className={`flex items-center gap-1 ${isActive ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'}`}>
+                          <span>📊</span>
+                          <span>Інтервали: {stagesCount} етапів</span>
+                        </p>
+                      )}
+                      {workout.prompt && (
+                        <p className={`flex items-start gap-1 ${isActive ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'}`} title={workout.prompt}>
+                          <span>💬</span>
+                          <span className='truncate italic'>{workout.prompt.length > 50 ? workout.prompt.substring(0, 50) + '...' : workout.prompt}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
                 );

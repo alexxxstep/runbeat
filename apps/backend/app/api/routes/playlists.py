@@ -299,6 +299,7 @@ async def generate_playlist(
                         try:
                             # First, create or get workout record
                             # If workout_id is provided, use existing workout
+                            workout_db_id = None
                             if request.workout_id:
                                 # Verify that the workout exists and belongs to the user
                                 workout_check = (
@@ -314,10 +315,14 @@ async def generate_playlist(
                                         f"Using existing workout {workout_db_id} for playlist generation"
                                     )
                                 else:
-                                    logger.warning(
-                                        f"Workout {request.workout_id} not found or doesn't belong to user, creating new workout"
+                                    # Workout not found or doesn't belong to user
+                                    # This should not happen if workout_id was correctly set
+                                    logger.error(
+                                        f"Workout {request.workout_id} not found or doesn't belong to user {request.user_id}. "
+                                        f"This indicates a problem - workout_id should be valid. "
+                                        f"Creating new workout as fallback."
                                     )
-                                    # Create new workout if the provided one doesn't exist or doesn't belong to user
+                                    # Create new workout as fallback (but this should not happen)
                                     workout_result = (
                                         supabase.table("workouts")
                                         .insert(
@@ -334,8 +339,11 @@ async def generate_playlist(
                                         .execute()
                                     )
                                     workout_db_id = workout_result.data[0]["id"]
+                                    logger.warning(
+                                        f"Created new workout {workout_db_id} as fallback (original workout_id {request.workout_id} was invalid)"
+                                    )
                             else:
-                                # Create new workout if no workout_id provided
+                                # No workout_id provided - create new workout
                                 workout_result = (
                                     supabase.table("workouts")
                                     .insert(

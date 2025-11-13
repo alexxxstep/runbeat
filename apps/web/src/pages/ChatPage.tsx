@@ -197,12 +197,13 @@ export function ChatPage() {
 
   return (
     <div className='flex h-screen bg-gray-50 dark:bg-gray-900'>
-      {/* History Sidebar - Left */}
+      {/* History Sidebar - Left - 2 units */}
       <PlaylistHistorySidebar
         userId={user?.id}
         refreshTrigger={refreshTrigger}
         collapsed={historyCollapsed}
         onToggleCollapse={() => setHistoryCollapsed(!historyCollapsed)}
+        activeWorkoutId={activeWorkoutId}
         onPlaylistClick={(_playlistId, spotifyUrl) => {
           if (spotifyUrl) {
             window.open(spotifyUrl, '_blank');
@@ -218,6 +219,7 @@ export function ChatPage() {
               hr_zones: workout.hr_zones,
             };
             setActiveWorkout(workoutData);
+            setActiveWorkoutId(workoutId); // Set workout ID to prevent duplicate creation
             setExcludedTrackIds(new Set()); // Reset excluded tracks when selecting workout from history
 
             // Update workout settings with saved genres and interval_stages
@@ -267,7 +269,7 @@ export function ChatPage() {
       />
 
       {/* Main Chat Area - Center */}
-      <div className='flex-1 flex flex-col bg-white dark:bg-gray-900'>
+      <div className='flex-[3] flex flex-col bg-white dark:bg-gray-900 min-w-0'>
         {/* Header with Clear Chat button */}
         {messages.length > 0 && (
           <div className='flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'>

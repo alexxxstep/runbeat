@@ -212,7 +212,7 @@ export function SettingsSidebar({
   }
 
   return (
-    <div className='w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-y-auto transition-all duration-300'>
+    <div className='flex-[2] bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-y-auto transition-all duration-300 min-w-0'>
       <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center'>
         <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>
           WorkoutSettings
