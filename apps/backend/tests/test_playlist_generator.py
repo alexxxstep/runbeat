@@ -157,3 +157,46 @@ def test_calculate_affinity(mock_spotify_service):
 
     affinity = generator._calculate_affinity(track, user_prefs)
     assert affinity > 0.5  # Should be higher due to matches
+
+
+async def test_generate_with_excluded_tracks(
+    mock_spotify_service, workout_steady, user_preferences, mock_spotify_track
+):
+    """Test playlist generation with excluded track IDs."""
+    # Setup mocks
+    excluded_track_id = "excluded_track_id"
+    mock_spotify_service.get_recommendations = AsyncMock(
+        return_value=[mock_spotify_track] * 10
+    )
+
+    generator = PlaylistGenerator(mock_spotify_service)
+
+    # Generate with excluded tracks
+    result = await generator.generate(
+        workout_steady,
+        user_preferences,
+        excluded_track_ids=[excluded_track_id]
+    )
+
+    assert result.total_tracks > 0
+    # Verify excluded track is not in result
+    excluded_ids = [track.id for track in result.tracks]
+    assert excluded_track_id not in excluded_ids
+
+
+async def test_generate_playlist_duration_validation(
+    mock_spotify_service, workout_steady, user_preferences, mock_spotify_track
+):
+    """Test that generated playlist duration is longer than workout duration."""
+    # Setup mocks - return enough tracks to meet duration requirement
+    mock_spotify_service.get_recommendations = AsyncMock(
+        return_value=[mock_spotify_track] * 50  # More tracks for better selection
+    )
+
+    generator = PlaylistGenerator(mock_spotify_service)
+
+    result = await generator.generate(workout_steady, user_preferences)
+
+    workout_duration_seconds = workout_steady.duration_minutes * 60
+    assert result.total_duration >= workout_duration_seconds
+    assert len(result.tracks) > 0

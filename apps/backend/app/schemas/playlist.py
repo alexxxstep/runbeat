@@ -2,7 +2,7 @@
 Playlist API schemas.
 """
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Dict, List, Optional
 from app.models.workout import Workout
 
 

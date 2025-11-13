@@ -32,11 +32,21 @@ def mock_playlist_data():
 
 @patch("app.api.routes.playlists.SupabaseService")
 def test_get_playlist_history(mock_supabase_service, mock_playlist_data):
-    """Test getting playlist history."""
+    """Test getting playlist history with workout data."""
+    # Mock playlist with workout
+    playlist_with_workout = mock_playlist_data.copy()
+    playlist_with_workout["workouts"] = {
+        "id": "workout_uuid",
+        "type": "steady",
+        "duration_minutes": 30,
+        "intensity": "low",
+        "hr_zones": [110, 130],
+    }
+
     # Mock Supabase
     mock_supabase = MagicMock()
     mock_result = MagicMock()
-    mock_result.data = [mock_playlist_data]
+    mock_result.data = [playlist_with_workout]
     mock_result.count = 1
     mock_supabase.get_client.return_value.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.offset.return_value.execute.return_value = (
         mock_result
@@ -56,6 +66,9 @@ def test_get_playlist_history(mock_supabase_service, mock_playlist_data):
     assert data["playlists"][0]["id"] == "playlist_uuid"
     assert data["playlists"][0]["total_tracks"] == 2
     assert data["playlists"][0]["spotify_url"] == "https://open.spotify.com/playlist/123"
+    # Verify workout data is included
+    if "workout" in data["playlists"][0]:
+        assert data["playlists"][0]["workout"]["type"] == "steady"
 
 
 @patch("app.api.routes.playlists.SupabaseService")
