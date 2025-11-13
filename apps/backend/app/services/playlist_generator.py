@@ -281,6 +281,7 @@ class PlaylistGenerator:
             )
 
             # Use Spotify Recommendations API
+            # Increase limit to ensure we have enough candidates for longer playlists
             # Try to use optimized method if available, otherwise fallback
             if hasattr(self.spotify, 'get_recommendations_optimized'):
                 spotify_tracks = await self.spotify.get_recommendations_optimized(
@@ -290,7 +291,7 @@ class PlaylistGenerator:
                     min_tempo=int(bpm_min),
                     max_tempo=int(bpm_max),
                     target_energy=0.7,  # High energy for workouts
-                    limit=20,
+                    limit=50,  # Increased from 20 to 50 for better selection
                     user_token=user_token,
                 )
             else:
@@ -301,7 +302,7 @@ class PlaylistGenerator:
                     min_tempo=int(bpm_min),
                     max_tempo=int(bpm_max),
                     target_energy=0.7,  # High energy for workouts
-                    limit=20,
+                    limit=50,  # Increased from 20 to 50 for better selection
                 )
 
             if not spotify_tracks:
@@ -513,6 +514,7 @@ class PlaylistGenerator:
         """
         Select optimal tracks with constraints.
         Ensures duration is always longer than target_duration.
+        Uses adaptive constraints - relaxes them if needed to reach minimum duration.
 
         Args:
             scored_tracks: List of scored track dictionaries
@@ -520,6 +522,112 @@ class PlaylistGenerator:
 
         Returns:
             List of selected Track objects with duration >= target_duration
+        """
+        # Target duration - we want at least workout duration + 10% buffer
+        # But minimum is workout duration
+        target_duration_with_buffer = target_duration * 1.10
+        min_required_duration = target_duration  # Absolute minimum
+
+        # Try with strict constraints first (target: 10% longer than workout)
+        selected = self._select_tracks_with_constraints(
+            scored_tracks, target_duration_with_buffer,
+            max_artist_tracks=2,
+            max_bpm_jump=15,
+            strict_mode=True
+        )
+
+        current_duration = sum(t.duration_ms for t in selected) / 1000
+
+        # If we haven't reached minimum required duration, relax constraints
+        if current_duration < min_required_duration:
+            logger.warning(
+                f"Playlist duration ({current_duration:.1f}s) is less than minimum required ({min_required_duration}s) with strict constraints. "
+                f"Relaxing constraints to ensure minimum duration..."
+            )
+
+            # Relax BPM transition constraint (allow up to 25 BPM jump)
+            # But target at least minimum required duration
+            selected = self._select_tracks_with_constraints(
+                scored_tracks, min_required_duration,
+                max_artist_tracks=2,
+                max_bpm_jump=25,
+                strict_mode=False
+            )
+            current_duration = sum(t.duration_ms for t in selected) / 1000
+
+            # If still not enough, relax artist constraint (allow up to 3 tracks per artist)
+            if current_duration < min_required_duration:
+                logger.warning(
+                    f"Still insufficient duration ({current_duration:.1f}s). Relaxing artist constraint..."
+                )
+                selected = self._select_tracks_with_constraints(
+                    scored_tracks, min_required_duration,
+                    max_artist_tracks=3,
+                    max_bpm_jump=25,
+                    strict_mode=False
+                )
+                current_duration = sum(t.duration_ms for t in selected) / 1000
+
+                # If still not enough, remove BPM transition constraint
+                if current_duration < min_required_duration:
+                    logger.warning(
+                        f"Still insufficient duration ({current_duration:.1f}s). Removing BPM transition constraint..."
+                    )
+                    selected = self._select_tracks_with_constraints(
+                        scored_tracks, min_required_duration,
+                        max_artist_tracks=3,
+                        max_bpm_jump=999,  # No BPM constraint
+                        strict_mode=False
+                    )
+                    current_duration = sum(t.duration_ms for t in selected) / 1000
+
+                    # Last resort: allow more tracks per artist and ignore name duplicates more
+                    if current_duration < min_required_duration:
+                        logger.warning(
+                            f"Still insufficient duration ({current_duration:.1f}s). Using last resort: very relaxed constraints..."
+                        )
+                        selected = self._select_tracks_with_constraints(
+                            scored_tracks, min_required_duration,
+                            max_artist_tracks=5,  # Allow more tracks per artist
+                            max_bpm_jump=999,  # No BPM constraint
+                            strict_mode=False
+                        )
+                        current_duration = sum(t.duration_ms for t in selected) / 1000
+
+        # Final check - if still insufficient, log error but return what we have
+        if current_duration < target_duration:
+            logger.error(
+                f"CRITICAL: Playlist duration ({current_duration:.1f}s) is still less than target ({target_duration}s) "
+                f"even with relaxed constraints. Returning {len(selected)} tracks."
+            )
+        else:
+            logger.info(
+                f"Playlist duration: {current_duration:.1f}s (target: {target_duration}s, "
+                f"{((current_duration / target_duration - 1) * 100):.1f}% longer, {len(selected)} tracks)"
+            )
+
+        return selected
+
+    def _select_tracks_with_constraints(
+        self,
+        scored_tracks: List[Dict],
+        min_duration: float,  # seconds
+        max_artist_tracks: int = 2,
+        max_bpm_jump: int = 15,
+        strict_mode: bool = True,
+    ) -> List[Track]:
+        """
+        Select tracks with specified constraints.
+
+        Args:
+            scored_tracks: List of scored track dictionaries
+            min_duration: Minimum duration in seconds
+            max_artist_tracks: Maximum tracks per artist
+            max_bpm_jump: Maximum BPM jump between consecutive tracks
+            strict_mode: If True, enforce duplicate name check strictly
+
+        Returns:
+            List of selected Track objects
         """
         selected = []
         artist_count = {}
@@ -530,44 +638,35 @@ class PlaylistGenerator:
             track = item["track"]
             track_duration_sec = track.duration_ms / 1000
 
-            # Check artist diversity (max 2 per artist)
-            if artist_count.get(track.artist_id, 0) >= 2:
+            # Check artist diversity
+            if artist_count.get(track.artist_id, 0) >= max_artist_tracks:
                 continue
 
             # Check for duplicate track names (case-insensitive)
-            track_name_lower = track.name.lower().strip()
-            if track_name_lower in track_names:
-                logger.debug(
-                    f"Skipping duplicate track name: {track.name}"
-                )
-                continue
+            # Only in strict mode to allow more flexibility if needed
+            if strict_mode:
+                track_name_lower = track.name.lower().strip()
+                if track_name_lower in track_names:
+                    continue
+                track_names.add(track_name_lower)
 
-            # Check BPM transition (smooth < 15 BPM jump)
-            if selected and abs(selected[-1].bpm - track.bpm) > 15:
+            # Check BPM transition
+            if max_bpm_jump < 999 and selected and abs(selected[-1].bpm - track.bpm) > max_bpm_jump:
                 continue
 
             # Add track
             selected.append(track)
-            track_names.add(track_name_lower)
+            if not strict_mode:
+                # Still track names in non-strict mode, but allow same name from different artists
+                track_name_lower = track.name.lower().strip()
+                track_names.add(f"{track.artist_id}:{track_name_lower}")
+
             current_duration += track_duration_sec
             artist_count[track.artist_id] = artist_count.get(
                 track.artist_id, 0) + 1
 
-            # Ensure we exceed target duration (at least 5% longer)
-            # Continue until we have duration >= target_duration * 1.05
-            if current_duration >= target_duration * 1.05:
+            # Continue until we exceed minimum duration
+            if current_duration >= min_duration:
                 break
-
-        # If we haven't reached the minimum duration, log a warning
-        if current_duration < target_duration:
-            logger.warning(
-                f"Warning: Playlist duration ({current_duration:.1f}s) is less than target ({target_duration}s). "
-                f"Consider expanding search criteria."
-            )
-        else:
-            logger.info(
-                f"Playlist duration: {current_duration:.1f}s (target: {target_duration}s, "
-                f"{((current_duration / target_duration - 1) * 100):.1f}% longer)"
-            )
 
         return selected

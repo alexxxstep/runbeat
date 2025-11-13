@@ -248,7 +248,7 @@ async def generate_playlist(
                     # Create Spotify client with user token
                     user_client = spotify_service.get_user_client(access_token)
 
-                    # Generate playlist name
+                    # Generate playlist name with actual playlist duration
                     workout_type_map = {
                         "steady": "Стабільна",
                         "progressive": "Прогресивна",
@@ -258,9 +258,11 @@ async def generate_playlist(
                     workout_name = workout_type_map.get(
                         request.workout.type, "Тренування"
                     )
+                    # Calculate actual playlist duration in minutes
+                    actual_duration_minutes = int(playlist_data.total_duration / 60)
                     playlist_name = (
                         f"RunBeat: {workout_name} пробіжка "
-                        f"({request.workout.duration_minutes} хв)"
+                        f"({actual_duration_minutes} хв)"
                     )
 
                     # Get track URIs
@@ -280,7 +282,8 @@ async def generate_playlist(
                             description=(
                                 f"AI-згенерований плейлист для "
                                 f"{workout_name.lower()} тренування. "
-                                f"Тривалість: {request.workout.duration_minutes} хв. "
+                                f"Тривалість плейлиста: {actual_duration_minutes} хв. "
+                                f"Тривалість воркауту: {request.workout.duration_minutes} хв. "
                                 f"Інтенсивність: {request.workout.intensity}."
                             ),
                         )
@@ -295,22 +298,63 @@ async def generate_playlist(
                         # Save playlist to database
                         try:
                             # First, create or get workout record
-                            workout_result = (
-                                supabase.table("workouts")
-                                .insert(
-                                    {
-                                        "user_id": request.user_id,
-                                        "type": request.workout.type,
-                                        "duration_minutes": (
-                                            request.workout.duration_minutes
-                                        ),
-                                        "intensity": request.workout.intensity,
-                                        "hr_zones": request.workout.hr_zones,
-                                    }
+                            # If workout_id is provided, use existing workout
+                            if request.workout_id:
+                                # Verify that the workout exists and belongs to the user
+                                workout_check = (
+                                    supabase.table("workouts")
+                                    .select("id")
+                                    .eq("id", request.workout_id)
+                                    .eq("user_id", request.user_id)
+                                    .execute()
                                 )
-                                .execute()
-                            )
-                            workout_db_id = workout_result.data[0]["id"]
+                                if workout_check.data and len(workout_check.data) > 0:
+                                    workout_db_id = request.workout_id
+                                    logger.info(
+                                        f"Using existing workout {workout_db_id} for playlist generation"
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"Workout {request.workout_id} not found or doesn't belong to user, creating new workout"
+                                    )
+                                    # Create new workout if the provided one doesn't exist or doesn't belong to user
+                                    workout_result = (
+                                        supabase.table("workouts")
+                                        .insert(
+                                            {
+                                                "user_id": request.user_id,
+                                                "type": request.workout.type,
+                                                "duration_minutes": (
+                                                    request.workout.duration_minutes
+                                                ),
+                                                "intensity": request.workout.intensity,
+                                                "hr_zones": request.workout.hr_zones,
+                                            }
+                                        )
+                                        .execute()
+                                    )
+                                    workout_db_id = workout_result.data[0]["id"]
+                            else:
+                                # Create new workout if no workout_id provided
+                                workout_result = (
+                                    supabase.table("workouts")
+                                    .insert(
+                                        {
+                                            "user_id": request.user_id,
+                                            "type": request.workout.type,
+                                            "duration_minutes": (
+                                                request.workout.duration_minutes
+                                            ),
+                                            "intensity": request.workout.intensity,
+                                            "hr_zones": request.workout.hr_zones,
+                                        }
+                                    )
+                                    .execute()
+                                )
+                                workout_db_id = workout_result.data[0]["id"]
+                                logger.info(
+                                    f"Created new workout {workout_db_id} for playlist generation"
+                                )
 
                             # Save playlist to database
                             playlist_db_result = (
@@ -357,9 +401,29 @@ async def generate_playlist(
                 )
                 # Continue without playlist - return tracks anyway
 
+        # Get playlist name if it was created in Spotify
+        playlist_name_response = None
+        if playlist_id and spotify_url:
+            # Reconstruct playlist name from workout type and actual duration
+            workout_type_map = {
+                "steady": "Стабільна",
+                "progressive": "Прогресивна",
+                "intervals": "Інтервальна",
+                "fartlek": "Фартлек",
+            }
+            workout_name = workout_type_map.get(
+                request.workout.type, "Тренування"
+            )
+            actual_duration_minutes = int(playlist_data.total_duration / 60)
+            playlist_name_response = (
+                f"RunBeat: {workout_name} пробіжка "
+                f"({actual_duration_minutes} хв)"
+            )
+
         return PlaylistGenerateResponse(
             playlist_id=playlist_id,
             spotify_url=spotify_url,
+            playlist_name=playlist_name_response,
             tracks=tracks_dict,
             total_duration=playlist_data.total_duration,
             total_tracks=playlist_data.total_tracks,
@@ -640,10 +704,20 @@ async def preview_playlist_variants(
 
         generation_time = time.time() - start_time
 
+        # Calculate minimum required duration (workout duration in seconds)
+        min_duration_seconds = request.workout.duration_minutes * 60
+
+        # Validate duration for both variants
+        variant1_duration = playlist_data_variant1.total_duration
+        variant2_duration = playlist_data_variant2.total_duration
+
         logger.info(
             f"Variants generated: "
             f"Variant 1: {playlist_data_variant1.total_tracks} tracks, "
+            f"{variant1_duration:.1f}s ({variant1_duration / 60:.1f} min), "
             f"Variant 2: {playlist_data_variant2.total_tracks} tracks, "
+            f"{variant2_duration:.1f}s ({variant2_duration / 60:.1f} min), "
+            f"Target: {min_duration_seconds}s ({request.workout.duration_minutes} min), "
             f"{generation_time:.2f}s"
         )
 
@@ -659,6 +733,27 @@ async def preview_playlist_variants(
                 status_code=422,
                 detail=error_msg
             )
+
+        # Validate duration - both variants should exceed workout duration
+        if variant1_duration < min_duration_seconds:
+            logger.warning(
+                f"Variant 1 duration ({variant1_duration:.1f}s) is less than workout duration "
+                f"({min_duration_seconds}s). This may indicate insufficient tracks."
+            )
+        if variant2_duration < min_duration_seconds:
+            logger.warning(
+                f"Variant 2 duration ({variant2_duration:.1f}s) is less than workout duration "
+                f"({min_duration_seconds}s). This may indicate insufficient tracks."
+            )
+
+        # If both variants are shorter than workout, this is a problem
+        if variant1_duration < min_duration_seconds and variant2_duration < min_duration_seconds:
+            logger.error(
+                f"Both variants are shorter than workout duration. "
+                f"Variant 1: {variant1_duration:.1f}s, Variant 2: {variant2_duration:.1f}s, "
+                f"Target: {min_duration_seconds}s"
+            )
+            # Still return the variants, but log the issue
 
         if playlist_data_variant1.total_tracks == 0:
             logger.warning("Variant 1 is empty, but variant 2 has tracks")

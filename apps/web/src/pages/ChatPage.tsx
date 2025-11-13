@@ -76,6 +76,101 @@ export function ChatPage() {
     }
   };
 
+  const generateVariants = async () => {
+    if (!activeWorkout) return;
+
+    setShowPlaylistQuestion(false);
+    setLoadingVariants(true);
+    try {
+      // Use saved genres and interval_stages from workout if available
+      let genresToUse = workoutSettings.genres;
+      let intervalStagesToUse =
+        workoutSettings.intervalStages?.map((stage) => ({
+          name: stage.name,
+          duration_minutes: stage.durationMinutes,
+          hr_zone: stage.hrZone,
+          bpm_range: stage.bpmRange,
+        }));
+
+      // If workout was loaded from history, get saved parameters
+      if (activeWorkoutId) {
+        try {
+          const savedWorkout = await api.getWorkout(
+            activeWorkoutId,
+            user!.id
+          );
+          if (
+            savedWorkout.genres &&
+            savedWorkout.genres.length > 0
+          ) {
+            genresToUse = savedWorkout.genres;
+          }
+          if (
+            savedWorkout.interval_stages &&
+            savedWorkout.interval_stages.length > 0
+          ) {
+            intervalStagesToUse = savedWorkout.interval_stages;
+          }
+          if (savedWorkout.prompt) {
+            setWorkoutSettings((prev) => ({
+              ...prev,
+              prompt: savedWorkout.prompt || '',
+            }));
+          }
+        } catch (error) {
+          console.warn(
+            'Failed to load saved workout parameters, using current settings'
+          );
+        }
+      }
+
+      // Use prompt from current settings (already loaded if workout from history)
+      const promptToUse = workoutSettings.prompt || null;
+
+      const request = {
+        workout: activeWorkout!,
+        user_preferences: {
+          top_genres: genresToUse,
+        },
+        user_id: user?.id,
+        interval_stages: intervalStagesToUse,
+        prompt: promptToUse,
+      };
+      const variantsData = await api.previewPlaylistVariants(
+        request
+      );
+
+      // Validate variants - check if they are empty
+      if (
+        (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) &&
+        (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
+      ) {
+        throw new Error(
+          'Не вдалося знайти треки для воркауту. Спробуйте змінити параметри або додати жанри музики.'
+        );
+      }
+
+      // Check if at least one variant has tracks
+      if (
+        (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) ||
+        (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
+      ) {
+        console.warn('One of the variants is empty, but continuing with available variant');
+      }
+
+      setVariants(variantsData);
+    } catch (error) {
+      console.error('Failed to generate variants:', error);
+      const errorMessage = error instanceof Error
+        ? error.message
+        : 'Помилка генерації варіантів';
+      alert(errorMessage);
+      setVariants(null);
+    } finally {
+      setLoadingVariants(false);
+    }
+  };
+
   // This should not be reached if ProtectedRoute is working correctly,
   // but add a safety check just in case
   if (!user || !spotifyAuthenticated) {
@@ -330,98 +425,7 @@ export function ChatPage() {
             <div className='max-w-2xl mx-auto flex justify-start mb-4'>
               <div className='flex gap-3'>
                 <button
-                  onClick={async () => {
-                    setShowPlaylistQuestion(false);
-                    setLoadingVariants(true);
-                    try {
-                      // Use saved genres and interval_stages from workout if available
-                      let genresToUse = workoutSettings.genres;
-                      let intervalStagesToUse =
-                        workoutSettings.intervalStages?.map((stage) => ({
-                          name: stage.name,
-                          duration_minutes: stage.durationMinutes,
-                          hr_zone: stage.hrZone,
-                          bpm_range: stage.bpmRange,
-                        }));
-
-                      // If workout was loaded from history, get saved parameters
-                      if (activeWorkoutId) {
-                        try {
-                          const savedWorkout = await api.getWorkout(
-                            activeWorkoutId,
-                            user!.id
-                          );
-                          if (
-                            savedWorkout.genres &&
-                            savedWorkout.genres.length > 0
-                          ) {
-                            genresToUse = savedWorkout.genres;
-                          }
-                          if (
-                            savedWorkout.interval_stages &&
-                            savedWorkout.interval_stages.length > 0
-                          ) {
-                            intervalStagesToUse = savedWorkout.interval_stages;
-                          }
-                          if (savedWorkout.prompt) {
-                            setWorkoutSettings((prev) => ({
-                              ...prev,
-                              prompt: savedWorkout.prompt || '',
-                            }));
-                          }
-                        } catch (error) {
-                          console.warn(
-                            'Failed to load saved workout parameters, using current settings'
-                          );
-                        }
-                      }
-
-                      // Use prompt from current settings (already loaded if workout from history)
-                      const promptToUse = workoutSettings.prompt || null;
-
-                      const request = {
-                        workout: activeWorkout!,
-                        user_preferences: {
-                          top_genres: genresToUse,
-                        },
-                        user_id: user?.id,
-                        interval_stages: intervalStagesToUse,
-                        prompt: promptToUse,
-                      };
-                      const variantsData = await api.previewPlaylistVariants(
-                        request
-                      );
-
-                      // Validate variants - check if they are empty
-                      if (
-                        (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) &&
-                        (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
-                      ) {
-                        throw new Error(
-                          'Не вдалося знайти треки для воркауту. Спробуйте змінити параметри або додати жанри музики.'
-                        );
-                      }
-
-                      // Check if at least one variant has tracks
-                      if (
-                        (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) ||
-                        (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
-                      ) {
-                        console.warn('One of the variants is empty, but continuing with available variant');
-                      }
-
-                      setVariants(variantsData);
-                    } catch (error) {
-                      console.error('Failed to generate variants:', error);
-                      const errorMessage = error instanceof Error
-                        ? error.message
-                        : 'Помилка генерації варіантів';
-                      alert(errorMessage);
-                      setVariants(null);
-                    } finally {
-                      setLoadingVariants(false);
-                    }
-                  }}
+                  onClick={generateVariants}
                   disabled={loadingVariants}
                   className='px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
                 >
@@ -444,104 +448,6 @@ export function ChatPage() {
                   className='px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium'
                 >
                   Ні
-                </button>
-                <button
-                  onClick={async () => {
-                    setShowPlaylistQuestion(false);
-                    setLoadingVariants(true);
-                    try {
-                      // Use saved genres and interval_stages from workout if available
-                      let genresToUse = workoutSettings.genres;
-                      let intervalStagesToUse =
-                        workoutSettings.intervalStages?.map((stage) => ({
-                          name: stage.name,
-                          duration_minutes: stage.durationMinutes,
-                          hr_zone: stage.hrZone,
-                          bpm_range: stage.bpmRange,
-                        }));
-
-                      // If workout was loaded from history, get saved parameters
-                      if (activeWorkoutId) {
-                        try {
-                          const savedWorkout = await api.getWorkout(
-                            activeWorkoutId,
-                            user!.id
-                          );
-                          if (
-                            savedWorkout.genres &&
-                            savedWorkout.genres.length > 0
-                          ) {
-                            genresToUse = savedWorkout.genres;
-                          }
-                          if (
-                            savedWorkout.interval_stages &&
-                            savedWorkout.interval_stages.length > 0
-                          ) {
-                            intervalStagesToUse = savedWorkout.interval_stages;
-                          }
-                          if (savedWorkout.prompt) {
-                            setWorkoutSettings((prev) => ({
-                              ...prev,
-                              prompt: savedWorkout.prompt || '',
-                            }));
-                          }
-                        } catch (error) {
-                          console.warn(
-                            'Failed to load saved workout parameters, using current settings'
-                          );
-                        }
-                      }
-
-                      // Use prompt from current settings (already loaded if workout from history)
-                      const promptToUse = workoutSettings.prompt || null;
-
-                      const request = {
-                        workout: activeWorkout!,
-                        user_preferences: {
-                          top_genres: genresToUse,
-                        },
-                        user_id: user?.id,
-                        interval_stages: intervalStagesToUse,
-                        prompt: promptToUse,
-                      };
-                      const variantsData = await api.previewPlaylistVariants(
-                        request
-                      );
-
-                      // Validate variants - check if they are empty
-                      if (
-                        (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) &&
-                        (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
-                      ) {
-                        throw new Error(
-                          'Не вдалося знайти треки для воркауту. Спробуйте змінити параметри або додати жанри музики.'
-                        );
-                      }
-
-                      // Check if at least one variant has tracks
-                      if (
-                        (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) ||
-                        (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
-                      ) {
-                        console.warn('One of the variants is empty, but continuing with available variant');
-                      }
-
-                      setVariants(variantsData);
-                    } catch (error) {
-                      console.error('Failed to generate variants:', error);
-                      const errorMessage = error instanceof Error
-                        ? error.message
-                        : 'Помилка генерації варіантів';
-                      alert(errorMessage);
-                      setVariants(null);
-                    } finally {
-                      setLoadingVariants(false);
-                    }
-                  }}
-                  disabled={loadingVariants}
-                  className='px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
-                >
-                  {loadingVariants ? 'Генерація...' : 'Згенерувати ще'}
                 </button>
               </div>
             </div>
@@ -572,9 +478,18 @@ export function ChatPage() {
                 </div>
               ) : (
                 <>
-              <h3 className='text-lg font-semibold text-gray-900 dark:text-white text-center mb-4'>
-                Оберіть варіант плейлисту:
-              </h3>
+              <div className='flex justify-between items-center mb-4'>
+                <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                  Оберіть варіант плейлисту:
+                </h3>
+                <button
+                  onClick={generateVariants}
+                  disabled={loadingVariants}
+                  className='px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed'
+                >
+                  {loadingVariants ? 'Генерація...' : 'Згенерувати ще'}
+                </button>
+              </div>
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 {/* Variant 1 */}
                 <div className='bg-white dark:bg-gray-800 rounded-lg p-4 border-2 border-blue-300 dark:border-blue-700'>
@@ -636,7 +551,8 @@ export function ChatPage() {
                           user?.id,
                           workoutSettings.genres,
                           workoutSettings.intervalStages,
-                          workoutSettings.prompt
+                          workoutSettings.prompt,
+                          activeWorkoutId
                         );
                         setVariants(null);
                         setActiveWorkout(null);
@@ -723,7 +639,8 @@ export function ChatPage() {
                           user?.id,
                           workoutSettings.genres,
                           workoutSettings.intervalStages,
-                          workoutSettings.prompt
+                          workoutSettings.prompt,
+                          activeWorkoutId
                         );
                         setVariants(null);
                         setActiveWorkout(null);

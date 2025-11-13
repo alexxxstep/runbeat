@@ -67,6 +67,7 @@ export interface PlaylistGenerateRequest {
     avg_bpm?: number;
   };
   user_id?: string;
+  workout_id?: string;
   interval_stages?: Array<{
     name: string;
     duration_minutes: number;
@@ -79,6 +80,7 @@ export interface PlaylistGenerateRequest {
 export interface PlaylistGenerateResponse {
   playlist_id?: string;
   spotify_url?: string;
+  playlist_name?: string;
   tracks: Track[];
   total_duration: number;
   total_tracks: number;

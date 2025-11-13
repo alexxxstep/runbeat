@@ -35,6 +35,9 @@ class PlaylistGenerateRequest(BaseModel):
     user_id: Optional[str] = Field(
         None, description="User ID (optional, for creating Spotify playlist)"
     )
+    workout_id: Optional[str] = Field(
+        None, description="Existing workout ID (optional, to reuse existing workout instead of creating new one)"
+    )
     interval_stages: Optional[List[IntervalStage]] = Field(
         None, description="Custom interval stages (for intervals workout type)"
     )
@@ -69,6 +72,8 @@ class PlaylistGenerateResponse(BaseModel):
         None, description="Playlist ID (if saved)")
     spotify_url: Optional[str] = Field(
         None, description="Spotify playlist URL")
+    playlist_name: Optional[str] = Field(
+        None, description="Playlist name (if created in Spotify)")
     tracks: list = Field(..., description="List of tracks")
     total_duration: float = Field(..., description="Total duration in seconds")
     total_tracks: int = Field(..., description="Number of tracks")

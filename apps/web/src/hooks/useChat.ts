@@ -77,7 +77,8 @@ export function useChat() {
         hrZone: [number, number];
         bpmRange: [number, number];
       }>,
-      prompt?: string | null
+      prompt?: string | null,
+      workoutId?: string | null
     ) => {
       setIsLoading(true);
       setError(null);
@@ -91,6 +92,7 @@ export function useChat() {
             avg_bpm: 145,
           },
           user_id: userId,
+          workout_id: workoutId || undefined,
           interval_stages: intervalStages?.map((stage) => ({
             name: stage.name,
             duration_minutes: stage.durationMinutes,
@@ -106,7 +108,9 @@ export function useChat() {
             id: Date.now().toString(),
             role: 'assistant',
             content: response.spotify_url
-              ? '✅ Плейлист успішно створено в Spotify!'
+              ? response.playlist_name
+                ? `✅ Плейлист "${response.playlist_name}" успішно створено в Spotify!`
+                : '✅ Плейлист успішно створено в Spotify!'
               : '✅ Плейлист успішно згенеровано!',
             timestamp: new Date(),
             playlist: response,
