@@ -222,11 +222,17 @@ class PlaylistGenerator:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         all_candidates = []
-        for result in results:
+        for i, result in enumerate(results):
             if isinstance(result, Exception):
-                logger.error(f"Error fetching segment tracks: {result}")
+                logger.error(f"Error fetching tracks for segment {i} ({segments[i].get('name', 'unknown')}): {result}", exc_info=True)
                 continue
-            all_candidates.extend(result)
+            if isinstance(result, list):
+                all_candidates.extend(result)
+            else:
+                logger.warning(f"Unexpected result type for segment {i}: {type(result)}")
+
+        if not all_candidates:
+            logger.warning("No tracks fetched for any segment - this may cause empty playlist")
 
         return all_candidates
 
@@ -239,23 +245,37 @@ class PlaylistGenerator:
         Args:
             segment: Segment dictionary with BPM range
             user_prefs: User preferences
+            prompt: Optional user prompt for track search
 
         Returns:
             List of Track objects
         """
-        bpm_min, bpm_max = segment["bpm_range"]
-        target_bpm = int((bpm_min + bpm_max) / 2)
+        try:
+            bpm_min, bpm_max = segment["bpm_range"]
+            target_bpm = int((bpm_min + bpm_max) / 2)
 
-        # Use Spotify Recommendations API
-        spotify_tracks = await self.spotify.get_recommendations(
-            seed_genres=user_prefs.get("top_genres", [])[:2],
-            seed_artists=user_prefs.get("top_artists", [])[:2],
-            target_tempo=target_bpm,
-            min_tempo=int(bpm_min),
-            max_tempo=int(bpm_max),
-            target_energy=0.7,  # High energy for workouts
-            limit=20,
-        )
+            logger.debug(
+                f"Fetching tracks for segment {segment.get('name', 'unknown')}: "
+                f"BPM {bpm_min}-{bpm_max}, target {target_bpm}"
+            )
+
+            # Use Spotify Recommendations API
+            spotify_tracks = await self.spotify.get_recommendations(
+                seed_genres=user_prefs.get("top_genres", [])[:2],
+                seed_artists=user_prefs.get("top_artists", [])[:2],
+                target_tempo=target_bpm,
+                min_tempo=int(bpm_min),
+                max_tempo=int(bpm_max),
+                target_energy=0.7,  # High energy for workouts
+                limit=20,
+            )
+
+            if not spotify_tracks:
+                logger.warning(f"No tracks returned from Spotify for segment {segment.get('name', 'unknown')}")
+                spotify_tracks = []
+        except Exception as e:
+            logger.error(f"Error fetching Spotify recommendations: {e}", exc_info=True)
+            spotify_tracks = []
 
         # If prompt is provided, try to enhance search with prompt-based query
         # This adds additional tracks that match the prompt description
@@ -290,6 +310,9 @@ class PlaylistGenerator:
             except Exception as e:
                 logger.warning(f"Failed to convert track: {e}")
                 continue
+
+        if not tracks:
+            logger.warning(f"No valid tracks converted for segment {segment.get('name', 'unknown')}")
 
         return tracks
 

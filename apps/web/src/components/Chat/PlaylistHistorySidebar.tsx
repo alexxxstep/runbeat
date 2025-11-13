@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePlaylistHistory } from '../../hooks/usePlaylistHistory';
 import { useWorkoutHistory } from '../../hooks/useWorkoutHistory';
 import { LoadingSpinner } from '../Shared/LoadingSpinner';
@@ -35,19 +35,42 @@ export function PlaylistHistorySidebar({
     refresh: refreshWorkouts,
   } = useWorkoutHistory(userId);
 
+  // Use ref to track the last timeout and prevent multiple simultaneous refreshes
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastRefreshTriggerRef = useRef<number>(0);
+
   // Refresh when trigger changes (e.g., after new playlist generation or workout save)
   // Use debounce to avoid multiple rapid refreshes
   useEffect(() => {
     if (refreshTrigger !== undefined && refreshTrigger > 0 && userId) {
+      // Only refresh if trigger actually changed
+      if (refreshTrigger === lastRefreshTriggerRef.current) {
+        return;
+      }
+
+      lastRefreshTriggerRef.current = refreshTrigger;
+
+      // Clear any existing timeout
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+
       // Debounce: wait a bit before refreshing to avoid rapid successive calls
-      const timeoutId = setTimeout(() => {
+      refreshTimeoutRef.current = setTimeout(() => {
         refreshPlaylists();
         refreshWorkouts();
-      }, 200);
+        refreshTimeoutRef.current = null;
+      }, 500); // Increased delay to 500ms to batch multiple rapid updates
 
-      return () => clearTimeout(timeoutId);
+      return () => {
+        if (refreshTimeoutRef.current) {
+          clearTimeout(refreshTimeoutRef.current);
+          refreshTimeoutRef.current = null;
+        }
+      };
     }
-  }, [refreshTrigger, userId, refreshPlaylists, refreshWorkouts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger, userId]); // Removed refreshPlaylists and refreshWorkouts from dependencies
 
   const handleDelete = async (e: React.MouseEvent, playlistId: string) => {
     e.stopPropagation();

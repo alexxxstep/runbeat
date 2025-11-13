@@ -526,12 +526,16 @@ async def preview_playlist_variants(
 
         # Generate first variant with original preferences
         user_prefs_variant1 = request.user_preferences or {}
-        playlist_data_variant1 = await generator.generate(
-            workout=request.workout,
-            user_preferences=user_prefs_variant1,
-            interval_stages=interval_stages,
-            prompt=request.prompt,
-        )
+        try:
+            playlist_data_variant1 = await generator.generate(
+                workout=request.workout,
+                user_preferences=user_prefs_variant1,
+                interval_stages=interval_stages,
+                prompt=request.prompt,
+            )
+        except Exception as e:
+            logger.error(f"Failed to generate variant 1: {e}", exc_info=True)
+            raise
 
         # Generate second variant with slightly different preferences
         # (e.g., different genre mix or different BPM range)
@@ -547,12 +551,16 @@ async def preview_playlist_variants(
             user_prefs_variant2["avg_bpm"] = user_prefs_variant2.get(
                 "avg_bpm", 145) + random.choice([-5, 5])
 
-        playlist_data_variant2 = await generator.generate(
-            workout=request.workout,
-            user_preferences=user_prefs_variant2,
-            interval_stages=interval_stages,
-            prompt=request.prompt,
-        )
+        try:
+            playlist_data_variant2 = await generator.generate(
+                workout=request.workout,
+                user_preferences=user_prefs_variant2,
+                interval_stages=interval_stages,
+                prompt=request.prompt,
+            )
+        except Exception as e:
+            logger.error(f"Failed to generate variant 2: {e}", exc_info=True)
+            raise
 
         generation_time = time.time() - start_time
 
@@ -601,8 +609,14 @@ async def preview_playlist_variants(
             generation_time_seconds=generation_time,
         )
 
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 422 for empty variants)
+        raise
     except Exception as e:
-        logger.error(f"Failed to generate playlist variants: {e}")
+        logger.error(f"Failed to generate playlist variants: {e}", exc_info=True)
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f"Full traceback: {error_details}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate playlist variants: {str(e)}",

@@ -666,9 +666,10 @@ export function ChatPage() {
         userId={user?.id}
         onSave={() => {
           // Refresh workout history after save (with delay to ensure data is saved)
+          // Single refresh call - debounce is handled in PlaylistHistorySidebar
           setTimeout(() => {
             setRefreshTrigger((prev) => prev + 1);
-          }, 300);
+          }, 500);
         }}
         onWorkoutActivated={(workout) => {
           const workoutData: Workout = {
