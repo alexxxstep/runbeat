@@ -197,7 +197,7 @@ export function ChatPage() {
 
   return (
     <div className='flex h-screen bg-gray-50 dark:bg-gray-900'>
-      {/* History Sidebar - Left - 2 units */}
+      {/* History Sidebar - Left - 1.5 units */}
       <PlaylistHistorySidebar
         userId={user?.id}
         refreshTrigger={refreshTrigger}
@@ -268,7 +268,7 @@ export function ChatPage() {
         }}
       />
 
-      {/* Main Chat Area - Center */}
+      {/* Main Chat Area - Center - 3 units */}
       <div className='flex-[3] flex flex-col bg-white dark:bg-gray-900 min-w-0'>
         {/* Header with Clear Chat button */}
         {messages.length > 0 && (
@@ -315,7 +315,7 @@ export function ChatPage() {
                         </h3>
                         <p className='text-gray-700 dark:text-gray-300 mb-3'>
                           <strong>Варіант А:</strong> Створи новий воркаут у
-                          панелі <strong>WorkoutSettings</strong> (справа):
+                          панелі <strong>Воркаут</strong> (справа):
                         </p>
                         <ul className='list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400 ml-4 mb-3'>
                           <li>
@@ -699,7 +699,7 @@ export function ChatPage() {
         <InputBar onSend={handleSend} disabled={isLoading || loadingVariants} />
       </div>
 
-      {/* Settings Sidebar - Right */}
+      {/* Settings Sidebar - Right - 1.5 units */}
       <SettingsSidebar
         settings={workoutSettings}
         onSettingsChange={setWorkoutSettings}

@@ -187,14 +187,14 @@ export function SettingsSidebar({
 
   if (collapsed) {
     return (
-      <div className='w-12 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full items-center py-4'>
+      <div className='w-12 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full items-center py-4 transition-all duration-500 ease-in-out'>
         <button
           onClick={onToggleCollapse}
-          className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+          className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-all duration-200 ease-in-out hover:scale-110'
           title='Розгорнути налаштування'
         >
           <svg
-            className='w-5 h-5 text-gray-600 dark:text-gray-400'
+            className='w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-300 ease-in-out'
             fill='none'
             stroke='currentColor'
             viewBox='0 0 24 24'
@@ -212,19 +212,19 @@ export function SettingsSidebar({
   }
 
   return (
-    <div className='flex-[2] bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-y-auto transition-all duration-300 min-w-0'>
-      <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center'>
-        <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>
-          WorkoutSettings
+    <div className='flex-[1.5] bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-y-auto transition-all duration-500 ease-in-out min-w-0'>
+      <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center transition-all duration-300 ease-in-out'>
+        <h2 className='text-lg font-semibold text-gray-900 dark:text-white transition-all duration-300 ease-in-out'>
+          Воркаут
         </h2>
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
-            className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+            className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-all duration-200 ease-in-out hover:scale-110 active:scale-95'
             title='Згорнути налаштування'
           >
             <svg
-              className='w-5 h-5 text-gray-600 dark:text-gray-400'
+              className='w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-300 ease-in-out'
               fill='none'
               stroke='currentColor'
               viewBox='0 0 24 24'
@@ -240,7 +240,7 @@ export function SettingsSidebar({
         )}
       </div>
 
-      <div className='flex-1 p-4 space-y-6'>
+      <div className='flex-1 p-4 space-y-6 transition-all duration-300 ease-in-out'>
         {/* Workout Type */}
         <div>
           <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>

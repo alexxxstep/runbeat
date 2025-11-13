@@ -111,14 +111,14 @@ export function PlaylistHistorySidebar({
 
   if (collapsed) {
     return (
-      <div className='w-12 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full items-center py-4'>
+      <div className='w-12 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full items-center py-4 transition-all duration-500 ease-in-out'>
         <button
           onClick={onToggleCollapse}
-          className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+          className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-all duration-200 ease-in-out hover:scale-110'
           title='Розгорнути історію'
         >
           <svg
-            className='w-5 h-5 text-gray-600 dark:text-gray-400'
+            className='w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-300 ease-in-out'
             fill='none'
             stroke='currentColor'
             viewBox='0 0 24 24'
@@ -136,19 +136,19 @@ export function PlaylistHistorySidebar({
   }
 
   return (
-    <div className='flex-[2] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 min-w-0'>
-      <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center'>
-        <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>
+    <div className='flex-[1.5] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-500 ease-in-out min-w-0'>
+      <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center transition-all duration-300 ease-in-out'>
+        <h2 className='text-lg font-semibold text-gray-900 dark:text-white transition-all duration-300 ease-in-out'>
           Історія
         </h2>
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
-            className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+            className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-all duration-200 ease-in-out hover:scale-110 active:scale-95'
             title='Згорнути історію'
           >
             <svg
-              className='w-5 h-5 text-gray-600 dark:text-gray-400'
+              className='w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-300 ease-in-out'
               fill='none'
               stroke='currentColor'
               viewBox='0 0 24 24'
@@ -164,10 +164,10 @@ export function PlaylistHistorySidebar({
         )}
       </div>
 
-      <div className='flex-1 overflow-y-auto flex flex-col'>
+      <div className='flex-1 overflow-y-auto flex flex-col transition-all duration-300 ease-in-out'>
         {/* Workouts Section - Top Half */}
-        <div className='flex-1 overflow-y-auto p-4 border-b border-gray-200 dark:border-gray-700'>
-          <h3 className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3'>
+        <div className='flex-1 overflow-y-auto p-4 border-b border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out'>
+          <h3 className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 transition-all duration-300 ease-in-out'>
             Воркаути
           </h3>
           {workoutsLoading && (
@@ -350,8 +350,8 @@ export function PlaylistHistorySidebar({
         </div>
 
         {/* Playlists Section - Bottom Half */}
-        <div className='flex-1 overflow-y-auto p-4'>
-          <h3 className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3'>
+        <div className='flex-1 overflow-y-auto p-4 transition-all duration-300 ease-in-out'>
+          <h3 className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 transition-all duration-300 ease-in-out'>
             Плейлисти
           </h3>
           {playlistsLoading && (
