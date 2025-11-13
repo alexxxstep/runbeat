@@ -31,6 +31,10 @@ export interface Track {
   spotify_url: string;
   spotify_uri: string;
   preview_url?: string;
+  external_urls?: {
+    spotify?: string;
+    [key: string]: any;
+  };
   tempo: number;
   bpm: number;
   energy: number;
