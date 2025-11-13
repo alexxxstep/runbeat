@@ -12,6 +12,11 @@ class WorkoutCreateRequest(BaseModel):
 
     workout: Workout = Field(..., description="Workout parameters")
     user_id: str = Field(..., description="User ID")
+    genres: Optional[List[str]] = Field(default=[], description="Music genres")
+    interval_stages: Optional[List[dict]] = Field(
+        default=None, description="Interval stages")
+    prompt: Optional[str] = Field(
+        default=None, description="User prompt for track search refinement")
 
     class Config:
         json_schema_extra = {
@@ -38,7 +43,13 @@ class WorkoutResponse(BaseModel):
     duration_minutes: int = Field(..., description="Duration in minutes")
     intensity: str = Field(..., description="Intensity level")
     hr_zones: List[int] = Field(..., description="Heart rate zones")
-    completed_at: Optional[datetime] = Field(None, description="Completion timestamp")
+    genres: Optional[List[str]] = Field(default=[], description="Music genres")
+    interval_stages: Optional[List[dict]] = Field(
+        default=None, description="Interval stages")
+    prompt: Optional[str] = Field(
+        default=None, description="User prompt for track search")
+    completed_at: Optional[datetime] = Field(
+        None, description="Completion timestamp")
     created_at: datetime = Field(..., description="Creation timestamp")
 
     class Config:
@@ -59,7 +70,8 @@ class WorkoutResponse(BaseModel):
 class WorkoutListResponse(BaseModel):
     """Response schema for workout list."""
 
-    workouts: List[WorkoutResponse] = Field(..., description="List of workouts")
+    workouts: List[WorkoutResponse] = Field(...,
+                                            description="List of workouts")
     total: int = Field(..., description="Total number of workouts")
 
     class Config:
@@ -69,4 +81,3 @@ class WorkoutListResponse(BaseModel):
                 "total": 0,
             }
         }
-

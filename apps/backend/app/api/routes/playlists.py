@@ -2,6 +2,7 @@
 Playlist generation endpoints.
 """
 import time
+import random
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,6 +12,8 @@ from app.core.config import settings
 from app.schemas.playlist import (
     PlaylistGenerateRequest,
     PlaylistGenerateResponse,
+    PlaylistVariantsResponse,
+    TrackVariant,
 )
 from app.services.playlist_generator import PlaylistGenerator
 from app.services.spotify_service import SpotifyService
@@ -80,6 +83,7 @@ async def generate_playlist(
             workout=request.workout,
             user_preferences=request.user_preferences or {},
             interval_stages=interval_stages,
+            prompt=request.prompt,
         )
 
         generation_time = time.time() - start_time
@@ -471,4 +475,110 @@ async def delete_playlist(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to delete playlist: {str(e)}",
+        )
+
+
+@router.post("/preview-variants", response_model=PlaylistVariantsResponse)
+async def preview_playlist_variants(
+    request: PlaylistGenerateRequest,
+    generator: PlaylistGenerator = Depends(get_playlist_generator),
+) -> PlaylistVariantsResponse:
+    """
+    Generate 2 track variants for preview (without creating Spotify playlist).
+
+    Args:
+        request: Playlist generation request with workout and preferences
+        generator: PlaylistGenerator dependency
+
+    Returns:
+        PlaylistVariantsResponse with 2 track variants
+
+    Raises:
+        HTTPException: If generation fails
+    """
+    start_time = time.time()
+
+    try:
+        logger.info(
+            f"Generating 2 variants for {request.workout.type} workout, "
+            f"{request.workout.duration_minutes} min"
+        )
+
+        # Prepare interval stages
+        interval_stages = None
+        if request.interval_stages:
+            interval_stages = [
+                {
+                    "name": stage.name,
+                    "duration_minutes": stage.duration_minutes,
+                    "hr_zone": stage.hr_zone,
+                    "bpm_range": stage.bpm_range,
+                }
+                for stage in request.interval_stages
+            ]
+
+        # Generate first variant with original preferences
+        user_prefs_variant1 = request.user_preferences or {}
+        playlist_data_variant1 = await generator.generate(
+            workout=request.workout,
+            user_preferences=user_prefs_variant1,
+            interval_stages=interval_stages,
+            prompt=request.prompt,
+        )
+
+        # Generate second variant with slightly different preferences
+        # (e.g., different genre mix or different BPM range)
+        user_prefs_variant2 = user_prefs_variant1.copy()
+        # Add some variation - could be different genre emphasis or BPM adjustment
+        if "top_genres" in user_prefs_variant2 and user_prefs_variant2["top_genres"]:
+            # Shuffle genres for variety
+            genres = user_prefs_variant2["top_genres"].copy()
+            random.shuffle(genres)
+            user_prefs_variant2["top_genres"] = genres
+        elif "avg_bpm" in user_prefs_variant2:
+            # Slight BPM variation (±5)
+            user_prefs_variant2["avg_bpm"] = user_prefs_variant2.get(
+                "avg_bpm", 145) + random.choice([-5, 5])
+
+        playlist_data_variant2 = await generator.generate(
+            workout=request.workout,
+            user_preferences=user_prefs_variant2,
+            interval_stages=interval_stages,
+            prompt=request.prompt,
+        )
+
+        generation_time = time.time() - start_time
+
+        logger.info(
+            f"Variants generated successfully: "
+            f"Variant 1: {playlist_data_variant1.total_tracks} tracks, "
+            f"Variant 2: {playlist_data_variant2.total_tracks} tracks, "
+            f"{generation_time:.2f}s"
+        )
+
+        # Convert tracks to dict for response
+        tracks_variant1 = [track.model_dump()
+                           for track in playlist_data_variant1.tracks]
+        tracks_variant2 = [track.model_dump()
+                           for track in playlist_data_variant2.tracks]
+
+        return PlaylistVariantsResponse(
+            variant1=TrackVariant(
+                tracks=tracks_variant1,
+                total_duration=playlist_data_variant1.total_duration,
+                total_tracks=playlist_data_variant1.total_tracks,
+            ),
+            variant2=TrackVariant(
+                tracks=tracks_variant2,
+                total_duration=playlist_data_variant2.total_duration,
+                total_tracks=playlist_data_variant2.total_tracks,
+            ),
+            generation_time_seconds=generation_time,
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to generate playlist variants: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate playlist variants: {str(e)}",
         )

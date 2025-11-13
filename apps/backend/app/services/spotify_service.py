@@ -104,6 +104,7 @@ class SpotifyService:
         max_tempo: int,
         target_energy: float,
         limit: int = 20,
+        search_query: Optional[str] = None,
     ) -> List[Dict]:
         """
         Get tracks using Search API as fallback when Recommendations fails.
@@ -124,10 +125,17 @@ class SpotifyService:
                 client_credentials_manager=self.client_credentials
             )
 
-            # Build search query from genres
+            # Build search query from genres and optional prompt
             genres = seed_genres[:2] if seed_genres else ["pop", "rock"]
             query_parts = [f"genre:{g}" for g in genres]
-            query = " OR ".join(query_parts)
+
+            # Add prompt to search query if provided
+            if search_query and search_query.strip():
+                # Clean and add prompt to search
+                prompt_clean = search_query.strip()[:100]  # Limit length
+                query_parts.append(prompt_clean)
+
+            query = " OR ".join(query_parts) if len(query_parts) > 1 else query_parts[0] if query_parts else "pop"
 
             logger.debug(f"Searching tracks with query: {query}")
 

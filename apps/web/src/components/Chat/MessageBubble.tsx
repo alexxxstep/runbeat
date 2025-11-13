@@ -16,7 +16,40 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
         }`}
       >
-        <p className='text-sm'>{message.content}</p>
+        {/* Render workout info if available */}
+        {message.workout && (
+          <div className='mb-3 pb-3 border-b border-gray-300 dark:border-gray-600'>
+            <div className='text-sm space-y-1'>
+              <p>
+                <strong>Тип тренування:</strong>{' '}
+                {message.workout.type === 'steady'
+                  ? 'Стабільна'
+                  : message.workout.type === 'progressive'
+                  ? 'Прогресивна'
+                  : message.workout.type === 'intervals'
+                  ? 'Інтервальна'
+                  : 'Фартлек'}
+              </p>
+              <p>
+                <strong>Тривалість:</strong> {message.workout.duration_minutes}{' '}
+                хвилин
+              </p>
+              <p>
+                <strong>Інтенсивність:</strong>{' '}
+                {message.workout.intensity === 'low'
+                  ? 'Легка'
+                  : message.workout.intensity === 'moderate'
+                  ? 'Середня'
+                  : 'Висока'}
+              </p>
+              <p>
+                <strong>ЧСС:</strong> {message.workout.hr_zones[0]} -{' '}
+                {message.workout.hr_zones[1]} уд/хв
+              </p>
+            </div>
+          </div>
+        )}
+        <p className='text-sm whitespace-pre-line'>{message.content}</p>
 
         {/* Display playlist link if available */}
         {message.playlist && (

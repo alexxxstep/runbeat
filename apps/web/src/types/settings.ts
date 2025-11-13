@@ -21,4 +21,5 @@ export interface WorkoutSettings {
   hrZones: [number, number];
   genres: string[];
   intervalStages?: IntervalStage[];
+  prompt?: string; // User prompt for track search refinement
 }

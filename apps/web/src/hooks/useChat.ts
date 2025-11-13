@@ -76,7 +76,8 @@ export function useChat() {
         durationMinutes: number;
         hrZone: [number, number];
         bpmRange: [number, number];
-      }>
+      }>,
+      prompt?: string | null
     ) => {
       setIsLoading(true);
       setError(null);
@@ -96,6 +97,7 @@ export function useChat() {
             hr_zone: stage.hrZone,
             bpm_range: stage.bpmRange,
           })),
+          prompt: prompt || null,
         });
 
         // Add playlist message to chat
@@ -140,11 +142,45 @@ export function useChat() {
     setError(null);
   }, []);
 
+  const addWorkoutActivationMessage = useCallback((workout: Workout) => {
+    const workoutTypeLabels: Record<string, string> = {
+      steady: 'Стабільна',
+      progressive: 'Прогресивна',
+      intervals: 'Інтервальна',
+      fartlek: 'Фартлек',
+    };
+
+    const intensityLabels: Record<string, string> = {
+      low: 'Легка',
+      moderate: 'Середня',
+      high: 'Висока',
+    };
+
+    const workoutInfo = `**Активований воркаут:**
+
+**Тип тренування:** ${workoutTypeLabels[workout.type] || workout.type}
+**Тривалість:** ${workout.duration_minutes} хвилин
+**Інтенсивність:** ${intensityLabels[workout.intensity] || workout.intensity}
+**Частота серцебиття:** ${workout.hr_zones[0]} - ${workout.hr_zones[1]} уд/хв
+
+Створити під цей воркаут плейлист?`;
+
+    const aiMessage: Message = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: workoutInfo,
+      timestamp: new Date(),
+      workout: workout,
+    };
+    setMessages((prev) => [...prev, aiMessage]);
+  }, []);
+
   return {
     messages,
     sendMessage,
     generatePlaylist,
     clearMessages,
+    addWorkoutActivationMessage,
     isLoading,
     error,
   };

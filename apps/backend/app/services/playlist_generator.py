@@ -29,6 +29,7 @@ class PlaylistGenerator:
         workout: Workout,
         user_preferences: Dict,
         interval_stages: Optional[List[Dict]] = None,
+        prompt: Optional[str] = None,
     ) -> PlaylistData:
         """
         Main generation method.
@@ -50,7 +51,7 @@ class PlaylistGenerator:
         logger.debug(f"Created {len(segments)} segments")
 
         # 2. Fetch candidate tracks (parallel)
-        candidates = await self._fetch_candidates(segments, user_preferences)
+        candidates = await self._fetch_candidates(segments, user_preferences, prompt)
         logger.debug(f"Fetched {len(candidates)} candidate tracks")
 
         # 3. Score tracks
@@ -204,7 +205,7 @@ class PlaylistGenerator:
         return intensity_map.get(intensity, 145)
 
     async def _fetch_candidates(
-        self, segments: List[Dict], user_prefs: Dict
+        self, segments: List[Dict], user_prefs: Dict, prompt: Optional[str] = None
     ) -> List[Track]:
         """
         Fetch candidate tracks for all segments (parallel).
@@ -216,7 +217,7 @@ class PlaylistGenerator:
         Returns:
             List of Track objects
         """
-        tasks = [self._fetch_for_segment(seg, user_prefs) for seg in segments]
+        tasks = [self._fetch_for_segment(seg, user_prefs, prompt) for seg in segments]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -230,7 +231,7 @@ class PlaylistGenerator:
         return all_candidates
 
     async def _fetch_for_segment(
-        self, segment: Dict, user_prefs: Dict
+        self, segment: Dict, user_prefs: Dict, prompt: Optional[str] = None
     ) -> List[Track]:
         """
         Fetch tracks for one segment.
@@ -255,6 +256,29 @@ class PlaylistGenerator:
             target_energy=0.7,  # High energy for workouts
             limit=20,
         )
+
+        # If prompt is provided, try to enhance search with prompt-based query
+        # This adds additional tracks that match the prompt description
+        if prompt and prompt.strip():
+            try:
+                # Use search API with prompt to find additional relevant tracks
+                prompt_tracks = await self.spotify.get_tracks_by_search(
+                    seed_genres=user_prefs.get("top_genres", [])[:2],
+                    min_tempo=int(bpm_min),
+                    max_tempo=int(bpm_max),
+                    target_energy=0.7,
+                    limit=10,
+                    search_query=prompt,  # Add prompt to search
+                )
+                # Merge prompt-based tracks with recommendations (avoid duplicates)
+                existing_ids = {t.get("id") for t in spotify_tracks if t.get("id")}
+                for track in prompt_tracks:
+                    if track.get("id") and track.get("id") not in existing_ids:
+                        spotify_tracks.append(track)
+                        existing_ids.add(track.get("id"))
+                logger.debug(f"Added {len(prompt_tracks)} prompt-based tracks")
+            except Exception as e:
+                logger.warning(f"Failed to search tracks with prompt: {e}")
 
         # Convert Spotify tracks to Track models
         tracks = []

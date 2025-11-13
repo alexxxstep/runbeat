@@ -7,6 +7,7 @@ import type {
   ChatResponse,
   PlaylistGenerateRequest,
   PlaylistGenerateResponse,
+  PlaylistVariantsResponse,
   UserPreferences,
   Workout,
 } from '../types';
@@ -105,6 +106,16 @@ class ApiClient {
     return response.data;
   }
 
+  async previewPlaylistVariants(
+    request: PlaylistGenerateRequest
+  ): Promise<PlaylistVariantsResponse> {
+    const response = await this.client.post<PlaylistVariantsResponse>(
+      '/playlists/preview-variants',
+      request
+    );
+    return response.data;
+  }
+
   async getPlaylistHistory(userId: string, limit = 10, offset = 0) {
     const response = await this.client.get('/playlists/history', {
       params: { user_id: userId, limit, offset },
@@ -134,10 +145,24 @@ class ApiClient {
   }
 
   // Workout endpoints
-  async createWorkout(workout: Workout, userId: string) {
+  async createWorkout(
+    workout: Workout,
+    userId: string,
+    genres?: string[],
+    intervalStages?: Array<{
+      name: string;
+      duration_minutes: number;
+      hr_zone: [number, number];
+      bpm_range: [number, number];
+    }>,
+    prompt?: string
+  ) {
     const response = await this.client.post('/workouts', {
       workout,
       user_id: userId,
+      genres: genres || [],
+      interval_stages: intervalStages || null,
+      prompt: prompt || null,
     });
     return response.data;
   }

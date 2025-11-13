@@ -73,6 +73,7 @@ export interface PlaylistGenerateRequest {
     hr_zone: [number, number];
     bpm_range: [number, number];
   }>;
+  prompt?: string | null;
 }
 
 export interface PlaylistGenerateResponse {
@@ -82,6 +83,18 @@ export interface PlaylistGenerateResponse {
   total_duration: number;
   total_tracks: number;
   generation_time_seconds?: number;
+}
+
+export interface TrackVariant {
+  tracks: Track[];
+  total_duration: number;
+  total_tracks: number;
+}
+
+export interface PlaylistVariantsResponse {
+  variant1: TrackVariant;
+  variant2: TrackVariant;
+  generation_time_seconds: number;
 }
 
 export interface UserPreferences {

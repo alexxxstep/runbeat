@@ -38,6 +38,9 @@ class PlaylistGenerateRequest(BaseModel):
     interval_stages: Optional[List[IntervalStage]] = Field(
         None, description="Custom interval stages (for intervals workout type)"
     )
+    prompt: Optional[str] = Field(
+        None, description="User prompt for track search refinement"
+    )
 
     class Config:
         json_schema_extra = {
@@ -84,3 +87,21 @@ class PlaylistGenerateResponse(BaseModel):
                 "generation_time_seconds": 8.5,
             }
         }
+
+
+class TrackVariant(BaseModel):
+    """Single track variant schema."""
+
+    tracks: list = Field(..., description="List of tracks")
+    total_duration: float = Field(..., description="Total duration in seconds")
+    total_tracks: int = Field(..., description="Number of tracks")
+
+
+class PlaylistVariantsResponse(BaseModel):
+    """Response schema for playlist variants preview."""
+
+    variant1: TrackVariant = Field(..., description="First track variant")
+    variant2: TrackVariant = Field(..., description="Second track variant")
+    generation_time_seconds: float = Field(
+        ..., description="Time taken to generate variants"
+    )

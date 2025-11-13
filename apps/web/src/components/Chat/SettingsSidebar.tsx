@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react';
 import type { WorkoutSettings, IntervalStage } from '../../types/settings';
+import { api } from '../../services/api';
 
 interface SettingsSidebarProps {
   settings: WorkoutSettings;
   onSettingsChange: (settings: WorkoutSettings) => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  userId?: string;
+  onSave?: () => void; // Callback after successful save
+  onWorkoutActivated?: (workout: {
+    id?: string; // Workout ID if saved
+    type: string;
+    duration_minutes: number;
+    intensity: string;
+    hr_zones: number[];
+  }) => void; // Callback when workout is saved and should be activated
 }
 
 const WORKOUT_TYPES: Array<{ value: WorkoutSettings['type']; label: string }> =
@@ -48,8 +58,12 @@ export function SettingsSidebar({
   onSettingsChange,
   collapsed = false,
   onToggleCollapse,
+  userId,
+  onSave,
+  onWorkoutActivated,
 }: SettingsSidebarProps) {
   const [localSettings, setLocalSettings] = useState<WorkoutSettings>(settings);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -95,6 +109,59 @@ export function SettingsSidebar({
       ? localSettings.genres.filter((g) => g !== genre)
       : [...localSettings.genres, genre];
     updateSettings({ genres });
+  };
+
+  const handleSave = async () => {
+    if (!userId) {
+      alert('Помилка: користувач не авторизований');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const workout = {
+        type: localSettings.type,
+        duration_minutes: localSettings.durationMinutes,
+        intensity: localSettings.intensity,
+        hr_zones: localSettings.hrZones,
+      };
+
+      // Prepare interval stages for backend
+      const intervalStages = localSettings.intervalStages?.map((stage) => ({
+        name: stage.name,
+        duration_minutes: stage.durationMinutes,
+        hr_zone: stage.hrZone,
+        bpm_range: stage.bpmRange,
+      }));
+
+      const savedWorkout = await api.createWorkout(
+        workout,
+        userId,
+        localSettings.genres,
+        intervalStages,
+        localSettings.prompt
+      );
+      if (onSave) {
+        onSave();
+      }
+      // Activate the workout after saving (with saved ID)
+      if (onWorkoutActivated) {
+        onWorkoutActivated({
+          ...workout,
+          id: savedWorkout.id, // Include saved workout ID
+        });
+      }
+      alert('Воркаут успішно збережено!');
+    } catch (error) {
+      console.error('Failed to save workout:', error);
+      alert(
+        error instanceof Error
+          ? `Помилка збереження: ${error.message}`
+          : 'Помилка збереження воркауту'
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const convertDurationToMinutes = (hours: number, minutes: number) => {
@@ -152,7 +219,7 @@ export function SettingsSidebar({
     <div className='w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-y-auto transition-all duration-300'>
       <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center'>
         <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>
-          Налаштування
+          WorkoutSettings
         </h2>
         {onToggleCollapse && (
           <button
@@ -491,6 +558,34 @@ export function SettingsSidebar({
             ))}
           </div>
         </div>
+
+        {/* Prompt Field */}
+        <div>
+          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+            Промпт (опціонально)
+          </label>
+          <textarea
+            value={localSettings.prompt || ''}
+            onChange={(e) => updateSettings({ prompt: e.target.value })}
+            placeholder='Опиши додаткові побажання до музики, наприклад: "енергійна музика для ранкового бігу", "релаксуючі мелодії", "улюблені треки 2024 року" тощо...'
+            className='w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none'
+            rows={4}
+          />
+          <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+            Цей промпт допоможе уточнити пошук та генерацію варіантів плейлистів
+          </p>
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <div className='p-4 border-t border-gray-200 dark:border-gray-700'>
+        <button
+          onClick={handleSave}
+          disabled={saving || !userId}
+          className='w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium'
+        >
+          {saving ? 'Збереження...' : 'Зберегти'}
+        </button>
       </div>
     </div>
   );

@@ -51,6 +51,14 @@ async def create_workout(
             "hr_zones": request.workout.hr_zones,
         }
 
+        # Add optional fields if provided in request
+        if request.genres:
+            workout_data["genres"] = request.genres
+        if request.interval_stages:
+            workout_data["interval_stages"] = request.interval_stages
+        if request.prompt:
+            workout_data["prompt"] = request.prompt
+
         result = (
             supabase.get_client()
             .table("workouts")
@@ -59,7 +67,8 @@ async def create_workout(
         )
 
         if not result.data:
-            raise HTTPException(status_code=500, detail="Failed to create workout")
+            raise HTTPException(
+                status_code=500, detail="Failed to create workout")
 
         workout = result.data[0]
 
@@ -71,7 +80,8 @@ async def create_workout(
             intensity=workout["intensity"],
             hr_zones=workout["hr_zones"],
             completed_at=(
-                datetime.fromisoformat(workout["completed_at"].replace("Z", "+00:00"))
+                datetime.fromisoformat(
+                    workout["completed_at"].replace("Z", "+00:00"))
                 if workout.get("completed_at")
                 else None
             ),
@@ -93,7 +103,8 @@ async def create_workout(
 @router.get("", response_model=WorkoutListResponse)
 async def get_workouts(
     user_id: str = Query(..., description="User ID"),
-    limit: int = Query(10, ge=1, le=100, description="Number of workouts to return"),
+    limit: int = Query(
+        10, ge=1, le=100, description="Number of workouts to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     supabase: SupabaseService = Depends(get_supabase_service),
 ) -> WorkoutListResponse:
@@ -135,8 +146,12 @@ async def get_workouts(
                 duration_minutes=w["duration_minutes"],
                 intensity=w["intensity"],
                 hr_zones=w["hr_zones"],
+                genres=w.get("genres", []),
+                interval_stages=w.get("interval_stages"),
+                prompt=w.get("prompt"),
                 completed_at=(
-                    datetime.fromisoformat(w["completed_at"].replace("Z", "+00:00"))
+                    datetime.fromisoformat(
+                        w["completed_at"].replace("Z", "+00:00"))
                     if w.get("completed_at")
                     else None
                 ),
@@ -205,8 +220,12 @@ async def get_workout(
             duration_minutes=workout["duration_minutes"],
             intensity=workout["intensity"],
             hr_zones=workout["hr_zones"],
+            genres=workout.get("genres", []),
+            interval_stages=workout.get("interval_stages"),
+            prompt=workout.get("prompt"),
             completed_at=(
-                datetime.fromisoformat(workout["completed_at"].replace("Z", "+00:00"))
+                datetime.fromisoformat(
+                    workout["completed_at"].replace("Z", "+00:00"))
                 if workout.get("completed_at")
                 else None
             ),
@@ -289,7 +308,8 @@ async def complete_workout(
         HTTPException: If workout not found or update fails
     """
     try:
-        logger.info(f"Marking workout {workout_id} as completed for user {user_id}")
+        logger.info(
+            f"Marking workout {workout_id} as completed for user {user_id}")
 
         # Update workout
         result = (
@@ -313,8 +333,12 @@ async def complete_workout(
             duration_minutes=workout["duration_minutes"],
             intensity=workout["intensity"],
             hr_zones=workout["hr_zones"],
+            genres=workout.get("genres", []),
+            interval_stages=workout.get("interval_stages"),
+            prompt=workout.get("prompt"),
             completed_at=(
-                datetime.fromisoformat(workout["completed_at"].replace("Z", "+00:00"))
+                datetime.fromisoformat(
+                    workout["completed_at"].replace("Z", "+00:00"))
                 if workout.get("completed_at")
                 else None
             ),
@@ -331,4 +355,3 @@ async def complete_workout(
             status_code=500,
             detail=f"Failed to complete workout: {str(e)}",
         )
-
