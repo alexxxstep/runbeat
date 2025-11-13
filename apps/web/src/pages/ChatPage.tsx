@@ -182,10 +182,7 @@ export function ChatPage() {
       setVariants(variantsData);
     } catch (error) {
       console.error('Failed to generate variants:', error);
-      const errorMessage = error instanceof Error
-        ? error.message
-        : 'Помилка генерації варіантів';
-      alert(errorMessage);
+      // Error logged to console - no alert shown
       setVariants(null);
     } finally {
       setLoadingVariants(false);
@@ -264,7 +261,7 @@ export function ChatPage() {
             setShowPlaylistQuestion(true);
           } catch (error) {
             console.error('Failed to load workout:', error);
-            alert('Помилка завантаження воркауту');
+            // Error logged to console - no alert shown
           }
         }}
       />
@@ -694,10 +691,10 @@ export function ChatPage() {
             </div>
           )}
 
-          {isLoading && <TypingIndicator />}
+          {(isLoading || loadingVariants) && <TypingIndicator />}
         </div>
 
-        <InputBar onSend={handleSend} disabled={isLoading} />
+        <InputBar onSend={handleSend} disabled={isLoading || loadingVariants} />
       </div>
 
       {/* Settings Sidebar - Right */}

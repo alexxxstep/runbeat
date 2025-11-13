@@ -113,7 +113,7 @@ export function SettingsSidebar({
 
   const handleSave = async () => {
     if (!userId) {
-      alert('Помилка: користувач не авторизований');
+      console.error('Помилка: користувач не авторизований');
       return;
     }
 
@@ -151,14 +151,10 @@ export function SettingsSidebar({
           id: savedWorkout.id, // Include saved workout ID
         });
       }
-      alert('Воркаут успішно збережено!');
+      // Workout saved successfully - no alert needed
     } catch (error) {
       console.error('Failed to save workout:', error);
-      alert(
-        error instanceof Error
-          ? `Помилка збереження: ${error.message}`
-          : 'Помилка збереження воркауту'
-      );
+      // Error logged to console - no alert shown
     } finally {
       setSaving(false);
     }

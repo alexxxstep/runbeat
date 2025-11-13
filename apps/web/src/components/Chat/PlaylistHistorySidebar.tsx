@@ -74,14 +74,10 @@ export function PlaylistHistorySidebar({
 
   const handleDelete = async (e: React.MouseEvent, playlistId: string) => {
     e.stopPropagation();
-    if (
-      window.confirm('Ви впевнені, що хочете видалити цей плейлист з історії?')
-    ) {
-      try {
-        await deletePlaylist(playlistId);
-      } catch (err) {
-        console.error('Failed to delete playlist:', err);
-      }
+    try {
+      await deletePlaylist(playlistId);
+    } catch (err) {
+      console.error('Failed to delete playlist:', err);
     }
   };
 
@@ -98,12 +94,10 @@ export function PlaylistHistorySidebar({
     workoutId: string
   ) => {
     e.stopPropagation();
-    if (window.confirm('Ви впевнені, що хочете видалити цей воркаут?')) {
-      try {
-        await deleteWorkout(workoutId);
-      } catch (err) {
-        console.error('Failed to delete workout:', err);
-      }
+    try {
+      await deleteWorkout(workoutId);
+    } catch (err) {
+      console.error('Failed to delete workout:', err);
     }
   };
 
