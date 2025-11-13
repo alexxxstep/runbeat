@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useChat } from '../hooks/useChat';
 import { useAuth } from '../hooks/useAuth';
 import { MessageBubble } from '../components/Chat/MessageBubble';
@@ -13,7 +12,6 @@ import { api } from '../services/api';
 import type { Workout, PlaylistVariantsResponse, Track } from '../types';
 
 export function ChatPage() {
-  const navigate = useNavigate();
   const { user, spotifyAuthenticated } = useAuth();
   const {
     messages,

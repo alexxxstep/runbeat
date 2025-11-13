@@ -3,7 +3,6 @@ Workout CRUD endpoints.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
-from typing import List, Optional
 from datetime import datetime
 
 from app.services.supabase_service import SupabaseService
@@ -79,6 +78,9 @@ async def create_workout(
             duration_minutes=workout["duration_minutes"],
             intensity=workout["intensity"],
             hr_zones=workout["hr_zones"],
+            genres=workout.get("genres", []),
+            interval_stages=workout.get("interval_stages"),
+            prompt=workout.get("prompt"),
             completed_at=(
                 datetime.fromisoformat(
                     workout["completed_at"].replace("Z", "+00:00"))
