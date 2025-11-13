@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000", "http://localhost:19006"]
+    FRONTEND_URL: Optional[str] = None  # Production frontend URL
 
     # Railway/Deployment
     PORT: int = 8000
@@ -66,6 +67,35 @@ class Settings(BaseSettings):
 
 # Create settings instance
 _settings = Settings()
+
+# Auto-detect and add production frontend URL to CORS if in production
+if _settings.ENVIRONMENT == "production":
+    # Try to get frontend URL from environment or Railway
+    frontend_url = (
+        _settings.FRONTEND_URL
+        or os.getenv("FRONTEND_URL")
+        or os.getenv("RAILWAY_STATIC_URL")
+    )
+
+    # Ensure CORS_ORIGINS is a list
+    if isinstance(_settings.CORS_ORIGINS, str):
+        _settings.CORS_ORIGINS = [_settings.CORS_ORIGINS]
+    elif not isinstance(_settings.CORS_ORIGINS, list):
+        _settings.CORS_ORIGINS = list(_settings.CORS_ORIGINS)
+
+    # Add frontend URL if found
+    if frontend_url and frontend_url not in _settings.CORS_ORIGINS:
+        _settings.CORS_ORIGINS.append(frontend_url)
+        logger.info(f"Added frontend URL to CORS: {frontend_url}")
+
+    # Also add common production URLs
+    production_urls = [
+        "https://runbeatweb-production.up.railway.app",
+        "https://runbeatweb-production.railway.app",
+    ]
+    for url in production_urls:
+        if url not in _settings.CORS_ORIGINS:
+            _settings.CORS_ORIGINS.append(url)
 
 # Auto-detect Railway URL and set redirect URI if not provided
 if not _settings.SPOTIFY_REDIRECT_URI:

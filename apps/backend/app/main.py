@@ -1,6 +1,7 @@
 """
 RunBeat Backend - FastAPI Application Entry Point
 """
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
@@ -9,7 +10,6 @@ from app.core.config import settings
 from app.api.routes import health, chat, playlists, auth, workouts, users
 
 # Configure logger
-import os
 log_dir = os.path.join(os.path.dirname(__file__), "..", "logs")
 os.makedirs(log_dir, exist_ok=True)
 logger.add(
@@ -29,12 +29,33 @@ app = FastAPI(
 )
 
 # CORS middleware
+# In production, also allow requests from known Railway domains
+cors_origins = list(settings.CORS_ORIGINS) if isinstance(settings.CORS_ORIGINS, list) else [settings.CORS_ORIGINS]
+
+# Add production frontend URLs if in production
+if settings.ENVIRONMENT == "production":
+    production_origins = [
+        "https://runbeatweb-production.up.railway.app",
+        "https://runbeatweb-production.railway.app",
+    ]
+    for origin in production_origins:
+        if origin not in cors_origins:
+            cors_origins.append(origin)
+
+    # Also check FRONTEND_URL from environment
+    frontend_url = os.getenv("FRONTEND_URL")
+    if frontend_url and frontend_url not in cors_origins:
+        cors_origins.append(frontend_url)
+
+logger.info(f"CORS configured with {len(cors_origins)} origins: {cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include routers
