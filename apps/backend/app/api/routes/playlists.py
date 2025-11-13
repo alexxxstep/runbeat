@@ -110,13 +110,56 @@ async def generate_playlist(
             except Exception as token_error:
                 logger.warning(f"Failed to get user token: {token_error}, using Client Credentials")
 
-        playlist_data = await generator.generate(
-            workout=request.workout,
-            user_preferences=request.user_preferences or {},
-            interval_stages=interval_stages,
-            prompt=request.prompt,
-            user_token=user_token,
-        )
+        # If selected_tracks are provided, use them directly instead of generating
+        if request.selected_tracks and len(request.selected_tracks) > 0:
+            logger.info(
+                f"Using pre-selected {len(request.selected_tracks)} tracks from variant "
+                f"instead of generating new playlist"
+            )
+            # Convert dict tracks to Track objects
+            from app.models.playlist import Track, PlaylistData
+            selected_track_objects = []
+            for track_dict in request.selected_tracks:
+                # Extract required fields, provide defaults for missing audio features
+                track_obj = Track(
+                    id=track_dict.get("id", ""),
+                    name=track_dict.get("name", ""),
+                    artist=track_dict.get("artist", ""),
+                    artist_id=track_dict.get("artist_id") or track_dict.get("id", "")[:22],  # Fallback
+                    duration_ms=track_dict.get("duration_ms", 0),
+                    spotify_uri=track_dict.get("spotify_uri") or f"spotify:track:{track_dict.get('id', '')}",
+                    spotify_url=track_dict.get("external_urls", {}).get("spotify") or track_dict.get("spotify_url") or f"https://open.spotify.com/track/{track_dict.get('id', '')}",
+                    preview_url=track_dict.get("preview_url"),
+                    album=track_dict.get("album", {}).get("name") if isinstance(track_dict.get("album"), dict) else track_dict.get("album"),
+                    tempo=track_dict.get("tempo") or track_dict.get("bpm") or 120.0,
+                    bpm=track_dict.get("bpm") or track_dict.get("tempo") or 120.0,
+                    energy=track_dict.get("energy", 0.5),
+                    danceability=track_dict.get("danceability", 0.5),
+                    valence=track_dict.get("valence", 0.5),
+                    genres=track_dict.get("genres", []),
+                )
+                selected_track_objects.append(track_obj)
+
+            # Calculate total duration from selected tracks
+            total_duration = sum(track.duration_ms for track in selected_track_objects) / 1000
+            playlist_data = PlaylistData(
+                tracks=selected_track_objects,
+                total_duration=total_duration,
+                total_tracks=len(selected_track_objects),
+            )
+            logger.info(
+                f"Using {playlist_data.total_tracks} pre-selected tracks, "
+                f"total duration: {playlist_data.total_duration:.1f}s"
+            )
+        else:
+            # Generate playlist normally
+            playlist_data = await generator.generate(
+                workout=request.workout,
+                user_preferences=request.user_preferences or {},
+                interval_stages=interval_stages,
+                prompt=request.prompt,
+                user_token=user_token,
+            )
 
         generation_time = time.time() - start_time
 

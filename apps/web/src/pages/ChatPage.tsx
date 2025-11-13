@@ -573,7 +573,8 @@ export function ChatPage() {
                           workoutSettings.genres,
                           workoutSettings.intervalStages,
                           workoutSettings.prompt,
-                          activeWorkoutId
+                          activeWorkoutId,
+                          variants.variant1.tracks // Pass selected variant tracks
                         );
                         setVariants(null);
                         setActiveWorkout(null);
@@ -661,7 +662,8 @@ export function ChatPage() {
                           workoutSettings.genres,
                           workoutSettings.intervalStages,
                           workoutSettings.prompt,
-                          activeWorkoutId
+                          activeWorkoutId,
+                          variants.variant2.tracks // Pass selected variant tracks
                         );
                         setVariants(null);
                         setActiveWorkout(null);

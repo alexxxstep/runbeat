@@ -47,6 +47,9 @@ class PlaylistGenerateRequest(BaseModel):
     excluded_track_ids: Optional[List[str]] = Field(
         None, description="List of track IDs to exclude from generation (e.g., from previous variants)"
     )
+    selected_tracks: Optional[List[Dict]] = Field(
+        None, description="Pre-selected tracks from variant to use directly (bypasses generation)"
+    )
 
     class Config:
         json_schema_extra = {

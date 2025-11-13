@@ -76,6 +76,7 @@ export interface PlaylistGenerateRequest {
   }>;
   prompt?: string | null;
   excluded_track_ids?: string[];
+  selected_tracks?: Track[]; // Tracks from selected variant to use directly
 }
 
 export interface PlaylistGenerateResponse {

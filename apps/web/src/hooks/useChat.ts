@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api } from '../services/api';
-import type { Message, Workout, ChatRequest } from '../types';
+import type { Message, Workout, ChatRequest, Track } from '../types';
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -78,7 +78,8 @@ export function useChat() {
         bpmRange: [number, number];
       }>,
       prompt?: string | null,
-      workoutId?: string | null
+      workoutId?: string | null,
+      selectedTracks?: Track[] // Tracks from selected variant
     ) => {
       setIsLoading(true);
       setError(null);
@@ -100,6 +101,24 @@ export function useChat() {
             bpm_range: stage.bpmRange,
           })),
           prompt: prompt || null,
+          selected_tracks: selectedTracks?.map((track) => ({
+            id: track.id,
+            name: track.name,
+            artist: track.artist,
+            artist_id: track.artist_id,
+            duration_ms: track.duration_ms,
+            spotify_uri: track.spotify_uri,
+            spotify_url: track.spotify_url,
+            preview_url: track.preview_url,
+            external_urls: track.external_urls || { spotify: track.spotify_url },
+            album: track.album,
+            tempo: track.tempo || track.bpm || 120.0,
+            bpm: track.bpm || track.tempo || 120.0,
+            energy: track.energy || 0.5,
+            danceability: track.danceability || 0.5,
+            valence: track.valence || 0.5,
+            genres: track.genres || [],
+          })),
         });
 
         // Add playlist message to chat
