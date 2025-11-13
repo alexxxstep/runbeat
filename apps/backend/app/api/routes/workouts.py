@@ -1,6 +1,7 @@
 """
 Workout CRUD endpoints.
 """
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from datetime import datetime
