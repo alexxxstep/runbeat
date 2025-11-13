@@ -9,12 +9,18 @@ import { PlaylistHistorySidebar } from '../components/Chat/PlaylistHistorySideba
 import { SettingsSidebar } from '../components/Chat/SettingsSidebar';
 import type { WorkoutSettings } from '../types/settings';
 import { api } from '../services/api';
-import type { Workout, PlaylistVariantsResponse, Track } from '../types';
+import type {
+  Workout,
+  PlaylistVariantsResponse,
+  Track,
+  Message,
+} from '../types';
 
 export function ChatPage() {
   const { user, spotifyAuthenticated } = useAuth();
   const {
     messages,
+    setMessages,
     sendMessage,
     generatePlaylist,
     clearMessages,
@@ -42,33 +48,15 @@ export function ChatPage() {
   const [loadingVariants, setLoadingVariants] = useState(false);
 
   const handleSend = async (text: string) => {
-    const workout = await sendMessage(text);
+    const workout = await sendMessage(text, user?.id);
 
-    // If workout is ready, generate playlist with settings
+    // If workout is ready, show workout info and ask for confirmation
     if (workout && !workout.needs_clarification) {
-      try {
-        // Merge workout from chat with settings from sidebar
-        const mergedWorkout = {
-          ...workout,
-          type: workoutSettings.type,
-          duration_minutes: workoutSettings.durationMinutes,
-          intensity: workoutSettings.intensity,
-          hr_zones: workoutSettings.hrZones,
-        };
-
-        const playlist = await generatePlaylist(
-          mergedWorkout,
-          user?.id,
-          workoutSettings.genres,
-          workoutSettings.intervalStages
-        );
-        // Don't open Spotify automatically - just refresh history
-        if (playlist?.spotify_url || playlist?.playlist_id) {
-          setRefreshTrigger((prev) => prev + 1);
-        }
-      } catch (error) {
-        console.error('Failed to generate playlist:', error);
-      }
+      // Set active workout and show question
+      setActiveWorkout(workout);
+      setActiveWorkoutId(null); // New workout from chat, not from history
+      addWorkoutActivationMessage(workout);
+      setShowPlaylistQuestion(true);
     }
   };
 
@@ -326,6 +314,24 @@ export function ChatPage() {
             <div className='max-w-2xl mx-auto flex justify-start mb-4'>
               <div className='flex gap-3'>
                 <button
+                  onClick={() => {
+                    setShowPlaylistQuestion(false);
+                    setActiveWorkout(null);
+                    setActiveWorkoutId(null);
+                    // Add message about clarification needed
+                    const clarificationMessage: Message = {
+                      id: Date.now().toString(),
+                      role: 'assistant',
+                      content: 'Уточніть ваш запит щодо тренування.',
+                      timestamp: new Date(),
+                    };
+                    setMessages((prev) => [...prev, clarificationMessage]);
+                  }}
+                  className='px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium'
+                >
+                  Ні
+                </button>
+                <button
                   onClick={async () => {
                     setShowPlaylistQuestion(false);
                     setLoadingVariants(true);
@@ -477,9 +483,14 @@ export function ChatPage() {
                         setVariants(null);
                         setActiveWorkout(null);
                         setActiveWorkoutId(null);
-                        // Don't open Spotify automatically - just refresh history
+                        // Refresh history after successful generation
                         if (playlist?.spotify_url || playlist?.playlist_id) {
+                          // Force refresh by incrementing trigger
                           setRefreshTrigger((prev) => prev + 1);
+                          // Also manually refresh after a short delay to ensure data is saved
+                          setTimeout(() => {
+                            setRefreshTrigger((prev) => prev + 1);
+                          }, 1000);
                         }
                       } catch (error) {
                         console.error('Failed to generate playlist:', error);
@@ -547,9 +558,14 @@ export function ChatPage() {
                         setVariants(null);
                         setActiveWorkout(null);
                         setActiveWorkoutId(null);
-                        // Don't open Spotify automatically - just refresh history
+                        // Refresh history after successful generation
                         if (playlist?.spotify_url || playlist?.playlist_id) {
+                          // Force refresh by incrementing trigger
                           setRefreshTrigger((prev) => prev + 1);
+                          // Also manually refresh after a short delay to ensure data is saved
+                          setTimeout(() => {
+                            setRefreshTrigger((prev) => prev + 1);
+                          }, 1000);
                         }
                       } catch (error) {
                         console.error('Failed to generate playlist:', error);
@@ -578,7 +594,12 @@ export function ChatPage() {
         onToggleCollapse={() => setSettingsCollapsed(!settingsCollapsed)}
         userId={user?.id}
         onSave={() => {
+          // Refresh workout history after save
           setRefreshTrigger((prev) => prev + 1);
+          // Also refresh after a short delay to ensure data is saved
+          setTimeout(() => {
+            setRefreshTrigger((prev) => prev + 1);
+          }, 500);
         }}
         onWorkoutActivated={(workout) => {
           const workoutData: Workout = {

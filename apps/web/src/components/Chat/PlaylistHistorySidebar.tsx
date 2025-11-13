@@ -37,7 +37,8 @@ export function PlaylistHistorySidebar({
 
   // Refresh when trigger changes (e.g., after new playlist generation or workout save)
   useEffect(() => {
-    if (refreshTrigger && userId) {
+    if (refreshTrigger !== undefined && refreshTrigger > 0 && userId) {
+      // Refresh both lists
       refreshPlaylists();
       refreshWorkouts();
     }

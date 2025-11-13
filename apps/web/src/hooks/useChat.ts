@@ -163,7 +163,7 @@ export function useChat() {
 **Інтенсивність:** ${intensityLabels[workout.intensity] || workout.intensity}
 **Частота серцебиття:** ${workout.hr_zones[0]} - ${workout.hr_zones[1]} уд/хв
 
-Створити під цей воркаут плейлист?`;
+Сформувати під цей воркаут плейлист? Да чи Ні`;
 
     const aiMessage: Message = {
       id: Date.now().toString(),
@@ -177,6 +177,7 @@ export function useChat() {
 
   return {
     messages,
+    setMessages,
     sendMessage,
     generatePlaylist,
     clearMessages,
