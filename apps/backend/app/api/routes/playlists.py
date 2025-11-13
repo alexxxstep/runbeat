@@ -86,11 +86,36 @@ async def generate_playlist(
                 for stage in request.interval_stages
             ]
 
+        # Get user's Spotify token if available
+        user_token = None
+        if request.user_id:
+            try:
+                supabase = SupabaseService().get_client()
+                user_data = (
+                    supabase.table("users")
+                    .select("spotify_access_token, spotify_token_expires_at")
+                    .eq("id", request.user_id)
+                    .execute()
+                )
+
+                if user_data.data and user_data.data[0].get("spotify_access_token"):
+                    # Check if token is expired
+                    expires_at_str = user_data.data[0].get("spotify_token_expires_at")
+                    if expires_at_str:
+                        from datetime import datetime
+                        expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
+                        if expires_at > datetime.now(expires_at.tzinfo):
+                            user_token = user_data.data[0]["spotify_access_token"]
+                            logger.debug(f"Using user token for playlist generation")
+            except Exception as token_error:
+                logger.warning(f"Failed to get user token: {token_error}, using Client Credentials")
+
         playlist_data = await generator.generate(
             workout=request.workout,
             user_preferences=request.user_preferences or {},
             interval_stages=interval_stages,
             prompt=request.prompt,
+            user_token=user_token,
         )
 
         generation_time = time.time() - start_time
@@ -527,11 +552,33 @@ async def preview_playlist_variants(
         # Generate first variant with original preferences
         user_prefs_variant1 = request.user_preferences or {}
         try:
+            # Get user token for variants generation
+            user_token = None
+            if request.user_id:
+                try:
+                    supabase = SupabaseService().get_client()
+                    user_data = (
+                        supabase.table("users")
+                        .select("spotify_access_token, spotify_token_expires_at")
+                        .eq("id", request.user_id)
+                        .execute()
+                    )
+
+                    if user_data.data and user_data.data[0].get("spotify_access_token"):
+                        expires_at_str = user_data.data[0].get("spotify_token_expires_at")
+                        if expires_at_str:
+                            expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
+                            if expires_at > datetime.now(expires_at.tzinfo):
+                                user_token = user_data.data[0]["spotify_access_token"]
+                except Exception as token_error:
+                    logger.warning(f"Failed to get user token: {token_error}")
+
             playlist_data_variant1 = await generator.generate(
                 workout=request.workout,
                 user_preferences=user_prefs_variant1,
                 interval_stages=interval_stages,
                 prompt=request.prompt,
+                user_token=user_token,
             )
         except Exception as e:
             logger.error(f"Failed to generate variant 1: {e}", exc_info=True)
@@ -557,6 +604,7 @@ async def preview_playlist_variants(
                 user_preferences=user_prefs_variant2,
                 interval_stages=interval_stages,
                 prompt=request.prompt,
+                user_token=user_token,
             )
         except Exception as e:
             logger.error(f"Failed to generate variant 2: {e}", exc_info=True)

@@ -30,6 +30,7 @@ class PlaylistGenerator:
         user_preferences: Dict,
         interval_stages: Optional[List[Dict]] = None,
         prompt: Optional[str] = None,
+        user_token: Optional[str] = None,
     ) -> PlaylistData:
         """
         Main generation method.
@@ -51,7 +52,9 @@ class PlaylistGenerator:
         logger.debug(f"Created {len(segments)} segments")
 
         # 2. Fetch candidate tracks (parallel)
-        candidates = await self._fetch_candidates(segments, user_preferences, prompt)
+        candidates = await self._fetch_candidates(
+            segments, user_preferences, prompt, user_token
+        )
         logger.debug(f"Fetched {len(candidates)} candidate tracks")
 
         # 3. Score tracks
@@ -205,7 +208,11 @@ class PlaylistGenerator:
         return intensity_map.get(intensity, 145)
 
     async def _fetch_candidates(
-        self, segments: List[Dict], user_prefs: Dict, prompt: Optional[str] = None
+        self,
+        segments: List[Dict],
+        user_prefs: Dict,
+        prompt: Optional[str] = None,
+        user_token: Optional[str] = None,
     ) -> List[Track]:
         """
         Fetch candidate tracks for all segments (parallel).
@@ -217,7 +224,10 @@ class PlaylistGenerator:
         Returns:
             List of Track objects
         """
-        tasks = [self._fetch_for_segment(seg, user_prefs, prompt) for seg in segments]
+        tasks = [
+            self._fetch_for_segment(seg, user_prefs, prompt, user_token)
+            for seg in segments
+        ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -237,7 +247,11 @@ class PlaylistGenerator:
         return all_candidates
 
     async def _fetch_for_segment(
-        self, segment: Dict, user_prefs: Dict, prompt: Optional[str] = None
+        self,
+        segment: Dict,
+        user_prefs: Dict,
+        prompt: Optional[str] = None,
+        user_token: Optional[str] = None,
     ) -> List[Track]:
         """
         Fetch tracks for one segment.
@@ -260,15 +274,28 @@ class PlaylistGenerator:
             )
 
             # Use Spotify Recommendations API
-            spotify_tracks = await self.spotify.get_recommendations(
-                seed_genres=user_prefs.get("top_genres", [])[:2],
-                seed_artists=user_prefs.get("top_artists", [])[:2],
-                target_tempo=target_bpm,
-                min_tempo=int(bpm_min),
-                max_tempo=int(bpm_max),
-                target_energy=0.7,  # High energy for workouts
-                limit=20,
-            )
+            # Try to use optimized method if available, otherwise fallback
+            if hasattr(self.spotify, 'get_recommendations_optimized'):
+                spotify_tracks = await self.spotify.get_recommendations_optimized(
+                    seed_genres=user_prefs.get("top_genres", [])[:2],
+                    seed_artists=user_prefs.get("top_artists", [])[:2],
+                    target_tempo=target_bpm,
+                    min_tempo=int(bpm_min),
+                    max_tempo=int(bpm_max),
+                    target_energy=0.7,  # High energy for workouts
+                    limit=20,
+                    user_token=user_token,
+                )
+            else:
+                spotify_tracks = await self.spotify.get_recommendations(
+                    seed_genres=user_prefs.get("top_genres", [])[:2],
+                    seed_artists=user_prefs.get("top_artists", [])[:2],
+                    target_tempo=target_bpm,
+                    min_tempo=int(bpm_min),
+                    max_tempo=int(bpm_max),
+                    target_energy=0.7,  # High energy for workouts
+                    limit=20,
+                )
 
             if not spotify_tracks:
                 logger.warning(f"No tracks returned from Spotify for segment {segment.get('name', 'unknown')}")
@@ -282,14 +309,25 @@ class PlaylistGenerator:
         if prompt and prompt.strip():
             try:
                 # Use search API with prompt to find additional relevant tracks
-                prompt_tracks = await self.spotify.get_tracks_by_search(
-                    seed_genres=user_prefs.get("top_genres", [])[:2],
-                    min_tempo=int(bpm_min),
-                    max_tempo=int(bpm_max),
-                    target_energy=0.7,
-                    limit=10,
-                    search_query=prompt,  # Add prompt to search
-                )
+                # Try optimized method if available
+                if hasattr(self.spotify, 'get_tracks_by_search_optimized'):
+                    prompt_tracks = await self.spotify.get_tracks_by_search_optimized(
+                        seed_genres=user_prefs.get("top_genres", [])[:2],
+                        min_tempo=int(bpm_min),
+                        max_tempo=int(bpm_max),
+                        target_energy=0.7,
+                        limit=10,
+                        search_query=prompt,  # Add prompt to search
+                    )
+                else:
+                    prompt_tracks = await self.spotify.get_tracks_by_search(
+                        seed_genres=user_prefs.get("top_genres", [])[:2],
+                        min_tempo=int(bpm_min),
+                        max_tempo=int(bpm_max),
+                        target_energy=0.7,
+                        limit=10,
+                        search_query=prompt,  # Add prompt to search
+                    )
                 # Merge prompt-based tracks with recommendations (avoid duplicates)
                 existing_ids = {t.get("id") for t in spotify_tracks if t.get("id")}
                 for track in prompt_tracks:
