@@ -75,6 +75,7 @@ export interface PlaylistGenerateRequest {
     bpm_range: [number, number];
   }>;
   prompt?: string | null;
+  excluded_track_ids?: string[];
 }
 
 export interface PlaylistGenerateResponse {

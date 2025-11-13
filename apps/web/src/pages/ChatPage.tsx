@@ -46,6 +46,7 @@ export function ChatPage() {
     null
   );
   const [loadingVariants, setLoadingVariants] = useState(false);
+  const [excludedTrackIds, setExcludedTrackIds] = useState<Set<string>>(new Set());
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when messages or variants change
@@ -61,6 +62,7 @@ export function ChatPage() {
     setActiveWorkout(null);
     setActiveWorkoutId(null);
     setShowPlaylistQuestion(false);
+    setExcludedTrackIds(new Set()); // Clear excluded tracks
   };
 
   const handleSend = async (text: string) => {
@@ -71,6 +73,7 @@ export function ChatPage() {
       // Set active workout and show question
       setActiveWorkout(workout);
       setActiveWorkoutId(null); // New workout from chat, not from history
+      setExcludedTrackIds(new Set()); // Reset excluded tracks for new workout
       addWorkoutActivationMessage(workout);
       setShowPlaylistQuestion(true);
     }
@@ -127,6 +130,9 @@ export function ChatPage() {
       // Use prompt from current settings (already loaded if workout from history)
       const promptToUse = workoutSettings.prompt || null;
 
+      // Get excluded track IDs from previous generations
+      const excludedIdsArray = Array.from(excludedTrackIds);
+
       const request = {
         workout: activeWorkout!,
         user_preferences: {
@@ -135,6 +141,7 @@ export function ChatPage() {
         user_id: user?.id,
         interval_stages: intervalStagesToUse,
         prompt: promptToUse,
+        excluded_track_ids: excludedIdsArray.length > 0 ? excludedIdsArray : undefined,
       };
       const variantsData = await api.previewPlaylistVariants(
         request
@@ -157,6 +164,20 @@ export function ChatPage() {
       ) {
         console.warn('One of the variants is empty, but continuing with available variant');
       }
+
+      // Update excluded track IDs with tracks from new variants
+      const newExcludedIds = new Set(excludedTrackIds);
+      if (variantsData.variant1.tracks) {
+        variantsData.variant1.tracks.forEach((track: Track) => {
+          newExcludedIds.add(track.id);
+        });
+      }
+      if (variantsData.variant2.tracks) {
+        variantsData.variant2.tracks.forEach((track: Track) => {
+          newExcludedIds.add(track.id);
+        });
+      }
+      setExcludedTrackIds(newExcludedIds);
 
       setVariants(variantsData);
     } catch (error) {
@@ -200,6 +221,7 @@ export function ChatPage() {
               hr_zones: workout.hr_zones,
             };
             setActiveWorkout(workoutData);
+            setExcludedTrackIds(new Set()); // Reset excluded tracks when selecting workout from history
 
             // Update workout settings with saved genres and interval_stages
             if (workout.genres && workout.genres.length > 0) {
@@ -700,6 +722,7 @@ export function ChatPage() {
             hr_zones: workout.hr_zones,
           };
           setActiveWorkout(workoutData);
+          setExcludedTrackIds(new Set()); // Reset excluded tracks when activating workout
           // Set workout ID if available (for newly saved workouts)
           if (workout.id) {
             setActiveWorkoutId(workout.id);

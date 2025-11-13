@@ -636,8 +636,27 @@ async def preview_playlist_variants(
                 for stage in request.interval_stages
             ]
 
+        # Get excluded track IDs from request (from previous generations)
+        excluded_track_ids_from_request = request.excluded_track_ids or []
+        logger.info(
+            f"Generating new variants. Excluding {len(excluded_track_ids_from_request)} tracks from previous generations"
+        )
+
         # Generate first variant with original preferences
+        # Exclude tracks from previous generations if any
         user_prefs_variant1 = request.user_preferences or {}
+
+        # Add slight variation to variant 1 if there are excluded tracks (from previous generations)
+        # This ensures that even variant 1 is different from previous generations
+        if excluded_track_ids_from_request:
+            # If we're generating new variants (excluded tracks exist), add variation to variant 1 too
+            if "top_genres" in user_prefs_variant1 and user_prefs_variant1["top_genres"]:
+                # Shuffle genres for variant 1 when regenerating
+                genres_v1 = user_prefs_variant1["top_genres"].copy()
+                random.shuffle(genres_v1)
+                user_prefs_variant1["top_genres"] = genres_v1
+                logger.debug(f"Variant 1 (regeneration): Shuffled genres for variety: {genres_v1}")
+
         try:
             # Get user token for variants generation
             user_token = None
@@ -666,28 +685,49 @@ async def preview_playlist_variants(
                 interval_stages=interval_stages,
                 prompt=request.prompt,
                 user_token=user_token,
+                excluded_track_ids=excluded_track_ids_from_request if excluded_track_ids_from_request else None,
             )
         except Exception as e:
             logger.error(f"Failed to generate variant 1: {e}", exc_info=True)
             raise
 
         # Generate second variant with slightly different preferences
-        # AND exclude tracks from variant 1 to ensure different tracks
+        # AND exclude tracks from variant 1 + previous generations to ensure different tracks
         user_prefs_variant2 = user_prefs_variant1.copy()
-        # Add some variation - could be different genre emphasis or BPM adjustment
-        if "top_genres" in user_prefs_variant2 and user_prefs_variant2["top_genres"]:
-            # Shuffle genres for variety
-            genres = user_prefs_variant2["top_genres"].copy()
-            random.shuffle(genres)
-            user_prefs_variant2["top_genres"] = genres
-        elif "avg_bpm" in user_prefs_variant2:
-            # Slight BPM variation (±5)
-            user_prefs_variant2["avg_bpm"] = user_prefs_variant2.get(
-                "avg_bpm", 145) + random.choice([-5, 5])
 
-        # Exclude tracks from variant 1 to ensure different tracks in variant 2
-        excluded_track_ids = [track.id for track in playlist_data_variant1.tracks]
-        logger.info(f"Excluding {len(excluded_track_ids)} tracks from variant 1 when generating variant 2")
+        # Add more variation between variants to ensure different tracks
+        # Variation strategy: rotate/reverse genres, adjust BPM
+        if "top_genres" in user_prefs_variant2 and user_prefs_variant2["top_genres"]:
+            # More aggressive variation: rotate genres (move first to last)
+            genres = user_prefs_variant2["top_genres"].copy()
+            if len(genres) > 1:
+                # Rotate genres for more variety (move first to last)
+                genres = genres[1:] + genres[:1]
+            else:
+                # If only one genre, shuffle doesn't help, rely on excluded tracks
+                random.shuffle(genres)
+            user_prefs_variant2["top_genres"] = genres
+            logger.debug(f"Variant 2: Rotated genres for variety: {genres}")
+
+        # Also adjust BPM slightly as additional variation
+        if "avg_bpm" in user_prefs_variant2:
+            # Slight BPM variation (±5 to ±10)
+            bpm_adjustment = random.choice([-10, -5, 5, 10])
+            user_prefs_variant2["avg_bpm"] = max(60, min(200, user_prefs_variant2.get(
+                "avg_bpm", 145) + bpm_adjustment))
+            logger.debug(f"Variant 2: Adjusted BPM by {bpm_adjustment}: {user_prefs_variant2['avg_bpm']}")
+        elif not user_prefs_variant2.get("top_genres"):
+            # If no genres, add BPM variation
+            user_prefs_variant2["avg_bpm"] = 145 + random.choice([-10, -5, 5, 10])
+
+        # Exclude tracks from variant 1 + previous generations to ensure different tracks in variant 2
+        variant1_track_ids = [track.id for track in playlist_data_variant1.tracks]
+        # Combine excluded tracks: from previous generations + from variant 1
+        excluded_track_ids_for_variant2 = list(set(excluded_track_ids_from_request + variant1_track_ids))
+        logger.info(
+            f"Excluding {len(excluded_track_ids_for_variant2)} tracks when generating variant 2 "
+            f"({len(excluded_track_ids_from_request)} from previous generations + {len(variant1_track_ids)} from variant 1)"
+        )
 
         try:
             playlist_data_variant2 = await generator.generate(
@@ -696,7 +736,7 @@ async def preview_playlist_variants(
                 interval_stages=interval_stages,
                 prompt=request.prompt,
                 user_token=user_token,
-                excluded_track_ids=excluded_track_ids if excluded_track_ids else None,
+                excluded_track_ids=excluded_track_ids_for_variant2 if excluded_track_ids_for_variant2 else None,
             )
         except Exception as e:
             logger.error(f"Failed to generate variant 2: {e}", exc_info=True)

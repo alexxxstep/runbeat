@@ -44,6 +44,9 @@ class PlaylistGenerateRequest(BaseModel):
     prompt: Optional[str] = Field(
         None, description="User prompt for track search refinement"
     )
+    excluded_track_ids: Optional[List[str]] = Field(
+        None, description="List of track IDs to exclude from generation (e.g., from previous variants)"
+    )
 
     class Config:
         json_schema_extra = {
