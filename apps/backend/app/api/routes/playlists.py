@@ -4,6 +4,7 @@ Playlist generation endpoints.
 import time
 import random
 from datetime import datetime, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
@@ -22,9 +23,15 @@ from app.services.supabase_service import SupabaseService
 router = APIRouter(prefix="/playlists", tags=["playlists"])
 
 
+# Singleton instance to avoid creating new clients on every request
+_supabase_service_instance: Optional[SupabaseService] = None
+
 def get_supabase_service() -> SupabaseService:
-    """Dependency to get SupabaseService instance."""
-    return SupabaseService()
+    """Dependency to get SupabaseService instance (singleton)."""
+    global _supabase_service_instance
+    if _supabase_service_instance is None:
+        _supabase_service_instance = SupabaseService()
+    return _supabase_service_instance
 
 
 def get_spotify_service() -> SpotifyService:
@@ -550,11 +557,29 @@ async def preview_playlist_variants(
         generation_time = time.time() - start_time
 
         logger.info(
-            f"Variants generated successfully: "
+            f"Variants generated: "
             f"Variant 1: {playlist_data_variant1.total_tracks} tracks, "
             f"Variant 2: {playlist_data_variant2.total_tracks} tracks, "
             f"{generation_time:.2f}s"
         )
+
+        # Validate that variants are not empty
+        if playlist_data_variant1.total_tracks == 0 and playlist_data_variant2.total_tracks == 0:
+            error_msg = (
+                "Не вдалося знайти треки для воркауту. "
+                "Можливі причини: некоректні параметри, проблеми з Spotify API, "
+                "або відсутність жанрів музики. Спробуйте змінити параметри воркауту."
+            )
+            logger.error(error_msg)
+            raise HTTPException(
+                status_code=422,
+                detail=error_msg
+            )
+
+        if playlist_data_variant1.total_tracks == 0:
+            logger.warning("Variant 1 is empty, but variant 2 has tracks")
+        if playlist_data_variant2.total_tracks == 0:
+            logger.warning("Variant 2 is empty, but variant 1 has tracks")
 
         # Convert tracks to dict for response
         tracks_variant1 = [track.model_dump()

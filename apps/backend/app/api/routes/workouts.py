@@ -15,9 +15,15 @@ from app.schemas.workout import (
 router = APIRouter(prefix="/workouts", tags=["workouts"])
 
 
+# Singleton instance to avoid creating new clients on every request
+_supabase_service_instance: Optional[SupabaseService] = None
+
 def get_supabase_service() -> SupabaseService:
-    """Dependency to get SupabaseService instance."""
-    return SupabaseService()
+    """Dependency to get SupabaseService instance (singleton)."""
+    global _supabase_service_instance
+    if _supabase_service_instance is None:
+        _supabase_service_instance = SupabaseService()
+    return _supabase_service_instance
 
 
 @router.post("", response_model=WorkoutResponse, status_code=201)

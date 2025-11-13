@@ -393,10 +393,33 @@ export function ChatPage() {
                       const variantsData = await api.previewPlaylistVariants(
                         request
                       );
+
+                      // Validate variants - check if they are empty
+                      if (
+                        (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) &&
+                        (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
+                      ) {
+                        throw new Error(
+                          'Не вдалося знайти треки для воркауту. Спробуйте змінити параметри або додати жанри музики.'
+                        );
+                      }
+
+                      // Check if at least one variant has tracks
+                      if (
+                        (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) ||
+                        (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
+                      ) {
+                        console.warn('One of the variants is empty, but continuing with available variant');
+                      }
+
                       setVariants(variantsData);
                     } catch (error) {
                       console.error('Failed to generate variants:', error);
-                      alert('Помилка генерації варіантів');
+                      const errorMessage = error instanceof Error
+                        ? error.message
+                        : 'Помилка генерації варіантів';
+                      alert(errorMessage);
+                      setVariants(null);
                     } finally {
                       setLoadingVariants(false);
                     }
@@ -423,6 +446,28 @@ export function ChatPage() {
           {/* Show track variants for selection */}
           {variants && (
             <div className='max-w-4xl mx-auto space-y-4'>
+              {/* Check if both variants are empty */}
+              {(!variants.variant1.tracks || variants.variant1.tracks.length === 0) &&
+               (!variants.variant2.tracks || variants.variant2.tracks.length === 0) ? (
+                <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4'>
+                  <p className='text-red-800 dark:text-red-200 font-medium'>
+                    ❌ Помилка: Не вдалося згенерувати варіанти плейлистів
+                  </p>
+                  <p className='text-red-600 dark:text-red-300 text-sm mt-2'>
+                    Можливі причини:
+                  </p>
+                  <ul className='list-disc list-inside text-red-600 dark:text-red-300 text-sm mt-1 space-y-1'>
+                    <li>Некоректні параметри воркауту</li>
+                    <li>Проблеми з підключенням до Spotify API</li>
+                    <li>Відсутність жанрів музики</li>
+                    <li>Занадто вузький діапазон BPM</li>
+                  </ul>
+                  <p className='text-red-600 dark:text-red-300 text-sm mt-2'>
+                    Спробуйте змінити параметри воркауту або додати жанри музики.
+                  </p>
+                </div>
+              ) : (
+                <>
               <h3 className='text-lg font-semibold text-gray-900 dark:text-white text-center mb-4'>
                 Оберіть варіант плейлисту:
               </h3>
@@ -449,8 +494,9 @@ export function ChatPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {variants.variant1.tracks.map(
-                          (track: Track, index: number) => (
+                        {variants.variant1.tracks && variants.variant1.tracks.length > 0 ? (
+                          variants.variant1.tracks.map(
+                            (track: Track, index: number) => (
                             <tr
                               key={track.id}
                               className='border-b border-gray-200 dark:border-gray-700'
@@ -466,10 +512,18 @@ export function ChatPage() {
                               </td>
                             </tr>
                           )
+                        )
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className='p-4 text-center text-gray-500 dark:text-gray-400'>
+                              Немає треків у цьому варіанті
+                            </td>
+                          </tr>
                         )}
                       </tbody>
                     </table>
                   </div>
+                  {variants.variant1.tracks && variants.variant1.tracks.length > 0 ? (
                   <button
                     onClick={async () => {
                       try {
@@ -485,12 +539,10 @@ export function ChatPage() {
                         setActiveWorkoutId(null);
                         // Refresh history after successful generation
                         if (playlist?.spotify_url || playlist?.playlist_id) {
-                          // Force refresh by incrementing trigger
-                          setRefreshTrigger((prev) => prev + 1);
-                          // Also manually refresh after a short delay to ensure data is saved
+                          // Refresh once after a short delay to ensure data is saved
                           setTimeout(() => {
                             setRefreshTrigger((prev) => prev + 1);
-                          }, 1000);
+                          }, 500);
                         }
                       } catch (error) {
                         console.error('Failed to generate playlist:', error);
@@ -500,6 +552,11 @@ export function ChatPage() {
                   >
                     Обрати цей варіант
                   </button>
+                  ) : (
+                    <div className='w-full px-4 py-2 bg-gray-400 text-white rounded-lg text-center font-medium cursor-not-allowed'>
+                      Варіант недоступний
+                    </div>
+                  )}
                 </div>
 
                 {/* Variant 2 */}
@@ -524,8 +581,9 @@ export function ChatPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {variants.variant2.tracks.map(
-                          (track: Track, index: number) => (
+                        {variants.variant2.tracks && variants.variant2.tracks.length > 0 ? (
+                          variants.variant2.tracks.map(
+                            (track: Track, index: number) => (
                             <tr
                               key={track.id}
                               className='border-b border-gray-200 dark:border-gray-700'
@@ -541,10 +599,18 @@ export function ChatPage() {
                               </td>
                             </tr>
                           )
+                        )
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className='p-4 text-center text-gray-500 dark:text-gray-400'>
+                              Немає треків у цьому варіанті
+                            </td>
+                          </tr>
                         )}
                       </tbody>
                     </table>
                   </div>
+                  {variants.variant2.tracks && variants.variant2.tracks.length > 0 ? (
                   <button
                     onClick={async () => {
                       try {
@@ -560,12 +626,10 @@ export function ChatPage() {
                         setActiveWorkoutId(null);
                         // Refresh history after successful generation
                         if (playlist?.spotify_url || playlist?.playlist_id) {
-                          // Force refresh by incrementing trigger
-                          setRefreshTrigger((prev) => prev + 1);
-                          // Also manually refresh after a short delay to ensure data is saved
+                          // Refresh once after a short delay to ensure data is saved
                           setTimeout(() => {
                             setRefreshTrigger((prev) => prev + 1);
-                          }, 1000);
+                          }, 500);
                         }
                       } catch (error) {
                         console.error('Failed to generate playlist:', error);
@@ -575,8 +639,15 @@ export function ChatPage() {
                   >
                     Обрати цей варіант
                   </button>
+                  ) : (
+                    <div className='w-full px-4 py-2 bg-gray-400 text-white rounded-lg text-center font-medium cursor-not-allowed'>
+                      Варіант недоступний
+                    </div>
+                  )}
                 </div>
               </div>
+              </>
+              )}
             </div>
           )}
 
@@ -594,12 +665,10 @@ export function ChatPage() {
         onToggleCollapse={() => setSettingsCollapsed(!settingsCollapsed)}
         userId={user?.id}
         onSave={() => {
-          // Refresh workout history after save
-          setRefreshTrigger((prev) => prev + 1);
-          // Also refresh after a short delay to ensure data is saved
+          // Refresh workout history after save (with delay to ensure data is saved)
           setTimeout(() => {
             setRefreshTrigger((prev) => prev + 1);
-          }, 500);
+          }, 300);
         }}
         onWorkoutActivated={(workout) => {
           const workoutData: Workout = {

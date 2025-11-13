@@ -36,11 +36,16 @@ export function PlaylistHistorySidebar({
   } = useWorkoutHistory(userId);
 
   // Refresh when trigger changes (e.g., after new playlist generation or workout save)
+  // Use debounce to avoid multiple rapid refreshes
   useEffect(() => {
     if (refreshTrigger !== undefined && refreshTrigger > 0 && userId) {
-      // Refresh both lists
-      refreshPlaylists();
-      refreshWorkouts();
+      // Debounce: wait a bit before refreshing to avoid rapid successive calls
+      const timeoutId = setTimeout(() => {
+        refreshPlaylists();
+        refreshWorkouts();
+      }, 200);
+
+      return () => clearTimeout(timeoutId);
     }
   }, [refreshTrigger, userId, refreshPlaylists, refreshWorkouts]);
 
