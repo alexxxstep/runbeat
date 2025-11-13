@@ -330,12 +330,38 @@ export function PlaylistHistorySidebar({
                     </button>
                   </div>
                   <div className='text-xs text-gray-700 dark:text-gray-300'>
-                    <p className='font-medium truncate'>
-                      {playlist.total_tracks} треків
-                    </p>
-                    <p className='text-xs text-gray-500 dark:text-gray-400'>
-                      {Math.round(playlist.total_duration_seconds / 60)} хв
-                    </p>
+                    {playlist.workout ? (
+                      <>
+                        <p className='font-medium truncate'>
+                          {(() => {
+                            const workoutTypeLabels: Record<string, string> = {
+                              steady: 'Стабільна',
+                              progressive: 'Прогресивна',
+                              intervals: 'Інтервальна',
+                              fartlek: 'Фартлек',
+                            };
+                            const workoutType = workoutTypeLabels[playlist.workout.type] || playlist.workout.type;
+                            const workoutName = workoutType === 'Прогресивна'
+                              ? 'Прогресивна пробіжка'
+                              : workoutType === 'Стабільна'
+                              ? 'Стабільна пробіжка'
+                              : workoutType === 'Інтервальна'
+                              ? 'Інтервальна пробіжка'
+                              : 'Фартлек пробіжка';
+                            return `RunBeat: ${workoutName} (${playlist.workout.duration_minutes}хв) - ${playlist.total_tracks} треків ${Math.round(playlist.total_duration_seconds / 60)}хв`;
+                          })()}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className='font-medium truncate'>
+                          {playlist.total_tracks} треків
+                        </p>
+                        <p className='text-xs text-gray-500 dark:text-gray-400'>
+                          {Math.round(playlist.total_duration_seconds / 60)} хв
+                        </p>
+                      </>
+                    )}
                   </div>
                   {playlist.spotify_url && (
                     <div className='mt-2 flex items-center gap-1 text-xs text-green-600 dark:text-green-400'>

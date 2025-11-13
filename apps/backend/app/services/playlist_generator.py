@@ -31,6 +31,7 @@ class PlaylistGenerator:
         interval_stages: Optional[List[Dict]] = None,
         prompt: Optional[str] = None,
         user_token: Optional[str] = None,
+        excluded_track_ids: Optional[List[str]] = None,
     ) -> PlaylistData:
         """
         Main generation method.
@@ -57,13 +58,19 @@ class PlaylistGenerator:
         )
         logger.debug(f"Fetched {len(candidates)} candidate tracks")
 
+        # Filter out excluded tracks if provided
+        if excluded_track_ids:
+            excluded_set = set(excluded_track_ids)
+            candidates = [c for c in candidates if c.id not in excluded_set]
+            logger.debug(f"Filtered out {len(excluded_track_ids)} excluded tracks, {len(candidates)} remaining")
+
         # 3. Score tracks
         scored = self._score_tracks(candidates, segments, user_preferences)
         logger.debug(f"Scored {len(scored)} tracks")
 
-        # 4. Optimize selection
-        selected = self._optimize_selection(
-            scored, workout.duration_minutes * 60)
+        # 4. Optimize selection - ensure duration is longer than workout duration
+        target_duration = workout.duration_minutes * 60
+        selected = self._optimize_selection(scored, target_duration)
         logger.info(f"Selected {len(selected)} tracks for playlist")
 
         total_duration = sum(t.duration_ms for t in selected) / 1000
@@ -505,13 +512,14 @@ class PlaylistGenerator:
     ) -> List[Track]:
         """
         Select optimal tracks with constraints.
+        Ensures duration is always longer than target_duration.
 
         Args:
             scored_tracks: List of scored track dictionaries
-            target_duration: Target duration in seconds
+            target_duration: Target duration in seconds (minimum required)
 
         Returns:
-            List of selected Track objects
+            List of selected Track objects with duration >= target_duration
         """
         selected = []
         artist_count = {}
@@ -520,10 +528,7 @@ class PlaylistGenerator:
 
         for item in scored_tracks:
             track = item["track"]
-
-            # Check duration
-            if current_duration + track.duration_ms / 1000 > target_duration * 1.15:
-                continue
+            track_duration_sec = track.duration_ms / 1000
 
             # Check artist diversity (max 2 per artist)
             if artist_count.get(track.artist_id, 0) >= 2:
@@ -544,12 +549,25 @@ class PlaylistGenerator:
             # Add track
             selected.append(track)
             track_names.add(track_name_lower)
-            current_duration += track.duration_ms / 1000
+            current_duration += track_duration_sec
             artist_count[track.artist_id] = artist_count.get(
                 track.artist_id, 0) + 1
 
-            # Check if target reached
-            if current_duration >= target_duration * 0.95:
+            # Ensure we exceed target duration (at least 5% longer)
+            # Continue until we have duration >= target_duration * 1.05
+            if current_duration >= target_duration * 1.05:
                 break
+
+        # If we haven't reached the minimum duration, log a warning
+        if current_duration < target_duration:
+            logger.warning(
+                f"Warning: Playlist duration ({current_duration:.1f}s) is less than target ({target_duration}s). "
+                f"Consider expanding search criteria."
+            )
+        else:
+            logger.info(
+                f"Playlist duration: {current_duration:.1f}s (target: {target_duration}s, "
+                f"{((current_duration / target_duration - 1) * 100):.1f}% longer)"
+            )
 
         return selected

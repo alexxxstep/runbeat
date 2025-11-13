@@ -400,11 +400,11 @@ async def get_playlist_history(
     try:
         logger.info(f"Fetching playlist history for user {user_id}")
 
-        # Get playlists from database
+        # Get playlists from database with workout information
         result = (
             supabase.get_client()
             .table("playlists")
-            .select("*", count="exact")
+            .select("*, workouts(id, type, duration_minutes, intensity, hr_zones)")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .limit(limit)
@@ -414,6 +414,28 @@ async def get_playlist_history(
 
         playlists = []
         for p in result.data:
+            # Handle workout data - Supabase returns it as a list or dict depending on relationship
+            workout_data = p.get("workouts")
+            workout = None
+            if workout_data:
+                if isinstance(workout_data, list):
+                    # If it's a list, take the first item
+                    workout = workout_data[0] if len(workout_data) > 0 else None
+                elif isinstance(workout_data, dict):
+                    # If it's already a dict, use it directly
+                    workout = workout_data
+                # Only include if workout has required fields
+                if workout and workout.get("id") and workout.get("type"):
+                    workout = {
+                        "id": workout["id"],
+                        "type": workout["type"],
+                        "duration_minutes": workout.get("duration_minutes", 0),
+                        "intensity": workout.get("intensity", "moderate"),
+                        "hr_zones": workout.get("hr_zones", [110, 180]),
+                    }
+                else:
+                    workout = None
+
             playlists.append(
                 {
                     "id": p["id"],
@@ -426,12 +448,13 @@ async def get_playlist_history(
                     "shared": p.get("shared", False),
                     "share_url": p.get("share_url"),
                     "created_at": p["created_at"],
+                    "workout": workout,
                 }
             )
 
         return {
             "playlists": playlists,
-            "total": result.count if result.count is not None else len(playlists),
+            "total": len(playlists),
         }
 
     except Exception as e:
@@ -585,7 +608,7 @@ async def preview_playlist_variants(
             raise
 
         # Generate second variant with slightly different preferences
-        # (e.g., different genre mix or different BPM range)
+        # AND exclude tracks from variant 1 to ensure different tracks
         user_prefs_variant2 = user_prefs_variant1.copy()
         # Add some variation - could be different genre emphasis or BPM adjustment
         if "top_genres" in user_prefs_variant2 and user_prefs_variant2["top_genres"]:
@@ -598,6 +621,10 @@ async def preview_playlist_variants(
             user_prefs_variant2["avg_bpm"] = user_prefs_variant2.get(
                 "avg_bpm", 145) + random.choice([-5, 5])
 
+        # Exclude tracks from variant 1 to ensure different tracks in variant 2
+        excluded_track_ids = [track.id for track in playlist_data_variant1.tracks]
+        logger.info(f"Excluding {len(excluded_track_ids)} tracks from variant 1 when generating variant 2")
+
         try:
             playlist_data_variant2 = await generator.generate(
                 workout=request.workout,
@@ -605,6 +632,7 @@ async def preview_playlist_variants(
                 interval_stages=interval_stages,
                 prompt=request.prompt,
                 user_token=user_token,
+                excluded_track_ids=excluded_track_ids if excluded_track_ids else None,
             )
         except Exception as e:
             logger.error(f"Failed to generate variant 2: {e}", exc_info=True)

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useChat } from '../hooks/useChat';
 import { useAuth } from '../hooks/useAuth';
 import { MessageBubble } from '../components/Chat/MessageBubble';
@@ -46,6 +46,22 @@ export function ChatPage() {
     null
   );
   const [loadingVariants, setLoadingVariants] = useState(false);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages or variants change
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages, variants, isLoading, loadingVariants]);
+
+  const handleClearChat = () => {
+    clearMessages();
+    setVariants(null);
+    setActiveWorkout(null);
+    setActiveWorkoutId(null);
+    setShowPlaylistQuestion(false);
+  };
 
   const handleSend = async (text: string) => {
     const workout = await sendMessage(text, user?.id);
@@ -145,7 +161,7 @@ export function ChatPage() {
               RunBeat AI
             </h1>
             <button
-              onClick={clearMessages}
+              onClick={handleClearChat}
               className='px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
             >
               Очистити чат
@@ -153,7 +169,7 @@ export function ChatPage() {
           </div>
         )}
 
-        <div className='flex-1 overflow-y-auto p-4 space-y-4'>
+        <div ref={chatContainerRef} className='flex-1 overflow-y-auto p-4 space-y-4'>
           {messages.length === 0 && (
             <div className='max-w-3xl mx-auto px-4 py-8'>
               <div className='text-center mb-8'>
@@ -314,24 +330,6 @@ export function ChatPage() {
             <div className='max-w-2xl mx-auto flex justify-start mb-4'>
               <div className='flex gap-3'>
                 <button
-                  onClick={() => {
-                    setShowPlaylistQuestion(false);
-                    setActiveWorkout(null);
-                    setActiveWorkoutId(null);
-                    // Add message about clarification needed
-                    const clarificationMessage: Message = {
-                      id: Date.now().toString(),
-                      role: 'assistant',
-                      content: 'Уточніть ваш запит щодо тренування.',
-                      timestamp: new Date(),
-                    };
-                    setMessages((prev) => [...prev, clarificationMessage]);
-                  }}
-                  className='px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium'
-                >
-                  Ні
-                </button>
-                <button
                   onClick={async () => {
                     setShowPlaylistQuestion(false);
                     setLoadingVariants(true);
@@ -434,10 +432,116 @@ export function ChatPage() {
                     setShowPlaylistQuestion(false);
                     setActiveWorkout(null);
                     setActiveWorkoutId(null);
+                    // Add message about clarification needed
+                    const clarificationMessage: Message = {
+                      id: Date.now().toString(),
+                      role: 'assistant',
+                      content: 'Уточніть ваш запит щодо тренування.',
+                      timestamp: new Date(),
+                    };
+                    setMessages((prev) => [...prev, clarificationMessage]);
                   }}
-                  className='px-6 py-2 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors font-medium'
+                  className='px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium'
                 >
                   Ні
+                </button>
+                <button
+                  onClick={async () => {
+                    setShowPlaylistQuestion(false);
+                    setLoadingVariants(true);
+                    try {
+                      // Use saved genres and interval_stages from workout if available
+                      let genresToUse = workoutSettings.genres;
+                      let intervalStagesToUse =
+                        workoutSettings.intervalStages?.map((stage) => ({
+                          name: stage.name,
+                          duration_minutes: stage.durationMinutes,
+                          hr_zone: stage.hrZone,
+                          bpm_range: stage.bpmRange,
+                        }));
+
+                      // If workout was loaded from history, get saved parameters
+                      if (activeWorkoutId) {
+                        try {
+                          const savedWorkout = await api.getWorkout(
+                            activeWorkoutId,
+                            user!.id
+                          );
+                          if (
+                            savedWorkout.genres &&
+                            savedWorkout.genres.length > 0
+                          ) {
+                            genresToUse = savedWorkout.genres;
+                          }
+                          if (
+                            savedWorkout.interval_stages &&
+                            savedWorkout.interval_stages.length > 0
+                          ) {
+                            intervalStagesToUse = savedWorkout.interval_stages;
+                          }
+                          if (savedWorkout.prompt) {
+                            setWorkoutSettings((prev) => ({
+                              ...prev,
+                              prompt: savedWorkout.prompt || '',
+                            }));
+                          }
+                        } catch (error) {
+                          console.warn(
+                            'Failed to load saved workout parameters, using current settings'
+                          );
+                        }
+                      }
+
+                      // Use prompt from current settings (already loaded if workout from history)
+                      const promptToUse = workoutSettings.prompt || null;
+
+                      const request = {
+                        workout: activeWorkout!,
+                        user_preferences: {
+                          top_genres: genresToUse,
+                        },
+                        user_id: user?.id,
+                        interval_stages: intervalStagesToUse,
+                        prompt: promptToUse,
+                      };
+                      const variantsData = await api.previewPlaylistVariants(
+                        request
+                      );
+
+                      // Validate variants - check if they are empty
+                      if (
+                        (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) &&
+                        (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
+                      ) {
+                        throw new Error(
+                          'Не вдалося знайти треки для воркауту. Спробуйте змінити параметри або додати жанри музики.'
+                        );
+                      }
+
+                      // Check if at least one variant has tracks
+                      if (
+                        (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) ||
+                        (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
+                      ) {
+                        console.warn('One of the variants is empty, but continuing with available variant');
+                      }
+
+                      setVariants(variantsData);
+                    } catch (error) {
+                      console.error('Failed to generate variants:', error);
+                      const errorMessage = error instanceof Error
+                        ? error.message
+                        : 'Помилка генерації варіантів';
+                      alert(errorMessage);
+                      setVariants(null);
+                    } finally {
+                      setLoadingVariants(false);
+                    }
+                  }}
+                  disabled={loadingVariants}
+                  className='px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+                >
+                  {loadingVariants ? 'Генерація...' : 'Згенерувати ще'}
                 </button>
               </div>
             </div>

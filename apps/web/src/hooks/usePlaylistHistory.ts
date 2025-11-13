@@ -12,6 +12,13 @@ interface PlaylistHistoryItem {
   shared: boolean;
   share_url?: string;
   created_at: string;
+  workout?: {
+    id: string;
+    type: string;
+    duration_minutes: number;
+    intensity: string;
+    hr_zones: number[];
+  } | null;
 }
 
 export function usePlaylistHistory(userId?: string) {
