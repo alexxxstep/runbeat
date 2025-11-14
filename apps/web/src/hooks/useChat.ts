@@ -106,9 +106,9 @@ export function useChat() {
           {
             request_path: '/api/v1/chat/message',
             request_method: 'POST',
+            user_id: userId,
             error_details: {
-              conversation_id,
-              user_id,
+              conversation_id: conversationId,
             },
           }
         );

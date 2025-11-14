@@ -13,7 +13,6 @@ import type {
   Workout,
   PlaylistVariantsResponse,
   Track,
-  Message,
 } from '../types';
 
 export function ChatPage() {

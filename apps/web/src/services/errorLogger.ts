@@ -1,7 +1,6 @@
 /**
  * Frontend error logging service for sending errors to backend.
  */
-import { api } from './api';
 
 interface ErrorLogData {
   level: 'ERROR' | 'CRITICAL' | 'WARNING';
