@@ -1,6 +1,7 @@
 """
 Playlist generation endpoints.
 """
+import asyncio
 import time
 import random
 from datetime import datetime, timedelta
@@ -153,7 +154,6 @@ async def generate_playlist(
             )
         else:
             # Generate playlist normally with timeout
-            import asyncio
             try:
                 playlist_data = await asyncio.wait_for(
                     generator.generate(
@@ -680,8 +680,6 @@ async def preview_playlist_variants(
     start_time = time.time()
 
     try:
-        import asyncio
-
         logger.info(
             f"Generating 2 variants for {request.workout.type} workout, "
             f"{request.workout.duration_minutes} min"
