@@ -755,10 +755,6 @@ async def _generate_variants_internal(
                 logger.debug(f"Variant 1 (regeneration): Shuffled genres for variety: {genres_v1}")
 
         try:
-            # Ensure asyncio is available (safety check)
-            if 'asyncio' not in globals():
-                import asyncio
-
             # Get user token for variants generation
             user_token = None
             if request.user_id:
