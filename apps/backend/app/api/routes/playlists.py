@@ -810,6 +810,88 @@ async def _generate_variants_internal(
             # We'll filter duplicates from variant 1 after generation
             logger.info("Generating variants in parallel for better performance...")
 
+            # For LangChain integration, create different workout_intents for variants
+            # This ensures the agent generates different playlists
+            workout_intent_variant1 = None
+            workout_intent_variant2 = None
+
+            # If using LangChain, create WorkoutIntent with variations
+            if generator.use_langchain_curator:
+                from app.schemas.llm_responses import WorkoutIntent
+
+                # Map workout.type to WorkoutIntent.workout_type
+                workout_type_map = {
+                    "steady": "continuous",
+                    "progressive": "continuous",
+                    "intervals": "intervals",
+                    "fartlek": "fartlek",
+                }
+                workout_type = workout_type_map.get(request.workout.type, "continuous")
+
+                # Get BPM from hr_zones
+                bpm_min = request.workout.hr_zones[0] if request.workout.hr_zones and len(request.workout.hr_zones) > 0 else 120
+                bpm_max = request.workout.hr_zones[1] if request.workout.hr_zones and len(request.workout.hr_zones) > 1 else 160
+
+                # Variant 1: Original preferences
+                music_genres_v1 = user_prefs_variant1.get("top_genres", []) if isinstance(user_prefs_variant1, dict) else []
+                workout_intent_variant1 = WorkoutIntent(
+                    workout_type=workout_type,
+                    duration_minutes=request.workout.duration_minutes,
+                    target_bpm_min=bpm_min,
+                    target_bpm_max=bpm_max,
+                    intervals=None,
+                    energy_profile="steady",
+                    music_genres=music_genres_v1 if music_genres_v1 else None,
+                    music_prompt=request.prompt,
+                    confidence=0.9,
+                    needs_clarification=False,
+                )
+
+                # Variant 2: Modified preferences (different genres, slightly different BPM)
+                music_genres_v2 = user_prefs_variant2.get("top_genres", []) if isinstance(user_prefs_variant2, dict) else []
+                # Adjust BPM slightly for variant 2 (±5 BPM)
+                bpm_adjustment = random.choice([-5, 5])
+                bpm_min_v2 = max(60, min(200, bpm_min + bpm_adjustment))
+                bpm_max_v2 = max(60, min(200, bpm_max + bpm_adjustment))
+
+                # Modify prompt slightly for variant 2
+                prompt_v2 = request.prompt
+                if prompt_v2:
+                    # Add variation hint to prompt
+                    prompt_v2 = f"{prompt_v2} (alternative style)"
+
+                workout_intent_variant2 = WorkoutIntent(
+                    workout_type=workout_type,
+                    duration_minutes=request.workout.duration_minutes,
+                    target_bpm_min=bpm_min_v2,
+                    target_bpm_max=bpm_max_v2,
+                    intervals=None,
+                    energy_profile="steady",
+                    music_genres=music_genres_v2 if music_genres_v2 else None,
+                    music_prompt=prompt_v2,
+                    confidence=0.9,
+                    needs_clarification=False,
+                )
+
+                # Add intervals if interval_stages provided
+                if interval_stages and workout_type in ["intervals", "fartlek"]:
+                    from app.schemas.llm_responses import IntervalPhase
+                    intervals = []
+                    for stage in interval_stages:
+                        phase_type = "work" if stage.get("hr_zone", 3) >= 3 else "rest"
+                        bpm_range = stage.get("bpm_range", [bpm_min, bpm_max])
+                        target_bpm = int((bpm_range[0] + bpm_range[1]) / 2)
+                        intervals.append(IntervalPhase(
+                            type=phase_type,
+                            duration_minutes=stage.get("duration_minutes", 5),
+                            target_bpm=target_bpm,
+                        ))
+                    workout_intent_variant1.intervals = intervals
+                    workout_intent_variant2.intervals = intervals
+
+                logger.debug(f"Created WorkoutIntent for variant 1: genres={music_genres_v1}, BPM={bpm_min}-{bpm_max}")
+                logger.debug(f"Created WorkoutIntent for variant 2: genres={music_genres_v2}, BPM={bpm_min_v2}-{bpm_max_v2}")
+
             variant1_task = generator.generate(
                 workout=request.workout,
                 user_preferences=user_prefs_variant1,
@@ -817,6 +899,7 @@ async def _generate_variants_internal(
                 prompt=request.prompt,
                 user_token=user_token,
                 excluded_track_ids=excluded_track_ids_from_request if excluded_track_ids_from_request else None,
+                workout_intent=workout_intent_variant1,  # Pass WorkoutIntent for LangChain
             )
 
             variant2_task = generator.generate(
@@ -826,6 +909,7 @@ async def _generate_variants_internal(
                 prompt=request.prompt,
                 user_token=user_token,
                 excluded_track_ids=excluded_track_ids_from_request if excluded_track_ids_from_request else None,
+                workout_intent=workout_intent_variant2,  # Pass different WorkoutIntent for LangChain
                 # Note: We don't exclude variant 1 tracks here - we'll filter them after generation
             )
 
@@ -859,6 +943,7 @@ async def _generate_variants_internal(
                     prompt=request.prompt,
                     user_token=user_token,
                     excluded_track_ids=None,  # Don't exclude any tracks
+                    workout_intent=workout_intent_variant1,  # Keep WorkoutIntent for LangChain
                 )
 
             # OPTIMIZATION: Filter duplicate tracks from variant 2 (that are in variant 1)
@@ -890,6 +975,7 @@ async def _generate_variants_internal(
                         prompt=request.prompt,
                         user_token=user_token,
                         excluded_track_ids=excluded_for_additional if excluded_for_additional else None,
+                        workout_intent=workout_intent_variant2,  # Keep WorkoutIntent for LangChain
                     )
 
                     if additional_playlist and additional_playlist.total_tracks > 0:

@@ -387,78 +387,89 @@ class MusicCuratorAgent(BaseAgent):
                 logger.debug(f"Failed to get seed tracks: {seed_error}")
 
             # Build recommendations parameters
-            rec_params = {
+            # IMPORTANT: Spotify API doesn't accept target_energy with min/max_tempo together
+            # Try different combinations in order of preference
+
+            # Add seeds first (required)
+            base_params = {
                 "limit": 50,
-                "target_energy": 0.7,  # High energy for workouts
             }
 
-            # Add tempo parameters (use min/max_tempo, not target_tempo)
-            rec_params["min_tempo"] = bpm_min
-            rec_params["max_tempo"] = bpm_max
-
-            # Add seeds - prefer seed_tracks over seed_genres (more reliable)
             if seed_tracks_list:
-                rec_params["seed_tracks"] = seed_tracks_list[:5]
+                base_params["seed_tracks"] = seed_tracks_list[:5]
                 logger.debug(f"Using {len(seed_tracks_list)} track seeds for recommendations")
             elif seed_genres_list:
-                rec_params["seed_genres"] = seed_genres_list[:5]
+                base_params["seed_genres"] = seed_genres_list[:5]
                 logger.debug(f"Using {len(seed_genres_list)} genre seeds for recommendations")
             else:
                 # Fallback: use default genres
-                rec_params["seed_genres"] = ["pop", "electronic"]
+                base_params["seed_genres"] = ["pop", "electronic"]
                 logger.warning("No seeds available, using default genres")
 
-            # Try recommendations with proper parameters
+            # Try recommendations with different parameter combinations
             recommendations = None
+            last_error = None
+
+            # Strategy 1: Try with tempo only (no target_energy)
             try:
-                logger.debug(f"Attempting Spotify recommendations with params: {list(rec_params.keys())}")
+                rec_params = base_params.copy()
+                rec_params["min_tempo"] = bpm_min
+                rec_params["max_tempo"] = bpm_max
+                logger.debug(f"Attempting Spotify recommendations with tempo only: {list(rec_params.keys())}")
                 recommendations = sp.recommendations(**rec_params)
-                logger.debug("Spotify recommendations successful")
-            except Exception as e:
-                error_str = str(e).lower()
-                logger.warning(f"Spotify recommendations failed with min/max_tempo: {e}")
+                logger.debug("Spotify recommendations successful with tempo only")
+            except Exception as e1:
+                last_error = e1
+                error_str = str(e1).lower()
+                logger.debug(f"Recommendations with tempo failed: {e1}")
 
-                # If 404, try without tempo parameters
-                if "404" in error_str or "not found" in error_str:
-                    logger.warning("404 error - trying without tempo parameters")
-                    rec_params_no_tempo = {
-                        "limit": 50,
-                        "target_energy": 0.7,
-                    }
-                    if seed_tracks_list:
-                        rec_params_no_tempo["seed_tracks"] = seed_tracks_list[:5]
-                    elif seed_genres_list:
-                        rec_params_no_tempo["seed_genres"] = seed_genres_list[:5]
-                    else:
-                        rec_params_no_tempo["seed_genres"] = ["pop", "electronic"]
-
+                # Strategy 2: Try with target_energy only (no tempo)
+                if "404" in error_str or "not found" in error_str or "parameter" in error_str:
                     try:
-                        recommendations = sp.recommendations(**rec_params_no_tempo)
-                        logger.debug("Spotify recommendations successful without tempo")
+                        rec_params = base_params.copy()
+                        rec_params["target_energy"] = 0.7
+                        logger.debug(f"Attempting Spotify recommendations with energy only: {list(rec_params.keys())}")
+                        recommendations = sp.recommendations(**rec_params)
+                        logger.debug("Spotify recommendations successful with energy only")
                     except Exception as e2:
-                        logger.error(f"Spotify recommendations failed even without tempo: {e2}")
-                        # Final fallback: minimal request
-                        rec_params_minimal = {
-                            "limit": 50,
-                        }
-                        if seed_tracks_list:
-                            rec_params_minimal["seed_tracks"] = seed_tracks_list[:5]
-                        elif seed_genres_list:
-                            rec_params_minimal["seed_genres"] = seed_genres_list[:5]
+                        last_error = e2
+                        error_str2 = str(e2).lower()
+                        logger.debug(f"Recommendations with energy failed: {e2}")
+
+                        # Strategy 3: Try with target_tempo (single value, not range)
+                        if "404" in error_str2 or "not found" in error_str2:
+                            try:
+                                rec_params = base_params.copy()
+                                rec_params["target_tempo"] = int(target_tempo)
+                                logger.debug(f"Attempting Spotify recommendations with target_tempo: {list(rec_params.keys())}")
+                                recommendations = sp.recommendations(**rec_params)
+                                logger.debug("Spotify recommendations successful with target_tempo")
+                            except Exception as e3:
+                                last_error = e3
+                                error_str3 = str(e3).lower()
+                                logger.debug(f"Recommendations with target_tempo failed: {e3}")
+
+                                # Strategy 4: Minimal request (only seeds)
+                                if "404" in error_str3 or "not found" in error_str3:
+                                    try:
+                                        logger.debug(f"Attempting Spotify recommendations with minimal params: {list(base_params.keys())}")
+                                        recommendations = sp.recommendations(**base_params)
+                                        logger.debug("Spotify recommendations successful with minimal params")
+                                    except Exception as e4:
+                                        last_error = e4
+                                        logger.error(f"All recommendation strategies failed. Last error: {e4}")
+                                        raise Exception(f"Failed to get recommendations from Spotify. Last error: {e4}")
+                                else:
+                                    raise e3
                         else:
-                            rec_params_minimal["seed_genres"] = ["pop", "electronic"]
-
-                        recommendations = sp.recommendations(**rec_params_minimal)
-                        logger.debug("Spotify recommendations successful with minimal params")
+                            raise e2
                 else:
-                    # For other errors, try without tempo
-                    try:
-                        rec_params_no_tempo = {k: v for k, v in rec_params.items() if k not in ["min_tempo", "max_tempo"]}
-                        recommendations = sp.recommendations(**rec_params_no_tempo)
-                        logger.debug("Spotify recommendations successful without tempo (retry)")
-                    except Exception as e2:
-                        logger.error(f"Spotify recommendations failed: {e2}")
-                        raise
+                    raise e1
+
+            if recommendations is None:
+                if last_error:
+                    raise last_error
+                raise Exception("Failed to get recommendations from Spotify")
 
             tracks = []
             total_duration = 0
