@@ -42,7 +42,8 @@ class ConversationState(BaseModel):
     messages: List[Dict[str, str]] = Field(
         default_factory=list, description="Previous messages in conversation"
     )
-    current_intent: Optional[str] = Field(None, description="Current user intent")
+    current_intent: Optional[str] = Field(
+        None, description="Current user intent")
     clarification_needed: bool = Field(
         default=False, description="Whether clarification is needed"
     )
@@ -66,7 +67,8 @@ class PromptConfig(BaseModel):
     temperature: float = Field(
         default=0.3, description="LLM temperature for response"
     )
-    max_tokens: int = Field(default=500, description="Maximum tokens in response")
+    max_tokens: int = Field(
+        default=500, description="Maximum tokens in response")
 
 
 class PromptBuilder:
@@ -167,7 +169,9 @@ class PromptBuilder:
         # Main instruction
         prompt_parts.append("\n## Task\n")
         prompt_parts.append(
-            "Parse the user's workout request into structured JSON format."
+            "Parse the user's workout request into structured JSON format. "
+            "IMPORTANT: If the user provides duration AND intensity/pace information, "
+            "the intent is COMPLETE and you should set needs_clarification=false with high confidence (0.9+)."
         )
         prompt_parts.append(f'\nUser message: "{user_message}"\n')
 
@@ -210,6 +214,26 @@ class PromptBuilder:
   "needs_clarification": false
 }
 
+"37 хв в легкому темпі" →
+{
+  "type": "steady",
+  "duration_minutes": 37,
+  "intensity": "low",
+  "hr_zones": [110, 130],
+  "confidence": 0.95,
+  "needs_clarification": false
+}
+
+"Хочу пробігти 37 хв під легку мотивуючу музику" →
+{
+  "type": "steady",
+  "duration_minutes": 37,
+  "intensity": "low",
+  "hr_zones": [110, 130],
+  "confidence": 0.9,
+  "needs_clarification": false
+}
+
 "Tempo run 45 minutes" →
 {
   "type": "progressive",
@@ -227,11 +251,16 @@ class PromptBuilder:
         )
         prompt_parts.append(
             """1. Use your workout expertise to interpret the user's intent
-2. Map intensity keywords to appropriate HR zones
-3. Infer missing parameters when possible (e.g., duration from workout type)
-4. Set confidence based on clarity of request
-5. Ask clarifying questions when critical parameters are missing
-6. Return ONLY valid JSON without markdown formatting"""
+2. Map intensity keywords to appropriate HR zones and BPM:
+   - "легкий", "легкому", "easy", "recovery", "відновлення" → low intensity → Zone 1-2 (110-130 BPM)
+   - "темповий", "tempo", "помірний", "moderate" → moderate intensity → Zone 2-3 (130-160 BPM)
+   - "швидкий", "fast", "інтервали", "intervals", "висока" → high intensity → Zone 4-5 (160-180 BPM)
+3. When user provides duration AND intensity/pace, consider the intent COMPLETE
+4. Infer missing parameters when possible (e.g., duration from workout type)
+5. Set confidence HIGH (0.9+) when duration and intensity are clearly stated
+6. Only ask clarifying questions when CRITICAL parameters are missing (e.g., intervals without work/rest ratio)
+7. If conversation history contains previous clarification, use that context to complete the intent
+8. Return ONLY valid JSON without markdown formatting"""
         )
 
         return "\n".join(prompt_parts)
@@ -291,9 +320,11 @@ class PromptBuilder:
             base_prompt += "\n\n## User Music Profile\n"
 
             if "favorite_genres" in user_preferences or "top_genres" in user_preferences:
-                genres = user_preferences.get("favorite_genres") or user_preferences.get("top_genres", [])
+                genres = user_preferences.get(
+                    "favorite_genres") or user_preferences.get("top_genres", [])
                 if genres:
-                    genres_str = ", ".join(genres) if isinstance(genres, list) else genres
+                    genres_str = ", ".join(genres) if isinstance(
+                        genres, list) else genres
                     base_prompt += f"**Favorite Genres:** {genres_str}\n"
 
             if "disliked_genres" in user_preferences:
@@ -418,7 +449,8 @@ Include:
         for genre in genre_stats:
             total = genre_stats[genre]["total_tracks"]
             skipped = genre_stats[genre]["skipped_tracks"]
-            genre_stats[genre]["skip_rate"] = skipped / total if total > 0 else 0.0
+            genre_stats[genre]["skip_rate"] = skipped / \
+                total if total > 0 else 0.0
 
         return genre_stats
 
@@ -463,7 +495,8 @@ Include:
             }
 
         if scenario == "first_time" or (
-            scenario is None and (not user_context or not user_context.workout_history)
+            scenario is None and (
+                not user_context or not user_context.workout_history)
         ):
             prompt_parts.append(
                 build_first_time_user_prompt(workout, user_prefs)
@@ -483,7 +516,8 @@ Include:
             )
         elif scenario == "genre_specific" and requested_genres:
             prompt_parts.append(
-                build_genre_specific_prompt(workout, requested_genres, user_prefs)
+                build_genre_specific_prompt(
+                    workout, requested_genres, user_prefs)
             )
         elif scenario == "mood_based" and mood:
             prompt_parts.append(
@@ -491,7 +525,8 @@ Include:
             )
         else:
             # Default: first-time user prompt
-            prompt_parts.append(build_first_time_user_prompt(workout, user_prefs))
+            prompt_parts.append(
+                build_first_time_user_prompt(workout, user_prefs))
 
         return "\n".join(prompt_parts)
 
@@ -551,4 +586,3 @@ Include:
             "temperature": self.config.temperature,
             "max_tokens": self.config.max_tokens,
         }
-

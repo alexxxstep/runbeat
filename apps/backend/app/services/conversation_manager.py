@@ -268,7 +268,8 @@ class ConversationManager:
             }
 
         # Check if clarification needed (LLM flagged this)
-        if workout_intent.needs_clarification:
+        # BUT: If intent is actually complete (has all required fields), ignore needs_clarification flag
+        if workout_intent.needs_clarification and not self._is_intent_complete(workout_intent):
             return ConversationAction.ASK_CLARIFICATION, {
                 "state": ConversationStateEnum.NEEDS_CLARIFICATION,
                 "action": ConversationAction.ASK_CLARIFICATION,
@@ -357,10 +358,15 @@ class ConversationManager:
         if not intent.target_bpm_min or not intent.target_bpm_max:
             return False
 
-        # Confidence threshold
-        if intent.confidence < 0.7:
+        # Confidence threshold - lowered to 0.6 to be more permissive
+        # If all required fields are present, accept even with lower confidence
+        if intent.confidence < 0.6:
             logger.debug(f"Intent confidence too low: {intent.confidence}")
             return False
+
+        # If confidence is between 0.6-0.7 but all fields are present, accept it
+        if intent.confidence >= 0.6 and intent.confidence < 0.7:
+            logger.debug(f"Intent confidence moderate ({intent.confidence}), but all fields present - accepting")
 
         # Interval-specific requirements
         if intent.workout_type == "intervals":
