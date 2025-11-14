@@ -642,7 +642,8 @@ export function ChatPage() {
           ))}
 
           {/* Show buttons for workout confirmation or playlist generation */}
-          {activeWorkout && showPlaylistQuestion && (
+          {/* Hide buttons if playlist is already generated (variants exist or playlist in messages) */}
+          {activeWorkout && showPlaylistQuestion && !variants && !messages.some(m => m.playlist?.spotify_url || m.playlist?.playlist_id) && (
             <div className='max-w-2xl mx-auto flex justify-start mb-4 px-2 md:px-0'>
               <div className='flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto'>
                 {activeWorkoutId ? (
@@ -820,6 +821,7 @@ export function ChatPage() {
                         setVariants(null);
                         setActiveWorkout(null);
                         setActiveWorkoutId(null);
+                        setShowPlaylistQuestion(false); // Hide buttons after playlist is created
                         // Refresh history after successful generation
                         if (playlist?.spotify_url || playlist?.playlist_id) {
                           // Refresh once after a short delay to ensure data is saved
@@ -933,6 +935,7 @@ export function ChatPage() {
                         setVariants(null);
                         setActiveWorkout(null);
                         setActiveWorkoutId(null);
+                        setShowPlaylistQuestion(false); // Hide buttons after playlist is created
                         // Refresh history after successful generation
                         if (playlist?.spotify_url || playlist?.playlist_id) {
                           // Refresh once after a short delay to ensure data is saved
