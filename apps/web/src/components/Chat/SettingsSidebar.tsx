@@ -212,9 +212,17 @@ export function SettingsSidebar({
   }
 
   return (
-    <div className='flex-[1.5] bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-y-auto transition-all duration-500 ease-in-out min-w-0'>
-      <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center transition-all duration-300 ease-in-out'>
-        <h2 className='text-lg font-semibold text-gray-900 dark:text-white transition-all duration-300 ease-in-out'>
+    <>
+      {/* Mobile overlay */}
+      {!collapsed && (
+        <div
+          className='md:hidden fixed inset-0 bg-black/50 z-30'
+          onClick={onToggleCollapse}
+        />
+      )}
+      <div className={`flex-[1.5] bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-y-auto transition-all duration-500 ease-in-out min-w-0 fixed md:relative inset-y-0 right-0 z-40 w-72 md:w-auto transform ${collapsed ? 'translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
+      <div className='p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center transition-all duration-300 ease-in-out'>
+        <h2 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white transition-all duration-300 ease-in-out'>
           Воркаут
         </h2>
         {onToggleCollapse && (
@@ -240,10 +248,10 @@ export function SettingsSidebar({
         )}
       </div>
 
-      <div className='flex-1 p-4 space-y-6 transition-all duration-300 ease-in-out'>
+      <div className='flex-1 p-3 md:p-4 space-y-4 md:space-y-6 transition-all duration-300 ease-in-out'>
         {/* Workout Type */}
         <div>
-          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+          <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
             Тип тренування
           </label>
           <div className='grid grid-cols-2 gap-2'>
@@ -251,7 +259,7 @@ export function SettingsSidebar({
               <button
                 key={type.value}
                 onClick={() => updateSettings({ type: type.value })}
-                className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-colors ${
                   localSettings.type === type.value
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
@@ -574,15 +582,16 @@ export function SettingsSidebar({
       </div>
 
       {/* Save Button */}
-      <div className='p-4 border-t border-gray-200 dark:border-gray-700'>
+      <div className='p-3 md:p-4 border-t border-gray-200 dark:border-gray-700'>
         <button
           onClick={handleSave}
           disabled={saving || !userId}
-          className='w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium'
+          className='w-full px-3 md:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium text-sm md:text-base'
         >
           {saving ? 'Збереження...' : 'Зберегти'}
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

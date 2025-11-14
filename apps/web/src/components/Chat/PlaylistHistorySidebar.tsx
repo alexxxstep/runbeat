@@ -136,9 +136,17 @@ export function PlaylistHistorySidebar({
   }
 
   return (
-    <div className='flex-[1.5] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-500 ease-in-out min-w-0'>
-      <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center transition-all duration-300 ease-in-out'>
-        <h2 className='text-lg font-semibold text-gray-900 dark:text-white transition-all duration-300 ease-in-out'>
+    <>
+      {/* Mobile overlay */}
+      {!collapsed && (
+        <div
+          className='md:hidden fixed inset-0 bg-black/50 z-30'
+          onClick={onToggleCollapse}
+        />
+      )}
+      <div className={`flex-[1.5] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-500 ease-in-out min-w-0 fixed md:relative inset-y-0 left-0 z-40 w-64 md:w-auto transform ${collapsed ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
+      <div className='p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center transition-all duration-300 ease-in-out'>
+        <h2 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white transition-all duration-300 ease-in-out'>
           Історія
         </h2>
         {onToggleCollapse && (
@@ -468,6 +476,7 @@ export function PlaylistHistorySidebar({
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

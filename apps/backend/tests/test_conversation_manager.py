@@ -21,14 +21,24 @@ def llm_service_mock():
 
 
 @pytest.fixture
-def conversation_manager(llm_service_mock):
-    """Create conversation manager with mocked LLM service."""
+def parser_agent_mock(llm_service_mock):
+    """Mock WorkoutParserAgent."""
+    from unittest.mock import MagicMock
+    agent = MagicMock()
+    agent.parse = AsyncMock()
+    return agent
+
+
+@pytest.fixture
+def conversation_manager(llm_service_mock, parser_agent_mock):
+    """Create conversation manager with mocked services."""
     # Mock SpotifyService to avoid actual Spotify API calls
     from unittest.mock import MagicMock
     spotify_service_mock = MagicMock()
     manager = ConversationManager(
         llm_service=llm_service_mock,
-        spotify_service=spotify_service_mock
+        spotify_service=spotify_service_mock,
+        parser_agent=parser_agent_mock
     )
     # Mock _save_conversation to avoid database calls in tests
     manager._save_conversation = AsyncMock()
@@ -36,7 +46,7 @@ def conversation_manager(llm_service_mock):
 
 
 @pytest.mark.asyncio
-async def test_new_conversation_creation(conversation_manager, llm_service_mock):
+async def test_new_conversation_creation(conversation_manager, parser_agent_mock):
     """Test creating new conversation."""
     user_id = "test-user-123"
     message = "Хочу пробігти 30 хв"
@@ -52,7 +62,7 @@ async def test_new_conversation_creation(conversation_manager, llm_service_mock)
         needs_clarification=False,
     )
 
-    llm_service_mock.parse_workout.return_value = mock_intent
+    parser_agent_mock.parse.return_value = mock_intent
 
     # Mock playlist generation
     mock_playlist = PlaylistResponse(
@@ -79,7 +89,7 @@ async def test_new_conversation_creation(conversation_manager, llm_service_mock)
 
 
 @pytest.mark.asyncio
-async def test_clarification_needed(conversation_manager, llm_service_mock):
+async def test_clarification_needed(conversation_manager, parser_agent_mock):
     """Test conversation asks for clarification."""
     user_id = "test-user-123"
     message = "хочу побігати"
@@ -96,7 +106,7 @@ async def test_clarification_needed(conversation_manager, llm_service_mock):
         clarification_question="Скільки часу плануєш бігти?",
     )
 
-    llm_service_mock.parse_workout.return_value = mock_intent
+    parser_agent_mock.parse.return_value = mock_intent
 
     conversation_id, response = await conversation_manager.process_message(
         user_id=user_id, message=message

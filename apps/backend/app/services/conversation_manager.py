@@ -13,6 +13,31 @@ from app.services.llm_service import LLMService
 from app.services.supabase_service import supabase_service
 from app.services.spotify_service import SpotifyService
 from app.services.prompts.prompt_builder import ConversationState, UserContext
+from app.services.workout_parser_agent import WorkoutParserAgent as LegacyWorkoutParserAgent
+from app.core.config import settings
+
+# Conditional import for LangChain agents
+LANGCHAIN_AVAILABLE = False
+LangChainWorkoutParserAgent = None
+LangChainMusicCuratorAgent = None
+
+if settings.USE_LANGCHAIN_PARSER:
+    try:
+        from app.agents.parser import WorkoutParserAgent as LangChainWorkoutParserAgent
+        LANGCHAIN_AVAILABLE = True
+        logger.info("LangChain WorkoutParserAgent imported successfully")
+    except ImportError as e:
+        logger.warning(f"LangChain not available, using legacy parser: {e}")
+        LANGCHAIN_AVAILABLE = False
+        LangChainWorkoutParserAgent = None
+
+if settings.USE_LANGCHAIN_CURATOR:
+    try:
+        from app.agents.curator import MusicCuratorAgent as LangChainMusicCuratorAgent
+        logger.info("LangChain MusicCuratorAgent imported successfully")
+    except ImportError as e:
+        logger.warning(f"LangChain MusicCuratorAgent not available: {e}")
+        LangChainMusicCuratorAgent = None
 
 
 class ConversationStateEnum(str, Enum):
@@ -73,6 +98,7 @@ class ConversationManager:
         self,
         llm_service: Optional[LLMService] = None,
         spotify_service: Optional[SpotifyService] = None,
+        parser_agent: Optional[Any] = None,  # Can be LegacyWorkoutParserAgent or LangChainWorkoutParserAgent
     ):
         """
         Initialize conversation manager.
@@ -80,9 +106,34 @@ class ConversationManager:
         Args:
             llm_service: LLM service for parsing and generation (creates new if not provided)
             spotify_service: Spotify service for creating playlists (creates new if not provided)
+            parser_agent: Workout parser agent (creates new if not provided)
         """
         self.llm_service = llm_service or LLMService()
         self.spotify_service = spotify_service or SpotifyService()
+
+        # Choose parser agent based on feature flag
+        if parser_agent:
+            self.parser_agent = parser_agent
+            self.use_langchain_parser = False
+        elif settings.USE_LANGCHAIN_PARSER and LANGCHAIN_AVAILABLE:
+            self.parser_agent = LangChainWorkoutParserAgent()
+            self.use_langchain_parser = True
+            logger.info("Using LangChain WorkoutParserAgent")
+        else:
+            self.parser_agent = LegacyWorkoutParserAgent(self.llm_service)
+            self.use_langchain_parser = False
+            logger.info("Using legacy WorkoutParserAgent")
+
+        # Choose curator agent based on feature flag
+        if settings.USE_LANGCHAIN_CURATOR and LangChainMusicCuratorAgent:
+            self.curator_agent = LangChainMusicCuratorAgent()
+            self.use_langchain_curator = True
+            logger.info("Using LangChain MusicCuratorAgent")
+        else:
+            self.curator_agent = None
+            self.use_langchain_curator = False
+            logger.info("Using legacy LLMService for playlist generation")
+
         self.conversations: Dict[str, Dict[str, Any]] = {}
         logger.info("ConversationManager initialized")
 
@@ -253,23 +304,35 @@ class ConversationManager:
                 language="uk",
             )
 
-            # Build ConversationState
-            conversation_state = ConversationState(
-                messages=llm_history,
-                current_intent=None,
-                clarification_needed=False,
-            )
+            # Use WorkoutParserAgent (hybrid: rule-based + AI)
+            if self.use_langchain_parser:
+                # LangChain agent expects different format
+                intent = await self.parser_agent.parse(
+                    message=message,
+                    conversation_history=conversation_history,
+                )
+            else:
+                # Legacy agent
+                intent = await self.parser_agent.parse(
+                    message=message,
+                    conversation_history=conversation_history,
+                    user_context=user_context,
+                )
 
-            intent = await self.llm_service.parse_workout(
-                user_message=message,
-                user_context=user_context,
-                conversation_state=conversation_state,
+            # Log parsed intent for debugging
+            logger.info(
+                f"Parsed intent from '{message}': "
+                f"type={intent.workout_type}, "
+                f"duration={intent.duration_minutes}, "
+                f"bpm={intent.target_bpm_min}-{intent.target_bpm_max}, "
+                f"confidence={intent.confidence}, "
+                f"needs_clarification={intent.needs_clarification}"
             )
 
             return intent
 
         except Exception as e:
-            logger.error(f"Failed to parse intent: {e}")
+            logger.error(f"Failed to parse intent from message '{message}': {e}")
             return None
 
     async def _decide_next_action(
@@ -300,7 +363,14 @@ class ConversationManager:
 
         # Check if clarification needed (LLM flagged this)
         # BUT: If intent is actually complete (has all required fields), ignore needs_clarification flag
-        if workout_intent.needs_clarification and not self._is_intent_complete(workout_intent):
+        is_complete = self._is_intent_complete(workout_intent)
+        logger.debug(
+            f"Intent completeness check: needs_clarification={workout_intent.needs_clarification}, "
+            f"is_complete={is_complete}, confidence={workout_intent.confidence}"
+        )
+
+        if workout_intent.needs_clarification and not is_complete:
+            logger.info("Asking for clarification based on LLM flag")
             return ConversationAction.ASK_CLARIFICATION, {
                 "state": ConversationStateEnum.NEEDS_CLARIFICATION,
                 "action": ConversationAction.ASK_CLARIFICATION,

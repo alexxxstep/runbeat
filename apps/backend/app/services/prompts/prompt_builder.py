@@ -226,6 +226,37 @@ class PromptBuilder:
   "needs_clarification": false
 }
 
+"хочу пробігти легку пробіжку 55 хвилин" →
+{
+  "type": "steady",
+  "duration_minutes": 55,
+  "intensity": "low",
+  "hr_zones": [110, 130],
+  "confidence": 0.95,
+  "needs_clarification": false
+}
+
+"легка пробіжка 55 хвилин" →
+{
+  "type": "steady",
+  "duration_minutes": 55,
+  "intensity": "low",
+  "hr_zones": [110, 130],
+  "confidence": 0.95,
+  "needs_clarification": false
+}
+
+"легка пробіжка" →
+{
+  "type": "steady",
+  "duration_minutes": 30,
+  "intensity": "low",
+  "hr_zones": [110, 130],
+  "confidence": 0.7,
+  "needs_clarification": true,
+  "clarification_question": "Скільки часу плануєш бігти?"
+}
+
 "Хочу пробігти 37 хв під легку мотивуючу музику" →
 {
   "type": "steady",
@@ -291,11 +322,24 @@ class PromptBuilder:
         )
         prompt_parts.append(
             """1. Use your workout expertise to interpret the user's intent
-2. Map intensity keywords to appropriate HR zones and BPM:
-   - "легкий", "легкому", "easy", "recovery", "відновлення" → low intensity → Zone 1-2 (110-130 BPM)
-   - "темповий", "tempo", "помірний", "moderate" → moderate intensity → Zone 2-3 (130-160 BPM)
-   - "швидкий", "fast", "інтервали", "intervals", "висока" → high intensity → Zone 4-5 (160-180 BPM)
-3. Extract music preferences from user message:
+
+2. CRITICAL: Recognize intensity keywords in ANY form:
+   - "легкий", "легка", "легку", "легкому", "легке", "easy", "recovery", "відновлення", "відновлювальна" → low intensity → Zone 1-2 (110-130 BPM)
+   - "темповий", "tempo", "помірний", "moderate", "середній" → moderate intensity → Zone 2-3 (130-160 BPM)
+   - "швидкий", "fast", "інтервали", "intervals", "висока", "інтенсивне" → high intensity → Zone 4-5 (160-180 BPM)
+
+   IMPORTANT: "легка пробіжка" = "легкий біг" = "легке відновлення" = low intensity.
+   If user says "легку пробіжку" or "легка пробіжка" with duration, the intensity is CLEARLY stated.
+
+3. CRITICAL: When user provides BOTH duration AND intensity/pace description, the intent is COMPLETE:
+   - "легку пробіжку 55 хвилин" → COMPLETE (duration: 55, intensity: low)
+   - "легка пробіжка 30 хв" → COMPLETE (duration: 30, intensity: low)
+   - "темповий біг 45 хвилин" → COMPLETE (duration: 45, intensity: moderate)
+   - "інтервали 30 хв" → PARTIAL (duration: 30, but needs interval pattern)
+
+   Set needs_clarification=false and confidence=0.9+ for COMPLETE intents.
+
+4. Extract music preferences from user message:
    - Music genres: Look for genre names like "рок", "rock", "електроніка", "electronic", "хіп-хоп", "hip-hop", "поп", "pop", "метал", "metal", "техно", "techno", "хаус", "house", "джаз", "jazz", "класика", "classical", etc.
    - Music prompt: Extract descriptive words about music style, mood, or characteristics:
      * "мотивуюча", "мотивуючу" → "мотивуюча музика"
@@ -306,11 +350,20 @@ class PromptBuilder:
      * Any other descriptive phrases about music (e.g., "під біт", "з басами", "мелодійна")
    - If user mentions music but doesn't specify genre, extract the description to music_prompt
    - If user mentions both genre and description, extract both
-4. When user provides duration AND intensity/pace, consider the intent COMPLETE
-5. Infer missing parameters when possible (e.g., duration from workout type)
-6. Set confidence HIGH (0.9+) when duration and intensity are clearly stated
-7. Only ask clarifying questions when CRITICAL parameters are missing (e.g., intervals without work/rest ratio)
-8. If conversation history contains previous clarification, use that context to complete the intent
+
+5. Infer missing parameters when possible:
+   - If only duration is missing but intensity is clear → use default 30 minutes, but set needs_clarification=true
+   - If only intensity is missing but duration is clear → infer moderate intensity, but set needs_clarification=true
+   - If BOTH duration AND intensity are provided → intent is COMPLETE, needs_clarification=false
+
+6. Set confidence HIGH (0.9+) when duration and intensity are clearly stated in the same message.
+
+7. Only ask clarifying questions when CRITICAL parameters are missing:
+   - For intervals/fartlek: interval pattern is critical
+   - For steady runs: duration OR intensity missing (but not both)
+
+8. If conversation history contains previous clarification, use that context to complete the intent.
+
 9. Return ONLY valid JSON without markdown formatting"""
         )
 
