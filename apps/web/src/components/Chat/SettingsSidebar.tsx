@@ -591,7 +591,7 @@ export function SettingsSidebar({
           {saving ? 'Збереження...' : 'Зберегти'}
         </button>
       </div>
-      </div>
+    </div>
     </>
   );
 }

@@ -476,7 +476,7 @@ export function PlaylistHistorySidebar({
           )}
         </div>
       </div>
-      </div>
+    </div>
     </>
   );
 }
