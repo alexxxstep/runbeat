@@ -786,6 +786,20 @@ async def _generate_variants_internal(
                 user_token=user_token,
                 excluded_track_ids=excluded_track_ids_from_request if excluded_track_ids_from_request else None,
             )
+
+            # Validate variant 1 has tracks
+            if not playlist_data_variant1 or playlist_data_variant1.total_tracks == 0:
+                logger.warning("Variant 1 is empty, retrying without excluded tracks...")
+                # Retry without excluded tracks if variant 1 is empty
+                playlist_data_variant1 = await generator.generate(
+                    workout=request.workout,
+                    user_preferences=user_prefs_variant1,
+                    interval_stages=interval_stages,
+                    prompt=request.prompt,
+                    user_token=user_token,
+                    excluded_track_ids=None,  # Don't exclude any tracks
+                )
+
         except Exception as e:
             logger.error(f"Failed to generate variant 1: {e}", exc_info=True)
             raise
@@ -828,27 +842,96 @@ async def _generate_variants_internal(
             f"({len(excluded_track_ids_from_request)} from previous generations + {len(variant1_track_ids)} from variant 1)"
         )
 
-        try:
-            playlist_data_variant2 = await generator.generate(
-                workout=request.workout,
-                user_preferences=user_prefs_variant2,
-                interval_stages=interval_stages,
-                prompt=request.prompt,
-                user_token=user_token,
-                excluded_track_ids=excluded_track_ids_for_variant2 if excluded_track_ids_for_variant2 else None,
-            )
-        except Exception as e:
-            logger.error(f"Failed to generate variant 2: {e}", exc_info=True)
-            raise
+        # Try to generate variant 2 with retry logic
+        playlist_data_variant2 = None
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                playlist_data_variant2 = await generator.generate(
+                    workout=request.workout,
+                    user_preferences=user_prefs_variant2,
+                    interval_stages=interval_stages,
+                    prompt=request.prompt,
+                    user_token=user_token,
+                    excluded_track_ids=excluded_track_ids_for_variant2 if excluded_track_ids_for_variant2 else None,
+                )
+
+                # Check if variant 2 has tracks
+                if playlist_data_variant2 and playlist_data_variant2.total_tracks > 0:
+                    logger.info(f"Variant 2 generated successfully on attempt {attempt + 1}: {playlist_data_variant2.total_tracks} tracks")
+                    break
+                else:
+                    logger.warning(f"Variant 2 is empty on attempt {attempt + 1}, retrying with different strategy...")
+                    # If empty and not last attempt, try with fewer excluded tracks
+                    if attempt < max_retries - 1:
+                        # Reduce excluded tracks - only exclude variant 1 tracks, not previous generations
+                        excluded_track_ids_for_variant2 = variant1_track_ids
+                        logger.info(f"Retry {attempt + 2}: Using fewer excluded tracks ({len(excluded_track_ids_for_variant2)} tracks)")
+                        # Also try with more different preferences
+                        if "top_genres" in user_prefs_variant2 and user_prefs_variant2["top_genres"]:
+                            # Try completely different genre order
+                            genres = user_prefs_variant2["top_genres"].copy()
+                            genres.reverse()  # Reverse order
+                            user_prefs_variant2["top_genres"] = genres
+                            logger.debug(f"Retry {attempt + 2}: Reversed genres: {genres}")
+
+            except Exception as e:
+                logger.error(f"Failed to generate variant 2 on attempt {attempt + 1}: {e}", exc_info=True)
+                if attempt < max_retries - 1:
+                    # Try with fewer excluded tracks on retry
+                    excluded_track_ids_for_variant2 = variant1_track_ids
+                    logger.info(f"Retry {attempt + 2}: Reducing excluded tracks and retrying...")
+                else:
+                    # Last attempt failed, create fallback variant 2
+                    logger.warning("All attempts to generate variant 2 failed, creating fallback variant")
+                    # Create variant 2 as a copy of variant 1 with different track order/shuffle
+                    # This ensures we always have 2 variants
+                    from app.models.playlist import PlaylistData
+                    variant2_tracks = playlist_data_variant1.tracks.copy()
+                    random.shuffle(variant2_tracks)
+                    # Take different subset if possible
+                    if len(variant2_tracks) > 3:
+                        # Take different subset
+                        start_idx = len(variant2_tracks) // 3
+                        variant2_tracks = variant2_tracks[start_idx:] + variant2_tracks[:start_idx]
+
+                    variant2_duration = sum(t.duration_ms for t in variant2_tracks) / 1000
+                    playlist_data_variant2 = PlaylistData(
+                        tracks=variant2_tracks,
+                        total_duration=variant2_duration,
+                        total_tracks=len(variant2_tracks),
+                    )
+                    logger.info(f"Created fallback variant 2 with {len(variant2_tracks)} tracks (shuffled from variant 1)")
+                    break
+
+        # Final check: if variant 2 is still empty or None, create fallback
+        if not playlist_data_variant2 or playlist_data_variant2.total_tracks == 0:
+            logger.warning("Variant 2 is still empty after all retries, creating fallback")
+            from app.models.playlist import PlaylistData
+
+            # If variant 1 has tracks, use them for variant 2
+            if playlist_data_variant1 and playlist_data_variant1.total_tracks > 0:
+                variant2_tracks = playlist_data_variant1.tracks.copy()
+                random.shuffle(variant2_tracks)
+                variant2_duration = sum(t.duration_ms for t in variant2_tracks) / 1000
+                playlist_data_variant2 = PlaylistData(
+                    tracks=variant2_tracks,
+                    total_duration=variant2_duration,
+                    total_tracks=len(variant2_tracks),
+                )
+            else:
+                # Both variants are empty - will be handled by validation below
+                logger.warning("Both variants are empty, will create fallback playlists")
+                playlist_data_variant2 = PlaylistData(tracks=[], total_duration=0, total_tracks=0)
 
         generation_time = time.time() - start_time
 
         # Calculate minimum required duration (workout duration in seconds)
         min_duration_seconds = request.workout.duration_minutes * 60
 
-        # Validate duration for both variants
-        variant1_duration = playlist_data_variant1.total_duration
-        variant2_duration = playlist_data_variant2.total_duration
+        # Recalculate durations after potential fallback creation
+        variant1_duration = playlist_data_variant1.total_duration if playlist_data_variant1 else 0
+        variant2_duration = playlist_data_variant2.total_duration if playlist_data_variant2 else 0
 
         logger.info(
             f"Variants generated: "
@@ -860,18 +943,112 @@ async def _generate_variants_internal(
             f"{generation_time:.2f}s"
         )
 
-        # Validate that variants are not empty
+        # Validate that variants are not empty - create fallback playlists if both are empty
         if playlist_data_variant1.total_tracks == 0 and playlist_data_variant2.total_tracks == 0:
-            error_msg = (
-                "Не вдалося знайти треки для воркауту. "
-                "Можливі причини: некоректні параметри, проблеми з Spotify API, "
-                "або відсутність жанрів музики. Спробуйте змінити параметри воркауту."
-            )
-            logger.error(error_msg)
-            raise HTTPException(
-                status_code=422,
-                detail=error_msg
-            )
+            logger.warning("Both variants are empty, creating fallback playlists with popular tracks")
+            # Create fallback playlists using basic Spotify recommendations
+            from app.models.playlist import PlaylistData, Track
+
+            try:
+                # Get basic recommendations for workout
+                import spotipy
+                from spotipy.oauth2 import SpotifyClientCredentials
+                from app.core.config import settings
+
+                client_credentials = SpotifyClientCredentials(
+                    client_id=settings.SPOTIFY_CLIENT_ID,
+                    client_secret=settings.SPOTIFY_CLIENT_SECRET,
+                )
+                sp = spotipy.Spotify(client_credentials_manager=client_credentials)
+
+                # Get BPM range from workout
+                bpm_min = request.workout.hr_zones[0] if request.workout.hr_zones and len(request.workout.hr_zones) > 0 else 120
+                bpm_max = request.workout.hr_zones[1] if request.workout.hr_zones and len(request.workout.hr_zones) > 1 else 160
+                target_tempo = (bpm_min + bpm_max) / 2
+
+                # Get genres from user preferences or use defaults
+                genres = request.user_preferences.get("top_genres", []) if request.user_preferences else []
+                if not genres:
+                    genres = ["pop", "electronic", "rock"]
+
+                # Get recommendations
+                recommendations = sp.recommendations(
+                    seed_genres=genres[:5] if len(genres) >= 5 else genres + ["pop", "electronic"][:5-len(genres)],
+                    target_tempo=target_tempo,
+                    min_tempo=max(60, bpm_min - 10),
+                    max_tempo=min(200, bpm_max + 10),
+                    limit=50,
+                )
+
+                # Convert to Track objects
+                fallback_tracks = []
+                target_duration = request.workout.duration_minutes * 60  # seconds
+                total_duration = 0
+
+                for track_data in recommendations.get("tracks", [])[:30]:  # Limit to 30 tracks
+                    duration_ms = track_data.get("duration_ms", 0)
+                    duration_seconds = duration_ms / 1000
+
+                    if total_duration + duration_seconds > target_duration * 1.2:  # 20% buffer
+                        break
+
+                    track = Track(
+                        id=track_data.get("id", ""),
+                        name=track_data.get("name", "Unknown"),
+                        artist=", ".join([a["name"] for a in track_data.get("artists", [])]),
+                        artist_id=track_data.get("artists", [{}])[0].get("id", "") if track_data.get("artists") else "",
+                        duration_ms=duration_ms,
+                        spotify_uri=track_data.get("uri", ""),
+                        spotify_url=track_data.get("external_urls", {}).get("spotify", ""),
+                        preview_url=track_data.get("preview_url"),
+                        album=track_data.get("album", {}).get("name", "") if isinstance(track_data.get("album"), dict) else "",
+                        tempo=target_tempo,
+                        bpm=target_tempo,
+                        energy=0.7,
+                        danceability=0.7,
+                        valence=0.7,
+                        genres=genres[:1] if genres else ["pop"],
+                    )
+                    fallback_tracks.append(track)
+                    total_duration += duration_seconds
+
+                if fallback_tracks:
+                    # Create variant 1 from first half
+                    variant1_tracks = fallback_tracks[:len(fallback_tracks)//2 + 1]
+                    variant1_duration = sum(t.duration_ms for t in variant1_tracks) / 1000
+                    playlist_data_variant1 = PlaylistData(
+                        tracks=variant1_tracks,
+                        total_duration=variant1_duration,
+                        total_tracks=len(variant1_tracks),
+                    )
+
+                    # Create variant 2 from second half (shuffled)
+                    variant2_tracks = fallback_tracks[len(fallback_tracks)//2:]
+                    random.shuffle(variant2_tracks)
+                    variant2_duration = sum(t.duration_ms for t in variant2_tracks) / 1000
+                    playlist_data_variant2 = PlaylistData(
+                        tracks=variant2_tracks,
+                        total_duration=variant2_duration,
+                        total_tracks=len(variant2_tracks),
+                    )
+
+                    logger.info(
+                        f"Created fallback playlists: "
+                        f"Variant 1: {len(variant1_tracks)} tracks, "
+                        f"Variant 2: {len(variant2_tracks)} tracks"
+                    )
+                else:
+                    # Ultimate fallback: create minimal playlists
+                    logger.error("Could not create fallback playlists, creating minimal playlists")
+                    # This should not happen, but if it does, create empty playlists
+                    playlist_data_variant1 = PlaylistData(tracks=[], total_duration=0, total_tracks=0)
+                    playlist_data_variant2 = PlaylistData(tracks=[], total_duration=0, total_tracks=0)
+
+            except Exception as fallback_error:
+                logger.error(f"Failed to create fallback playlists: {fallback_error}", exc_info=True)
+                # Ultimate fallback: create minimal playlists
+                playlist_data_variant1 = PlaylistData(tracks=[], total_duration=0, total_tracks=0)
+                playlist_data_variant2 = PlaylistData(tracks=[], total_duration=0, total_tracks=0)
 
         # Validate duration - both variants should exceed workout duration
         if variant1_duration < min_duration_seconds:
