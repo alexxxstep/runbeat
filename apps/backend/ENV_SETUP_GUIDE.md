@@ -161,12 +161,24 @@ SPOTIFY_REDIRECT_URI=https://ваш-проект.railway.app/auth/spotify/callba
 ```env
 OPENAI_API_KEY=sk-proj-ваш_ключ
 OPENAI_MODEL=gpt-4
+
+# Optional: Different models for different agents (falls back to OPENAI_MODEL if not set)
+# OPENAI_MODEL_PARSER=gpt-4
+# OPENAI_MODEL_CURATOR=gpt-4-turbo-preview
+# OPENAI_MODEL_CONVERSATION=gpt-3.5-turbo
+# OPENAI_MODEL_SUPERVISOR=gpt-4
 ```
 
-**Примітка:** `gpt-4` - це модель за замовчуванням. Можна використовувати:
+**Примітка:** `gpt-4` - це модель за замовчуванням для всіх агентів. Можна використовувати:
 - `gpt-4` - найкраща якість (дорожче)
 - `gpt-4-turbo-preview` - швидше та дешевше
 - `gpt-3.5-turbo` - найдешевше (для тестування)
+
+**Опціонально:** Можна встановити різні моделі для різних агентів:
+- `OPENAI_MODEL_PARSER` - для WorkoutParserAgent (парсинг воркаутів)
+- `OPENAI_MODEL_CURATOR` - для MusicCuratorAgent (генерація плейлистів)
+- `OPENAI_MODEL_CONVERSATION` - для ConversationAgent (розмова)
+- `OPENAI_MODEL_SUPERVISOR` - для ConversationOrchestrator (координація)
 
 ---
 

@@ -29,7 +29,7 @@ class ConversationAgent(BaseAgent):
 
     def __init__(self):
         """Initialize ConversationAgent."""
-        super().__init__(temperature=0.7, max_tokens=300)  # Friendly and conversational
+        super().__init__(temperature=0.7, max_tokens=300, agent_type="conversation")  # Friendly and conversational
         self.output_parser = None  # Returns natural language, not structured
 
         # Tools

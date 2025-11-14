@@ -7,7 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from app.core.config import settings
-from app.api.routes import health, chat, playlists, auth, workouts, users, error_logs
+from app.api.routes import (
+    health, chat, playlists, auth, workouts, users, error_logs, spotify
+)
 
 # Configure logger
 log_dir = os.path.join(os.path.dirname(__file__), "..", "logs")
@@ -83,6 +85,7 @@ app.include_router(auth.router, prefix=api_v1_prefix, tags=["auth"])
 app.include_router(workouts.router, prefix=api_v1_prefix, tags=["workouts"])
 app.include_router(users.router, prefix=api_v1_prefix, tags=["users"])
 app.include_router(error_logs.router, prefix=api_v1_prefix, tags=["error-logs"])
+app.include_router(spotify.router, prefix=api_v1_prefix, tags=["spotify"])
 
 # Backward compatibility: also include without prefix for existing clients
 # TODO: Remove in future version

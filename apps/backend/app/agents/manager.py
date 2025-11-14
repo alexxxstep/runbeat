@@ -30,7 +30,7 @@ class WorkoutManagerAgent(BaseAgent):
 
     def __init__(self):
         """Initialize WorkoutManagerAgent."""
-        super().__init__(temperature=0.3, max_tokens=200)  # Precise and reliable
+        super().__init__(temperature=0.3, max_tokens=200, agent_type="parser")  # Precise and reliable (uses parser model)
         self.output_parser = None  # Returns success/error messages
 
         # Tools

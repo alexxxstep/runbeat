@@ -18,17 +18,31 @@ class BaseAgent(ABC):
         model_name: Optional[str] = None,
         temperature: float = 0.3,
         max_tokens: int = 1000,
+        agent_type: Optional[str] = None,  # "parser", "curator", "conversation", "supervisor"
     ):
         """
         Initialize base agent.
 
         Args:
-            model_name: OpenAI model name (defaults to settings.OPENAI_MODEL)
+            model_name: OpenAI model name (defaults to settings.OPENAI_MODEL or agent-specific model)
             temperature: LLM temperature
             max_tokens: Maximum tokens in response
+            agent_type: Type of agent for model selection ("parser", "curator", "conversation", "supervisor")
         """
+        # Select model based on agent type if model_name not provided
+        if not model_name and agent_type:
+            model_map = {
+                "parser": settings.OPENAI_MODEL_PARSER,
+                "curator": settings.OPENAI_MODEL_CURATOR,
+                "conversation": settings.OPENAI_MODEL_CONVERSATION,
+                "supervisor": settings.OPENAI_MODEL_SUPERVISOR,
+            }
+            model_name = model_map.get(agent_type) or settings.OPENAI_MODEL
+        else:
+            model_name = model_name or settings.OPENAI_MODEL
+
         self.llm = ChatOpenAI(
-            model=model_name or settings.OPENAI_MODEL,
+            model=model_name,
             temperature=temperature,
             api_key=settings.OPENAI_API_KEY,
             max_tokens=max_tokens,
@@ -38,7 +52,7 @@ class BaseAgent(ABC):
             return_messages=True,
             max_token_limit=4000,
         )
-        logger.info(f"{self.__class__.__name__} initialized")
+        logger.info(f"{self.__class__.__name__} initialized with model: {model_name}")
 
     @abstractmethod
     async def process(self, input_data: Any) -> Any:

@@ -43,10 +43,36 @@ def search_spotify_tracks(
     try:
         import json
 
-        # Build search query
-        search_query = query
+        # Build search query with workout-focused keywords
+        # PRIORITY: Always prioritize dynamic workout music
+        base_query = query.strip() if query else ""
+
+        # Add workout-related keywords if not already present
+        workout_keywords = [
+            "workout", "fitness", "gym", "training",
+            "energetic", "upbeat", "dynamic", "motivational"
+        ]
+
+        # Check if query already contains workout keywords
+        query_lower = base_query.lower()
+        has_workout_keyword = any(keyword in query_lower for keyword in workout_keywords)
+
+        # Build search query with workout context
         if genre:
-            search_query = f"{query} genre:{genre}"
+            # Combine genre with workout keywords for better results
+            if not has_workout_keyword:
+                search_query = f"{base_query} {genre} workout"
+            else:
+                search_query = f"{base_query} {genre}"
+        else:
+            # Add workout context if not present
+            if base_query and not has_workout_keyword:
+                search_query = f"{base_query} workout"
+            elif not base_query:
+                # Default to workout music if no query provided
+                search_query = "workout music energetic"
+            else:
+                search_query = base_query
 
         # Use Spotify search
         sp = _spotify_service.get_user_client("")  # Will use client credentials
@@ -60,8 +86,9 @@ def search_spotify_tracks(
         )
         sp = spotipy.Spotify(client_credentials_manager=client_credentials)
 
-        # Search for tracks
-        results = sp.search(q=search_query, type="track", limit=limit)
+        # Search for tracks with workout-focused query
+        logger.debug(f"Searching Spotify with workout-focused query: {search_query}")
+        results = sp.search(q=search_query, type="track", limit=limit * 2)
 
         tracks = []
         for item in results.get("tracks", {}).get("items", []):
@@ -97,9 +124,28 @@ def search_spotify_tracks(
             if bpm_max and track_info.get("bpm", 0) > bpm_max:
                 continue
 
+            # Prioritize high-energy tracks for workouts
+            # Filter out low-energy tracks (energy < 0.5) unless explicitly requested
+            energy = track_info.get("energy", 0.5)
+            if energy < 0.5:
+                logger.debug(
+                    f"Skipping low-energy track: {track_info.get('name')} "
+                    f"(energy: {energy})"
+                )
+                continue
+
             tracks.append(track_info)
 
-        logger.info(f"Found {len(tracks)} tracks for query: {query}")
+        # Sort by energy (descending) to prioritize dynamic tracks
+        tracks.sort(key=lambda x: x.get("energy", 0), reverse=True)
+
+        # Limit results
+        tracks = tracks[:limit]
+
+        logger.info(
+            f"Found {len(tracks)} dynamic tracks for query: {query} "
+            f"(search query: {search_query})"
+        )
         return json.dumps(tracks, ensure_ascii=False)
 
     except Exception as e:

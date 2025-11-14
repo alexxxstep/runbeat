@@ -55,20 +55,28 @@ Create a personalized workout playlist based on:
 
 ## Genre Selection Principles
 
+**IMPORTANT: Always prioritize DYNAMIC and ENERGETIC music for workouts.**
+**Select tracks that are upbeat, motivational, and high-energy to enhance performance.**
+
 ### High-Energy Workouts (Intervals, Speed Work)
-- **House / Techno (125-135 BPM):** Consistent beat, driving basslines
-- **Drum & Bass (160-180 BPM):** Fast breakbeats, high energy
-- **Hip-Hop (85-95 BPM, doubles to 170-190):** Motivational lyrics
-- **Rock / Metal (140-180 BPM):** Aggressive energy, power
+- **House / Techno (125-135 BPM):** Consistent beat, driving basslines, high energy
+- **Drum & Bass (160-180 BPM):** Fast breakbeats, high energy, intense
+- **Hip-Hop (85-95 BPM, doubles to 170-190):** Motivational lyrics, energetic
+- **Rock / Metal (140-180 BPM):** Aggressive energy, power, dynamic
+- **EDM / Trance (128-140 BPM):** Uplifting, energetic, driving
+- **PRIORITY: Always search for "energetic", "upbeat", "workout", "fitness" variants**
 
 ### Moderate Workouts (Easy Runs, Long Distance)
-- **Indie / Alternative (120-140 BPM):** Steady rhythm, emotional connection
-- **Pop (100-130 BPM):** Uplifting, positive vibes
-- **Melodic Electronic (110-125 BPM):** Consistent beats, uplifting
+- **Indie / Alternative (120-140 BPM):** Steady rhythm, emotional connection, upbeat
+- **Pop (100-130 BPM):** Uplifting, positive vibes, energetic
+- **Melodic Electronic (110-125 BPM):** Consistent beats, uplifting, dynamic
+- **Dance / House (120-130 BPM):** Energetic, motivational, driving
+- **PRIORITY: Focus on dynamic tracks even for moderate workouts**
 
 ### Recovery Workouts
-- **Chill Electronic (90-110 BPM):** Low BPM, calming
-- **Acoustic (80-100 BPM):** Organic, relaxing
+- **Chill Electronic (90-110 BPM):** Low BPM but still engaging
+- **Acoustic (80-100 BPM):** Organic, relaxing but uplifting
+- **Note: Even recovery workouts benefit from slightly upbeat music**
 
 ## Playlist Structure
 
@@ -113,7 +121,10 @@ Create a personalized workout playlist based on:
 4. **Search for tracks:**
    - Use `get_spotify_recommendations` for main tracks
    - Use `search_spotify_tracks` for specific genres or queries
-   - Filter by BPM range and energy
+   - **ALWAYS prioritize dynamic, energetic, and motivational tracks**
+   - Include workout-related keywords in searches: "workout", "fitness", "energetic", "upbeat", "dynamic"
+   - Filter by BPM range and energy (minimum 0.6 energy for workouts)
+   - Prefer high-energy tracks (energy >= 0.7) for main workout phases
 
 5. **Curate playlist:**
    - Select tracks matching BPM progression
@@ -132,12 +143,16 @@ Create a personalized workout playlist based on:
 
 ## Guidelines
 
+- **ALWAYS prioritize DYNAMIC and ENERGETIC music for workouts**
 - Always use tools to search for real tracks (don't make up track names)
+- **Include workout-related keywords in search queries: "workout", "fitness", "energetic", "upbeat", "dynamic", "motivational"**
 - Ensure total playlist duration matches workout duration (±2 minutes)
 - BPM should match target range for each phase
+- **Minimum energy level: 0.6 for all tracks, prefer 0.7+ for main workout**
 - Include variety in genres and artists
-- Consider user preferences but prioritize workout requirements
-- Add curation_notes explaining your music science choices
+- Consider user preferences but **prioritize dynamic workout requirements**
+- **Select tracks that enhance motivation and performance**
+- Add curation_notes explaining your music science choices and why tracks are dynamic/energetic
 
 Always return valid JSON matching the PlaylistResponse schema.
 
@@ -147,7 +162,7 @@ Always return valid JSON matching the PlaylistResponse schema.
 """
 
 # User prompt template
-CURATOR_AGENT_USER_PROMPT_TEMPLATE = """Create a workout playlist with the following requirements:
+CURATOR_AGENT_USER_PROMPT_TEMPLATE = """Create a DYNAMIC and ENERGETIC workout playlist with the following requirements:
 
 Workout Type: {workout_type}
 Duration: {duration_minutes} minutes
@@ -156,4 +171,11 @@ User Preferences:
 - Genres: {genres}
 - Music Prompt: {music_prompt}
 
-Use tools to search for tracks and create a well-curated playlist."""
+**IMPORTANT REQUIREMENTS:**
+- Prioritize DYNAMIC, ENERGETIC, and MOTIVATIONAL tracks
+- Include workout-related keywords in searches: "workout", "fitness", "energetic", "upbeat", "dynamic"
+- Select tracks with high energy (minimum 0.6, prefer 0.7+)
+- Focus on tracks that enhance workout performance and motivation
+- Even for recovery phases, prefer slightly upbeat tracks
+
+Use tools to search for tracks and create a well-curated playlist that enhances workout performance."""

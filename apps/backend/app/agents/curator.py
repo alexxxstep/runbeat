@@ -37,7 +37,7 @@ class MusicCuratorAgent(BaseAgent):
 
     def __init__(self):
         """Initialize MusicCuratorAgent."""
-        super().__init__(temperature=0.7, max_tokens=2000)  # Higher temp for creativity
+        super().__init__(temperature=0.7, max_tokens=2000, agent_type="curator")  # Higher temp for creativity
         self.output_parser = OUTPUT_PARSER
 
         # Tools
@@ -305,17 +305,11 @@ class MusicCuratorAgent(BaseAgent):
         logger.info("Creating fallback playlist using Spotify API directly")
 
         try:
-            import spotipy
-            from spotipy.oauth2 import SpotifyClientCredentials
-            from app.core.config import settings
+            from app.services.spotify_service import SpotifyService
             from app.schemas.llm_responses import PlaylistTrack
 
-            # Use client credentials instead of user token
-            client_credentials = SpotifyClientCredentials(
-                client_id=settings.SPOTIFY_CLIENT_ID,
-                client_secret=settings.SPOTIFY_CLIENT_SECRET,
-            )
-            sp = spotipy.Spotify(client_credentials_manager=client_credentials)
+            # Use SpotifyService which has proper fallback to Search API
+            spotify_service = SpotifyService()
 
             # Get genres from workout intent
             genres = workout_intent.music_genres or ["pop", "electronic"]
@@ -332,177 +326,126 @@ class MusicCuratorAgent(BaseAgent):
             if not valid_genres:
                 valid_genres = ["pop", "electronic"]
 
-            # Get recommendations
-            # Spotify API doesn't accept target_tempo together with min_tempo/max_tempo
-            # Use min_tempo and max_tempo to define the range
-            target_tempo = (workout_intent.target_bpm_min + workout_intent.target_bpm_max) / 2
-
             # Ensure BPM range is valid (Spotify accepts 60-200 BPM)
             bpm_min = max(60, min(200, int(workout_intent.target_bpm_min)))
             bpm_max = max(60, min(200, int(workout_intent.target_bpm_max)))
             if bpm_min > bpm_max:
                 bpm_min, bpm_max = bpm_max, bpm_min
 
-            # Ensure we have at least one valid genre
-            seed_genres_list = valid_genres[:5] if valid_genres else ["pop", "electronic"]
+            target_tempo = (workout_intent.target_bpm_min + workout_intent.target_bpm_max) / 2
+            target_energy = 0.7
 
-            # OPTIMIZATION: Get seed tracks first (more reliable than seed_genres)
-            # Spotify Recommendations API works better with seed_tracks
-            seed_tracks_list = []
+            # Calculate how many tracks we need based on duration
+            # Assume average track duration of 3-4 minutes
+            avg_track_duration_min = 3.5
+            num_tracks_needed = max(10, int(workout_intent.duration_minutes / avg_track_duration_min) + 5)
+
+            # Try Recommendations API first (with fallback to Search API built-in)
             try:
-                # Search for tracks by genre to use as seeds
-                for genre in seed_genres_list[:2]:
-                    try:
-                        genre_map = {
-                            "pop": "pop music",
-                            "rock": "rock music",
-                            "electronic": "electronic music",
-                            "hip-hop": "hip hop",
-                            "country": "country music",
-                            "house": "house music",
-                            "techno": "techno music",
-                            "dance": "dance music",
-                            "edm": "edm music",
-                            "trance": "trance music",
-                        }
-                        search_term = genre_map.get(genre.lower(), genre)
-                        search_results = sp.search(
-                            q=search_term,
-                            type="track",
-                            limit=3,
-                            market="US"
-                        )
-                        tracks = search_results.get("tracks", {}).get("items", [])
-                        for track in tracks:
-                            if track.get("id") and track["id"] not in seed_tracks_list:
-                                seed_tracks_list.append(track["id"])
-                                if len(seed_tracks_list) >= 5:
-                                    break
-                        if len(seed_tracks_list) >= 5:
-                            break
-                    except Exception as genre_search_error:
-                        logger.debug(f"Genre search for {genre} failed: {genre_search_error}")
-                        continue
-            except Exception as seed_error:
-                logger.debug(f"Failed to get seed tracks: {seed_error}")
+                logger.debug(f"Attempting Spotify recommendations API with genres: {valid_genres}")
+                recommendations = await spotify_service.get_recommendations(
+                    seed_genres=valid_genres,
+                    seed_artists=[],
+                    target_tempo=int(target_tempo),
+                    min_tempo=bpm_min,
+                    max_tempo=bpm_max,
+                    target_energy=target_energy,
+                    limit=min(num_tracks_needed, 50),
+                )
 
-            # Build recommendations parameters
-            # IMPORTANT: Spotify API doesn't accept target_energy with min/max_tempo together
-            # Try different combinations in order of preference
-
-            # Add seeds first (required)
-            base_params = {
-                "limit": 50,
-            }
-
-            if seed_tracks_list:
-                base_params["seed_tracks"] = seed_tracks_list[:5]
-                logger.debug(f"Using {len(seed_tracks_list)} track seeds for recommendations")
-            elif seed_genres_list:
-                base_params["seed_genres"] = seed_genres_list[:5]
-                logger.debug(f"Using {len(seed_genres_list)} genre seeds for recommendations")
-            else:
-                # Fallback: use default genres
-                base_params["seed_genres"] = ["pop", "electronic"]
-                logger.warning("No seeds available, using default genres")
-
-            # Try recommendations with different parameter combinations
-            recommendations = None
-            last_error = None
-
-            # Strategy 1: Try with tempo only (no target_energy)
-            try:
-                rec_params = base_params.copy()
-                rec_params["min_tempo"] = bpm_min
-                rec_params["max_tempo"] = bpm_max
-                logger.debug(f"Attempting Spotify recommendations with tempo only: {list(rec_params.keys())}")
-                recommendations = sp.recommendations(**rec_params)
-                logger.debug("Spotify recommendations successful with tempo only")
-            except Exception as e1:
-                last_error = e1
-                error_str = str(e1).lower()
-                logger.debug(f"Recommendations with tempo failed: {e1}")
-
-                # Strategy 2: Try with target_energy only (no tempo)
-                if "404" in error_str or "not found" in error_str or "parameter" in error_str:
-                    try:
-                        rec_params = base_params.copy()
-                        rec_params["target_energy"] = 0.7
-                        logger.debug(f"Attempting Spotify recommendations with energy only: {list(rec_params.keys())}")
-                        recommendations = sp.recommendations(**rec_params)
-                        logger.debug("Spotify recommendations successful with energy only")
-                    except Exception as e2:
-                        last_error = e2
-                        error_str2 = str(e2).lower()
-                        logger.debug(f"Recommendations with energy failed: {e2}")
-
-                        # Strategy 3: Try with target_tempo (single value, not range)
-                        if "404" in error_str2 or "not found" in error_str2:
-                            try:
-                                rec_params = base_params.copy()
-                                rec_params["target_tempo"] = int(target_tempo)
-                                logger.debug(f"Attempting Spotify recommendations with target_tempo: {list(rec_params.keys())}")
-                                recommendations = sp.recommendations(**rec_params)
-                                logger.debug("Spotify recommendations successful with target_tempo")
-                            except Exception as e3:
-                                last_error = e3
-                                error_str3 = str(e3).lower()
-                                logger.debug(f"Recommendations with target_tempo failed: {e3}")
-
-                                # Strategy 4: Minimal request (only seeds)
-                                if "404" in error_str3 or "not found" in error_str3:
-                                    try:
-                                        logger.debug(f"Attempting Spotify recommendations with minimal params: {list(base_params.keys())}")
-                                        recommendations = sp.recommendations(**base_params)
-                                        logger.debug("Spotify recommendations successful with minimal params")
-                                    except Exception as e4:
-                                        last_error = e4
-                                        logger.error(f"All recommendation strategies failed. Last error: {e4}")
-                                        raise Exception(f"Failed to get recommendations from Spotify. Last error: {e4}")
-                                else:
-                                    raise e3
-                        else:
-                            raise e2
+                if recommendations and len(recommendations) > 0:
+                    logger.info(f"Got {len(recommendations)} tracks from Recommendations API")
+                    tracks_data = recommendations
                 else:
-                    raise e1
+                    raise Exception("Recommendations API returned empty results")
 
-            if recommendations is None:
-                if last_error:
-                    raise last_error
-                raise Exception("Failed to get recommendations from Spotify")
+            except Exception as rec_error:
+                error_str = str(rec_error).lower()
+                logger.warning(f"Recommendations API failed: {rec_error}")
 
+                # If 404 or Recommendations API not available, use Search API fallback
+                if "404" in error_str or "not found" in error_str or "recommendations" in error_str:
+                    logger.info("Recommendations API unavailable (404), using Search API fallback")
+                    try:
+                        tracks_data = await spotify_service.get_tracks_by_search(
+                            seed_genres=valid_genres,
+                            min_tempo=bpm_min,
+                            max_tempo=bpm_max,
+                            target_energy=target_energy,
+                            limit=num_tracks_needed,
+                            search_query=None,
+                        )
+
+                        if not tracks_data or len(tracks_data) == 0:
+                            raise Exception("Search API returned empty results")
+
+                        logger.info(f"Got {len(tracks_data)} tracks from Search API")
+                    except Exception as search_error:
+                        logger.error(f"Search API also failed: {search_error}")
+                        # Final fallback to minimal playlist
+                        return self._create_fallback_playlist(workout_intent)
+                else:
+                    # For other errors, try Search API as fallback
+                    logger.info("Trying Search API as fallback")
+                    try:
+                        tracks_data = await spotify_service.get_tracks_by_search(
+                            seed_genres=valid_genres,
+                            min_tempo=bpm_min,
+                            max_tempo=bpm_max,
+                            target_energy=target_energy,
+                            limit=num_tracks_needed,
+                            search_query=None,
+                        )
+
+                        if not tracks_data or len(tracks_data) == 0:
+                            raise Exception("Search API returned empty results")
+
+                        logger.info(f"Got {len(tracks_data)} tracks from Search API")
+                    except Exception as search_error:
+                        logger.error(f"Search API fallback failed: {search_error}")
+                        # Final fallback to minimal playlist
+                        return self._create_fallback_playlist(workout_intent)
+
+            # Convert tracks to PlaylistTrack format
             tracks = []
             total_duration = 0
             target_duration = workout_intent.duration_minutes * 60  # seconds
 
-            for track in recommendations.get("tracks", []):
+            for track in tracks_data:
                 duration_seconds = track.get("duration_ms", 0) / 1000
+                if not duration_seconds:
+                    duration_seconds = 180  # Default 3 minutes if not available
+
+                # Skip if we already have enough duration
                 if total_duration + duration_seconds > target_duration * 1.2:  # 20% buffer
                     break
 
-                # Try to get audio features (may fail with 403)
-                bpm = target_tempo
-                try:
-                    features = sp.audio_features([track.get("id")])[0]
-                    if features and features.get("tempo"):
-                        bpm = features.get("tempo")
-                except Exception:
-                    pass  # Use default BPM
+                # Get BPM from audio features (if available)
+                bpm = track.get("tempo", target_tempo)
+                if not bpm or bpm <= 0:
+                    bpm = target_tempo
+
+                # Get energy level
+                energy_level = track.get("energy", target_energy)
+                if not energy_level:
+                    energy_level = target_energy
 
                 tracks.append(PlaylistTrack(
                     title=track.get("name", "Unknown"),
-                    artist=", ".join([a["name"] for a in track.get("artists", [])]),
+                    artist=", ".join([a["name"] for a in track.get("artists", [])]) if track.get("artists") else "Unknown Artist",
                     duration_seconds=duration_seconds,
                     bpm=float(bpm),
-                    energy_level=0.7,
+                    energy_level=float(energy_level),
                     genre=valid_genres[0] if valid_genres else "pop",
                     phase="main",
                 ))
                 total_duration += duration_seconds
 
             if not tracks:
-                # If no tracks, return minimal fallback
+                logger.warning("No tracks found, returning minimal fallback")
                 return self._create_fallback_playlist(workout_intent)
+
+            logger.info(f"Created fallback playlist with {len(tracks)} tracks, {total_duration / 60:.1f} minutes")
 
             return PlaylistResponse(
                 playlist_name=f"{workout_intent.workout_type.capitalize()} Workout Playlist",
@@ -516,5 +459,7 @@ class MusicCuratorAgent(BaseAgent):
             )
         except Exception as e:
             logger.error(f"Error in Spotify fallback: {e}")
+            import traceback
+            logger.debug(f"Traceback: {traceback.format_exc()}")
             # Final fallback
             return self._create_fallback_playlist(workout_intent)

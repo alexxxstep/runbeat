@@ -133,21 +133,17 @@ class SpotifyService:
                 client_credentials_manager=self.client_credentials
             )
 
-            # Build search query - Spotify Search API doesn't support genre: syntax well
-            # Use more general search terms
+            # Build search query - Spotify Search API doesn't support
+            # genre: syntax well. Use more general search terms.
+            # PRIORITY: Always prioritize dynamic workout music
             genres = seed_genres[:2] if seed_genres else ["pop", "rock"]
 
-            # Try multiple search strategies
+            # Try multiple search strategies (workout-focused)
             search_queries = []
 
-            # Strategy 1: If prompt provided, use it as primary search
-            if search_query and search_query.strip():
-                prompt_clean = search_query.strip()[:100]
-                search_queries.append(prompt_clean)
-
-            # Strategy 2: Search for genre names as regular terms (not genre:)
+            # Strategy 1: Genre + Workout keywords (HIGHEST PRIORITY)
+            # Combine genres with dynamic workout keywords for best results
             for genre in genres:
-                # Map common genre names to searchable terms
                 genre_map = {
                     "pop": "pop music",
                     "rock": "rock music",
@@ -164,13 +160,38 @@ class SpotifyService:
                     "dance": "dance music",
                     "house": "house music",
                     "techno": "techno music",
+                    "edm": "edm music",
+                    "trance": "trance music",
                 }
-                search_term = genre_map.get(genre.lower(), genre)
-                search_queries.append(search_term)
+                genre_term = genre_map.get(genre.lower(), genre)
 
-            # Strategy 3: Fallback to popular music if no results
-            if not search_queries:
-                search_queries = ["popular music", "top hits"]
+                # Add workout-focused queries with genre
+                search_queries.append(f"{genre_term} workout")
+                search_queries.append(f"{genre_term} fitness")
+                search_queries.append(f"{genre_term} energetic")
+                search_queries.append(f"{genre_term} upbeat")
+                search_queries.append(f"{genre_term} running")
+
+            # Strategy 2: If prompt provided, combine with workout keywords
+            if search_query and search_query.strip():
+                prompt_clean = search_query.strip()[:80]
+                # Add workout context to user prompt
+                search_queries.insert(0, f"{prompt_clean} workout")
+                search_queries.insert(1, f"{prompt_clean} fitness")
+                search_queries.insert(2, prompt_clean)
+
+            # Strategy 3: General workout music queries (fallback)
+            if not search_queries or len(search_queries) < 5:
+                search_queries.extend([
+                    "workout music",
+                    "fitness music",
+                    "gym music",
+                    "running music",
+                    "energetic music",
+                    "upbeat workout",
+                    "dynamic fitness",
+                    "motivational workout"
+                ])
 
             # Try each query until we get results
             tracks = []
@@ -200,19 +221,38 @@ class SpotifyService:
 
             if not tracks:
                 logger.warning("No tracks found in any search query")
-                # Final fallback: search for "workout music" or "running music"
+                # Final fallback: search for dynamic workout music
                 try:
-                    logger.debug("Trying final fallback: 'workout music'")
-                    search_results = sp.search(
-                        q="workout music OR running music",
-                        type="track",
-                        limit=limit,
-                        market="US"
-                    )
-                    tracks = search_results.get("tracks", {}).get("items", [])
-                    if tracks:
-                        logger.debug(
-                            f"Found {len(tracks)} tracks with fallback query")
+                    logger.debug(
+                        "Trying final fallback: dynamic workout music")
+                    fallback_queries = [
+                        "workout music energetic",
+                        "fitness music upbeat",
+                        "gym music dynamic",
+                        "running music motivational",
+                        "cardio workout music",
+                        "high energy workout"
+                    ]
+                    for fallback_query in fallback_queries:
+                        try:
+                            search_results = sp.search(
+                                q=fallback_query,
+                                type="track",
+                                limit=limit,
+                                market="US"
+                            )
+                            found_tracks = search_results.get(
+                                "tracks", {}).get("items", [])
+                            if found_tracks:
+                                tracks.extend(found_tracks)
+                                logger.debug(
+                                    f"Found {len(found_tracks)} tracks "
+                                    f"with fallback query: {fallback_query}"
+                                )
+                                if len(tracks) >= limit:
+                                    break
+                        except Exception:
+                            continue
                 except Exception as fallback_error:
                     logger.error(
                         f"Final fallback search also failed: {fallback_error}")
@@ -258,14 +298,23 @@ class SpotifyService:
                     energy = features.get("energy", 0)
 
                     # Check if track matches criteria
+                    # PRIORITY: Always prioritize dynamic, energetic tracks
+                    # Minimum energy: 0.6 for workouts (80% of default 0.7)
+                    min_energy = max(0.6, target_energy * 0.8)
+
                     if (min_tempo <= tempo <= max_tempo and
-                            energy >= target_energy * 0.8):  # 80% of target
+                            energy >= min_energy):
                         # Merge track info with features
                         track.update(features)
                         filtered_tracks.append(track)
 
                         if len(filtered_tracks) >= limit:
                             break
+
+                # Sort by energy (descending) to prioritize dynamic tracks
+                filtered_tracks.sort(
+                    key=lambda x: x.get("energy", 0), reverse=True
+                )
 
                 logger.info(
                     f"Found {len(filtered_tracks)} tracks matching criteria "
@@ -521,20 +570,39 @@ class SpotifyService:
                 error_str = str(spotify_error).lower()
                 logger.warning(f"Recommendations failed: {spotify_error}")
 
-                # If 404, it might be authentication or endpoint issue
-                # Recommendations API may not work with Client Credentials
-                if "404" in error_str or "not found" in error_str:
+                # Check if it's a 404 error (API not available or not accessible)
+                is_404_error = (
+                    "404" in error_str or
+                    "not found" in error_str or
+                    "http status: 404" in error_str
+                )
+
+                # Check if it's an HTTP error that might have status code
+                status_code = None
+                if hasattr(spotify_error, 'http_status'):
+                    status_code = spotify_error.http_status
+                elif hasattr(spotify_error, 'code'):
+                    status_code = spotify_error.code
+
+                if status_code == 404:
+                    is_404_error = True
+
+                # If 404, Recommendations API is not available
+                # (likely no extended quota)
+                # Immediately use Search API fallback without
+                # trying other variations
+                if is_404_error:
                     logger.error(
                         "404 error - Recommendations API not available. "
                         "This may indicate: "
-                        "1) Client Credentials don't have access, "
-                        "2) Spotify API endpoint issue, or "
-                        "3) Parameter format problem"
+                        "1) App doesn't have extended quota access, "
+                        "2) Client Credentials don't have access, or "
+                        "3) Spotify API endpoint issue. "
+                        "Falling back to Search API immediately."
                     )
 
-                    # If 404 on first try, immediately use Search API fallback
-                    # Recommendations API likely doesn't work
-                    # with Client Credentials
+                    # Immediately use Search API fallback
+                    # (no point trying other Recommendations variations)
                     logger.info(
                         "Recommendations API returned 404, "
                         "using Search API fallback immediately"
@@ -551,64 +619,13 @@ class SpotifyService:
                         logger.error(
                             f"Search API fallback failed: {search_error}"
                         )
-                        # Still try minimal request as last resort
-                        logger.info(
-                            "Retrying with minimal parameters "
-                            "(no tempo constraints)"
+                        raise Exception(
+                            f"Spotify API request failed. "
+                            f"Recommendations API returned 404 and "
+                            f"Search API also failed. "
+                            f"Search error: {search_error}"
                         )
-                    rec_params_minimal = {
-                        "limit": limit,
-                        "target_energy": target_energy,
-                    }
-                    # Try seed_tracks first (most reliable)
-                    if seed_tracks_list:
-                        rec_params_minimal["seed_tracks"] = (
-                            seed_tracks_list[:5]
-                        )
-                    else:
-                        if seed_genres_list:
-                            rec_params_minimal["seed_genres"] = (
-                                seed_genres_list
-                            )
-                        if seed_artists_list:
-                            rec_params_minimal["seed_artists"] = (
-                                seed_artists_list
-                            )
-                    logger.debug(
-                        f"Retry params (minimal): {rec_params_minimal}")
-                    try:
-                        results = sp.recommendations(**rec_params_minimal)
-                        logger.info(
-                            "Minimal request succeeded - "
-                            "tempo parameters may be causing issues"
-                        )
-                    except Exception as e2:
-                        last_error = e2
-                        logger.error(f"Even minimal request failed: {e2}")
-                        # Final fallback: use Search API instead
-                        logger.info(
-                            "Recommendations API failed, "
-                            "falling back to Search API"
-                        )
-                        try:
-                            return await self.get_tracks_by_search(
-                                seed_genres=seed_genres_list,
-                                min_tempo=min_tempo,
-                                max_tempo=max_tempo,
-                                target_energy=target_energy,
-                                limit=limit,
-                            )
-                        except Exception as search_fallback_error:
-                            logger.error(
-                                f"Search API fallback also failed: "
-                                f"{search_fallback_error}"
-                            )
-                            raise Exception(
-                                f"Spotify API request failed. "
-                                f"Recommendations and Search both failed. "
-                                f"Last error: {last_error}"
-                            )
-                # For other errors, try without tempo parameters
+                # For parameter errors, try without tempo parameters first
                 elif "parameter" in error_str or "invalid" in error_str:
                     logger.warning(
                         "Parameter error detected, "
@@ -637,12 +654,72 @@ class SpotifyService:
                     )
                     try:
                         results = sp.recommendations(**rec_params_no_tempo)
+                        logger.info(
+                            "Recommendations request successful without tempo"
+                        )
                     except Exception as e2:
                         last_error = e2
-                        raise
+                        error_str2 = str(e2).lower()
+                        logger.warning(
+                            f"Retry without tempo also failed: {e2}"
+                        )
+
+                        # If retry also fails, fallback to Search API
+                        if ("404" in error_str2 or
+                                "not found" in error_str2 or
+                                "parameter" in error_str2):
+                            logger.info(
+                                "Retry without tempo failed, "
+                                "falling back to Search API"
+                            )
+                            try:
+                                return await self.get_tracks_by_search(
+                                    seed_genres=seed_genres_list,
+                                    min_tempo=min_tempo,
+                                    max_tempo=max_tempo,
+                                    target_energy=target_energy,
+                                    limit=limit,
+                                )
+                            except Exception as search_error:
+                                logger.error(
+                                    f"Search API fallback failed: "
+                                    f"{search_error}"
+                                )
+                                raise Exception(
+                                    f"Spotify API request failed. "
+                                    f"Recommendations API parameter errors "
+                                    f"and Search API also failed. "
+                                    f"Last error: {last_error}, "
+                                    f"Search error: {search_error}"
+                                )
+                        else:
+                            raise
                 else:
-                    # For other errors, raise immediately
-                    raise
+                    # For other errors, try Search API as fallback
+                    # before raising
+                    logger.warning(
+                        f"Unknown error type: {error_str[:100]}. "
+                        "Trying Search API as fallback"
+                    )
+                    try:
+                        return await self.get_tracks_by_search(
+                            seed_genres=seed_genres_list,
+                            min_tempo=min_tempo,
+                            max_tempo=max_tempo,
+                            target_energy=target_energy,
+                            limit=limit,
+                        )
+                    except Exception as search_error:
+                        logger.error(
+                            f"Search API fallback failed: {search_error}"
+                        )
+                        # If Search API also fails, raise the original error
+                        raise Exception(
+                            f"Spotify API request failed. "
+                            f"Recommendations API error: {last_error}. "
+                            f"Search API fallback also failed: "
+                            f"{search_error}"
+                        )
 
             if results is None:
                 logger.error("All recommendation attempts failed")
@@ -659,6 +736,210 @@ class SpotifyService:
 
             # Get audio features for all tracks (using optimized method)
             track_ids = [track["id"] for track in tracks]
+            features = await self.get_audio_features_batch_optimized(
+                track_ids=track_ids,
+                batch_size=100,
+                user_token=None  # Client Credentials
+            )
+
+            # Merge track info with audio features
+            for i, track in enumerate(tracks):
+                if i < len(features) and features[i]:
+                    track.update(features[i])
+
+            return tracks
+
+        except Exception as e:
+            logger.error(f"Failed to get recommendations: {e}")
+            import traceback
+            logger.debug(f"Traceback: {traceback.format_exc()}")
+            raise
+
+    async def get_recommendations_advanced(
+        self,
+        seed_artists: Optional[List[str]] = None,
+        seed_tracks: Optional[List[str]] = None,
+        seed_genres: Optional[List[str]] = None,
+        limit: int = 20,
+        market: str = "US",
+        min_energy: Optional[float] = None,
+        max_energy: Optional[float] = None,
+        target_energy: Optional[float] = None,
+        min_tempo: Optional[float] = None,
+        max_tempo: Optional[float] = None,
+        target_tempo: Optional[float] = None,
+        min_danceability: Optional[float] = None,
+        max_danceability: Optional[float] = None,
+        min_valence: Optional[float] = None,
+        max_valence: Optional[float] = None,
+        min_acousticness: Optional[float] = None,
+        max_acousticness: Optional[float] = None,
+    ) -> List[Dict]:
+        """
+        Get track recommendations from Spotify with advanced filters.
+
+        Args:
+            seed_artists: List of Spotify artist IDs (max 5)
+            seed_tracks: List of Spotify track IDs (max 5)
+            seed_genres: List of seed genres (max 5)
+            limit: Number of recommendations (1-100)
+            market: ISO country code
+            min_energy: Minimum energy (0-1)
+            max_energy: Maximum energy (0-1)
+            target_energy: Target energy (0-1)
+            min_tempo: Minimum tempo/BPM (0-250)
+            max_tempo: Maximum tempo/BPM (0-250)
+            target_tempo: Target tempo/BPM (0-250)
+            min_danceability: Minimum danceability (0-1)
+            max_danceability: Maximum danceability (0-1)
+            min_valence: Minimum valence (0-1)
+            max_valence: Maximum valence (0-1)
+            min_acousticness: Minimum acousticness (0-1)
+            max_acousticness: Maximum acousticness (0-1)
+
+        Returns:
+            List of track dictionaries with audio features
+
+        Raises:
+            ValueError: If no seeds provided or invalid parameters
+            Exception: If Spotify API call fails
+        """
+        try:
+            import spotipy
+
+            # Validate seeds
+            seed_artists_list = list(seed_artists) if seed_artists else []
+            seed_tracks_list = list(seed_tracks) if seed_tracks else []
+            seed_genres_list = list(seed_genres) if seed_genres else []
+
+            # Trim seeds to max 5 total
+            total_seeds = (
+                len(seed_artists_list) +
+                len(seed_tracks_list) +
+                len(seed_genres_list)
+            )
+            if total_seeds > 5:
+                logger.warning(
+                    f"Too many seeds ({total_seeds}), trimming to 5"
+                )
+                # Trim proportionally
+                while total_seeds > 5:
+                    if seed_artists_list:
+                        seed_artists_list.pop()
+                        total_seeds -= 1
+                    if total_seeds > 5 and seed_tracks_list:
+                        seed_tracks_list.pop()
+                        total_seeds -= 1
+                    if total_seeds > 5 and seed_genres_list:
+                        seed_genres_list.pop()
+                        total_seeds -= 1
+
+            # Ensure at least one seed
+            if (
+                not seed_artists_list and
+                not seed_tracks_list and
+                not seed_genres_list
+            ):
+                raise ValueError(
+                    "At least one of seed_artists, seed_tracks, "
+                    "or seed_genres must be provided"
+                )
+
+            # Create Spotify client
+            sp = spotipy.Spotify(
+                client_credentials_manager=self.client_credentials
+            )
+
+            # Build recommendations parameters
+            rec_params = {
+                "limit": min(limit, 100),  # Spotify max is 100
+                "market": market,
+            }
+
+            # Add seeds
+            if seed_tracks_list:
+                rec_params["seed_tracks"] = seed_tracks_list[:5]
+            if seed_artists_list:
+                rec_params["seed_artists"] = seed_artists_list[:5]
+            if seed_genres_list:
+                rec_params["seed_genres"] = seed_genres_list[:5]
+
+            # Add energy filters
+            if min_energy is not None:
+                rec_params["min_energy"] = min_energy
+            if max_energy is not None:
+                rec_params["max_energy"] = max_energy
+            if target_energy is not None:
+                rec_params["target_energy"] = target_energy
+
+            # Add tempo filters
+            # Note: Spotify may reject target_tempo with min/max_tempo
+            # Try min/max first, then target_tempo if needed
+            if min_tempo is not None:
+                rec_params["min_tempo"] = min_tempo
+            if max_tempo is not None:
+                rec_params["max_tempo"] = max_tempo
+            if target_tempo is not None and "min_tempo" not in rec_params:
+                # Only add target_tempo if min_tempo not set
+                rec_params["target_tempo"] = target_tempo
+
+            # Add danceability filters
+            if min_danceability is not None:
+                rec_params["min_danceability"] = min_danceability
+            if max_danceability is not None:
+                rec_params["max_danceability"] = max_danceability
+
+            # Add valence filters
+            if min_valence is not None:
+                rec_params["min_valence"] = min_valence
+            if max_valence is not None:
+                rec_params["max_valence"] = max_valence
+
+            # Add acousticness filters
+            if min_acousticness is not None:
+                rec_params["min_acousticness"] = min_acousticness
+            if max_acousticness is not None:
+                rec_params["max_acousticness"] = max_acousticness
+
+            logger.debug(f"Spotify recommendations params: {rec_params}")
+
+            # Try the request
+            try:
+                results = sp.recommendations(**rec_params)
+                logger.debug("Recommendations request successful")
+            except Exception as spotify_error:
+                error_str = str(spotify_error).lower()
+                logger.warning(f"Recommendations failed: {spotify_error}")
+
+                # If error with tempo parameters, try without target_tempo
+                if (
+                    "404" in error_str or
+                    "parameter" in error_str or
+                    "invalid" in error_str
+                ) and target_tempo is not None:
+                    logger.info("Retrying without target_tempo")
+                    rec_params_no_target = rec_params.copy()
+                    rec_params_no_target.pop("target_tempo", None)
+                    try:
+                        results = sp.recommendations(**rec_params_no_target)
+                        logger.debug(
+                            "Recommendations successful without target_tempo"
+                        )
+                    except Exception as e2:
+                        logger.error(f"Retry also failed: {e2}")
+                        raise
+                else:
+                    raise
+
+            tracks = results.get("tracks", [])
+
+            if not tracks:
+                logger.warning(
+                    "No tracks returned from Spotify recommendations")
+                return []
+
+            # Get audio features for all tracks
+            track_ids = [track["id"] for track in tracks if track.get("id")]
             features = await self.get_audio_features_batch_optimized(
                 track_ids=track_ids,
                 batch_size=100,
@@ -1077,26 +1358,53 @@ class SpotifyService:
             genres = seed_genres[:2] if seed_genres else ["pop", "rock"]
             search_queries = []
 
-            # Strategy 1: Prompt-based search
-            if search_query and search_query.strip():
-                prompt_clean = search_query.strip()[:100]
-                search_queries.append(prompt_clean)
-
-            # Strategy 2: Genre-based search
+            # PRIORITY: Always prioritize dynamic workout music
+            # Strategy 1: Genre + Workout keywords (HIGHEST PRIORITY)
             genre_map = {
                 "pop": "pop music",
                 "rock": "rock music",
                 "electronic": "electronic music",
                 "hip-hop": "hip hop",
+                "r&b": "r&b music",
                 "country": "country music",
                 "house": "house music",
                 "techno": "techno music",
                 "dance": "dance music",
+                "edm": "edm music",
+                "trance": "trance music",
+                "metal": "metal music",
+                "indie": "indie music",
             }
 
             for genre in genres:
-                search_term = genre_map.get(genre.lower(), genre)
-                search_queries.append(search_term)
+                genre_term = genre_map.get(genre.lower(), genre)
+                # Add workout-focused queries with genre
+                search_queries.append(f"{genre_term} workout")
+                search_queries.append(f"{genre_term} fitness")
+                search_queries.append(f"{genre_term} energetic")
+                search_queries.append(f"{genre_term} upbeat")
+                search_queries.append(f"{genre_term} running")
+
+            # Strategy 2: Prompt-based search with workout keywords
+            if search_query and search_query.strip():
+                prompt_clean = search_query.strip()[:80]
+                # Add workout context to user prompt
+                search_queries.insert(0, f"{prompt_clean} workout")
+                search_queries.insert(1, f"{prompt_clean} fitness")
+                search_queries.insert(2, prompt_clean)
+
+            # Strategy 3: General workout music queries (fallback)
+            if not search_queries or len(search_queries) < 5:
+                search_queries.extend([
+                    "workout music",
+                    "fitness music",
+                    "gym music",
+                    "running music",
+                    "energetic music",
+                    "upbeat workout",
+                    "dynamic fitness",
+                    "motivational workout"
+                ])
 
             # Try each query
             all_tracks = []
@@ -1127,19 +1435,42 @@ class SpotifyService:
                     logger.warning(f"Search query '{query}' failed: {e}")
                     continue
 
-            # Final fallback
+            # Final fallback: dynamic workout music
             if not all_tracks:
-                try:
-                    search_results = sp.search(
-                        q="workout music OR running music",
-                        type="track",
-                        limit=limit,
-                        market="US"
-                    )
-                    all_tracks = search_results.get(
-                        "tracks", {}).get("items", [])
-                except Exception as e:
-                    logger.error(f"Final fallback search failed: {e}")
+                fallback_queries = [
+                    "workout music energetic",
+                    "fitness music upbeat",
+                    "gym music dynamic",
+                    "running music motivational",
+                    "cardio workout music",
+                    "high energy workout"
+                ]
+                for fallback_query in fallback_queries:
+                    try:
+                        search_results = sp.search(
+                            q=fallback_query,
+                            type="track",
+                            limit=limit,
+                            market="US"
+                        )
+                        found_tracks = search_results.get(
+                            "tracks", {}).get("items", [])
+                        if found_tracks:
+                            all_tracks.extend(found_tracks)
+                            logger.debug(
+                                f"Found {len(found_tracks)} tracks "
+                                f"with fallback query: {fallback_query}"
+                            )
+                            if len(all_tracks) >= limit:
+                                break
+                    except Exception as e:
+                        logger.warning(
+                            f"Fallback query '{fallback_query}' failed: {e}"
+                        )
+                        continue
+
+                if not all_tracks:
+                    logger.error("Final fallback search failed")
                     return []
 
             # Batch запит для audio features
@@ -1155,12 +1486,23 @@ class SpotifyService:
                 tempo = features[i].get("tempo", 0)
                 energy = features[i].get("energy", 0)
 
+                # PRIORITY: Always prioritize dynamic, energetic tracks
+                # Minimum energy: 0.6 for workouts (80% of default 0.7)
+                min_energy = max(0.6, target_energy * 0.8)
+
                 if (min_tempo <= tempo <= max_tempo and
-                        energy >= target_energy * 0.8):
+                        energy >= min_energy):
                     track.update(features[i])
                     filtered_tracks.append(track)
-                    if len(filtered_tracks) >= limit:
+                    if len(filtered_tracks) >= limit * 2:
                         break
+
+            # Sort by energy (descending) to prioritize dynamic tracks
+            filtered_tracks.sort(
+                key=lambda x: x.get("energy", 0), reverse=True
+            )
+            # Limit to requested number
+            filtered_tracks = filtered_tracks[:limit]
 
             # Якщо не знайдено відповідних треків, повертаємо без фільтрації
             if not filtered_tracks:

@@ -20,6 +20,10 @@ SPOTIFY_CLIENT_SECRET=ваш_client_secret
 SPOTIFY_REDIRECT_URI=https://ваш-проект.railway.app/auth/spotify/callback
 OPENAI_API_KEY=sk-proj-ваш_ключ
 OPENAI_MODEL=gpt-4
+# Optional: OPENAI_MODEL_PARSER=gpt-4
+# Optional: OPENAI_MODEL_CURATOR=gpt-4-turbo-preview
+# Optional: OPENAI_MODEL_CONVERSATION=gpt-3.5-turbo
+# Optional: OPENAI_MODEL_SUPERVISOR=gpt-4
 ENVIRONMENT=production
 LOG_LEVEL=INFO
 CORS_ORIGINS=["https://ваш-web-app.vercel.app"]
@@ -65,7 +69,11 @@ CORS_ORIGINS=["https://ваш-web-app.vercel.app"]
 | `SPOTIFY_CLIENT_SECRET` | `ваш_client_secret` |
 | `SPOTIFY_REDIRECT_URI` | `https://ваш-проект.railway.app/auth/spotify/callback` |
 | `OPENAI_API_KEY` | `sk-proj-ваш_ключ` |
-| `OPENAI_MODEL` | `gpt-4` |
+| `OPENAI_MODEL` | `gpt-4` | Default model for all agents |
+| `OPENAI_MODEL_PARSER` | (optional) | Model for WorkoutParserAgent (falls back to OPENAI_MODEL) |
+| `OPENAI_MODEL_CURATOR` | (optional) | Model for MusicCuratorAgent (falls back to OPENAI_MODEL) |
+| `OPENAI_MODEL_CONVERSATION` | (optional) | Model for ConversationAgent (falls back to OPENAI_MODEL) |
+| `OPENAI_MODEL_SUPERVISOR` | (optional) | Model for ConversationOrchestrator (falls back to OPENAI_MODEL) |
 | `ENVIRONMENT` | `production` |
 | `LOG_LEVEL` | `INFO` |
 | `CORS_ORIGINS` | `["https://ваш-web-app.vercel.app"]` |

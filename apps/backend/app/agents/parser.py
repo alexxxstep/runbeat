@@ -30,7 +30,7 @@ class WorkoutParserAgent(BaseAgent):
 
     def __init__(self):
         """Initialize WorkoutParserAgent."""
-        super().__init__(temperature=0.3, max_tokens=500)
+        super().__init__(temperature=0.3, max_tokens=500, agent_type="parser")
         self.rule_parser = RuleBasedParser()
         self.output_parser = OUTPUT_PARSER
 

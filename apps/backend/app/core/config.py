@@ -24,7 +24,13 @@ class Settings(BaseSettings):
 
     # OpenAI
     OPENAI_API_KEY: str
-    OPENAI_MODEL: str = "gpt-4"
+    OPENAI_MODEL: str = "gpt-4"  # Default model for all agents
+
+    # Optional: Different models for different agents (falls back to OPENAI_MODEL if not set)
+    OPENAI_MODEL_PARSER: Optional[str] = None  # Model for WorkoutParserAgent
+    OPENAI_MODEL_CURATOR: Optional[str] = None  # Model for MusicCuratorAgent
+    OPENAI_MODEL_CONVERSATION: Optional[str] = None  # Model for ConversationAgent
+    OPENAI_MODEL_SUPERVISOR: Optional[str] = None  # Model for ConversationOrchestrator
 
     # LangChain Feature Flags
     USE_LANGCHAIN_PARSER: bool = True  # Use LangChain WorkoutParserAgent (default: enabled)
