@@ -77,6 +77,8 @@ export interface PlaylistFromLLM {
   primary_genres: string[];
   tracks: PlaylistTrackFromLLM[];
   curation_notes?: string;
+  spotify_playlist_id?: string;
+  spotify_url?: string;
 }
 
 export interface PlaylistTrackFromLLM {

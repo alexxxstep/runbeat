@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api } from '../services/api';
-import type { Message, Workout, ChatRequest, Track, PlaylistFromLLM } from '../types';
+import type { Message, Workout, ChatRequest, Track } from '../types';
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -75,7 +75,7 @@ export function useChat() {
       if (response.playlist) {
         // Playlist is already in the message, return workout for compatibility
         // Also return a special marker to indicate playlist is available
-        return { ...response.workout, _hasPlaylist: true } as Workout & { _hasPlaylist?: boolean } || null;
+        return (response.workout ? { ...response.workout, _hasPlaylist: true } : null) as (Workout & { _hasPlaylist?: boolean }) | null;
       }
 
       if (response.workout && response.is_complete && !response.needs_clarification) {
