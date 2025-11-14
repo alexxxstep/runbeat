@@ -184,15 +184,18 @@ class SpotifyService:
                         market="US"
                     )
 
-                    found_tracks = search_results.get("tracks", {}).get("items", [])
+                    found_tracks = search_results.get(
+                        "tracks", {}).get("items", [])
                     if found_tracks:
                         tracks.extend(found_tracks)
-                        logger.debug(f"Found {len(found_tracks)} tracks with query: {query}")
+                        logger.debug(
+                            f"Found {len(found_tracks)} tracks with query: {query}")
                         # If we have enough tracks, break
                         if len(tracks) >= limit:
                             break
                 except Exception as search_error:
-                    logger.warning(f"Search query '{query}' failed: {search_error}")
+                    logger.warning(
+                        f"Search query '{query}' failed: {search_error}")
                     continue
 
             if not tracks:
@@ -208,9 +211,11 @@ class SpotifyService:
                     )
                     tracks = search_results.get("tracks", {}).get("items", [])
                     if tracks:
-                        logger.debug(f"Found {len(tracks)} tracks with fallback query")
+                        logger.debug(
+                            f"Found {len(tracks)} tracks with fallback query")
                 except Exception as fallback_error:
-                    logger.error(f"Final fallback search also failed: {fallback_error}")
+                    logger.error(
+                        f"Final fallback search also failed: {fallback_error}")
                     return []
 
             # Get track IDs
@@ -359,48 +364,66 @@ class SpotifyService:
                 f"Attempting to get seed tracks (genres: {seed_genres_list}, artists: {seed_artists_list})"
             )
             try:
-                # Method 1: Search for tracks by genre if genres provided
+                # OPTIMIZATION: Method 1: Use optimized parallel method for seed tracks
                 if seed_genres_list and len(seed_tracks_list) < 5:
-                    for genre in seed_genres_list[:2]:
-                        try:
-                            # Map genre names to searchable terms
-                            genre_map = {
-                                "pop": "pop music",
-                                "rock": "rock music",
-                                "electronic": "electronic music",
-                                "hip-hop": "hip hop",
-                                "country": "country music",
-                                "house": "house music",
-                                "techno": "techno music",
-                                "dance": "dance music",
-                            }
-                            search_term = genre_map.get(genre.lower(), genre)
-                            search_results = sp.search(
-                                q=search_term,
-                                type="track",
-                                limit=5,
-                                market="US"
-                            )
-                            tracks = search_results.get("tracks", {}).get("items", [])
-                            for track in tracks:
-                                if track.get("id") and track["id"] not in seed_tracks_list:
-                                    seed_tracks_list.append(track["id"])
-                                    if len(seed_tracks_list) >= 5:
-                                        break
-                            if len(seed_tracks_list) >= 5:
-                                break
-                        except Exception as genre_search_error:
-                            logger.debug(f"Genre search for {genre} failed: {genre_search_error}")
-                            continue
+                    try:
+                        # Використовуємо оптимізований метод з паралельними запитами
+                        seed_tracks_list = await self.get_seed_tracks_from_genres(
+                            seed_genres_list,
+                            limit_per_genre=3,
+                            user_token=None  # Client Credentials для цього контексту
+                        )
+                        if seed_tracks_list:
+                            logger.debug(
+                                f"Got {len(seed_tracks_list)} seed tracks from optimized method")
+                    except Exception as optimized_error:
+                        logger.debug(
+                            f"Optimized seed tracks method failed: {optimized_error}, using fallback")
+                        # Fallback до послідовного пошуку
+                        for genre in seed_genres_list[:2]:
+                            try:
+                                genre_map = {
+                                    "pop": "pop music",
+                                    "rock": "rock music",
+                                    "electronic": "electronic music",
+                                    "hip-hop": "hip hop",
+                                    "country": "country music",
+                                    "house": "house music",
+                                    "techno": "techno music",
+                                    "dance": "dance music",
+                                }
+                                search_term = genre_map.get(
+                                    genre.lower(), genre)
+                                search_results = sp.search(
+                                    q=search_term,
+                                    type="track",
+                                    limit=5,
+                                    market="US"
+                                )
+                                tracks = search_results.get(
+                                    "tracks", {}).get("items", [])
+                                for track in tracks:
+                                    if track.get("id") and track["id"] not in seed_tracks_list:
+                                        seed_tracks_list.append(track["id"])
+                                        if len(seed_tracks_list) >= 5:
+                                            break
+                                if len(seed_tracks_list) >= 5:
+                                    break
+                            except Exception as genre_search_error:
+                                logger.debug(
+                                    f"Genre search for {genre} failed: {genre_search_error}")
+                                continue
 
                 # Method 2: If still no tracks, try featured playlists
                 if len(seed_tracks_list) < 3:
                     try:
                         featured = sp.featured_playlists(limit=1)
-                        playlists = featured.get("playlists", {}).get("items", [])
+                        playlists = featured.get(
+                            "playlists", {}).get("items", [])
                         if playlists:
                             playlist_id = playlists[0]["id"]
-                            playlist_tracks = sp.playlist_tracks(playlist_id, limit=5)
+                            playlist_tracks = sp.playlist_tracks(
+                                playlist_id, limit=5)
                             for item in playlist_tracks.get("items", []):
                                 if item.get("track") and item["track"].get("id"):
                                     track_id = item["track"]["id"]
@@ -413,7 +436,8 @@ class SpotifyService:
                                 f"Found {len(seed_tracks_list)} tracks from featured playlist"
                             )
                     except Exception as playlist_error:
-                        logger.debug(f"Featured playlists failed: {playlist_error}")
+                        logger.debug(
+                            f"Featured playlists failed: {playlist_error}")
 
                 # Method 3: Final fallback - search for popular tracks
                 if len(seed_tracks_list) < 3:
@@ -424,7 +448,8 @@ class SpotifyService:
                             limit=5,
                             market="US"
                         )
-                        tracks = search_results.get("tracks", {}).get("items", [])
+                        tracks = search_results.get(
+                            "tracks", {}).get("items", [])
                         for track in tracks:
                             if track.get("id") and track["id"] not in seed_tracks_list:
                                 seed_tracks_list.append(track["id"])
@@ -435,7 +460,8 @@ class SpotifyService:
                                 f"Found {len(seed_tracks_list)} tracks from popular search"
                             )
                     except Exception as search_error:
-                        logger.warning(f"Popular search failed: {search_error}")
+                        logger.warning(
+                            f"Popular search failed: {search_error}")
 
                 # If still no tracks, use default genres
                 if not seed_tracks_list:
@@ -631,9 +657,13 @@ class SpotifyService:
                     "No tracks returned from Spotify recommendations")
                 return []
 
-            # Get audio features for all tracks
+            # Get audio features for all tracks (using optimized method)
             track_ids = [track["id"] for track in tracks]
-            features = await self.get_audio_features_batch(track_ids)
+            features = await self.get_audio_features_batch_optimized(
+                track_ids=track_ids,
+                batch_size=100,
+                user_token=None  # Client Credentials
+            )
 
             # Merge track info with audio features
             for i, track in enumerate(tracks):
@@ -655,6 +685,8 @@ class SpotifyService:
         """
         Get audio features for multiple tracks (batch).
 
+        OPTIMIZATION: Використовує оптимізований метод з паралельними запитами.
+
         Args:
             track_ids: List of Spotify track IDs
 
@@ -664,49 +696,12 @@ class SpotifyService:
         Raises:
             Exception: If API call fails (403, 404, etc.)
         """
-        try:
-            sp = spotipy.Spotify(
-                client_credentials_manager=self.client_credentials
-            )
-
-            # Spotify API allows max 100 tracks per request
-            # Try smaller batches if we get errors
-            features = []
-            batch_size = 100
-
-            for i in range(0, len(track_ids), batch_size):
-                batch = track_ids[i: i + batch_size]
-                try:
-                    batch_features = sp.audio_features(batch)
-                    if batch_features:
-                        features.extend(batch_features)
-                    else:
-                        # If no features returned, add None placeholders
-                        features.extend([None] * len(batch))
-                except Exception as batch_error:
-                    error_str = str(batch_error).lower()
-                    if "403" in error_str or "forbidden" in error_str:
-                        logger.warning(
-                            "Audio features API returned 403 for batch. "
-                            "Client Credentials may not have access."
-                        )
-                        raise  # Re-raise to be handled by caller
-                    elif "429" in error_str or "rate limit" in error_str:
-                        logger.warning("Rate limit hit, waiting...")
-                        # Could add retry logic here
-                        raise
-                    else:
-                        logger.warning(
-                            f"Failed to get features for batch: {batch_error}"
-                        )
-                        # Add None placeholders for failed batch
-                        features.extend([None] * len(batch))
-
-            return features
-
-        except Exception as e:
-            logger.error(f"Failed to get audio features: {e}")
-            raise
+        # Використовуємо оптимізований метод
+        return await self.get_audio_features_batch_optimized(
+            track_ids=track_ids,
+            batch_size=100,
+            user_token=None  # Client Credentials
+        )
 
     async def search_track_by_name(
         self,
@@ -749,7 +744,8 @@ class SpotifyService:
             return None
 
         except Exception as e:
-            logger.warning(f"Failed to search track '{track_name}' by '{artist_name}': {e}")
+            logger.warning(
+                f"Failed to search track '{track_name}' by '{artist_name}': {e}")
             return None
 
     async def create_playlist(
@@ -831,7 +827,7 @@ class SpotifyService:
         user_token: Optional[str] = None
     ) -> List[str]:
         """
-        Отримати seed tracks з жанрів.
+        Отримати seed tracks з жанрів (оптимізовано з паралельними запитами).
 
         Args:
             genres: Список жанрів
@@ -841,8 +837,19 @@ class SpotifyService:
         Returns:
             Список track IDs для використання як seeds
         """
-        seed_tracks = []
+        import asyncio
+
         genres = genres[:2] if genres else []
+        if not genres:
+            return []
+
+        # Перевірка кешу
+        cache_key = f"seed_tracks_{hash(tuple(sorted(genres)))}_{limit_per_genre}"
+        if cache_key in self._cache:
+            cached_data, timestamp = self._cache[cache_key]
+            if time.time() - timestamp < 1800:  # 30 хвилин для seed tracks
+                logger.debug(f"Cache hit for seed tracks: {genres}")
+                return cached_data
 
         # Використовуємо User Auth якщо доступний, інакше Client Credentials
         if user_token:
@@ -863,30 +870,81 @@ class SpotifyService:
             "dance": "dance music",
             "r&b": "r&b music",
             "jazz": "jazz music",
+            "edm": "edm music",
+            "trance": "trance music",
         }
 
-        for genre in genres:
+        # OPTIMIZATION: Паралельні запити для всіх жанрів одночасно
+        async def search_genre(genre: str) -> List[str]:
+            """Пошук треків для одного жанру."""
             try:
                 search_term = genre_map.get(genre.lower(), genre)
-                search_results = sp.search(
-                    q=search_term,
-                    type="track",
-                    limit=limit_per_genre,
-                    market="US"
+                # Використовуємо run_in_executor для неблокуючих запитів
+                loop = asyncio.get_event_loop()
+                search_results = await loop.run_in_executor(
+                    None,
+                    lambda: sp.search(
+                        q=search_term,
+                        type="track",
+                        limit=limit_per_genre,
+                        market="US"
+                    )
                 )
                 tracks = search_results.get("tracks", {}).get("items", [])
-                for track in tracks:
-                    if track.get("id") and track["id"] not in seed_tracks:
-                        seed_tracks.append(track["id"])
+                return [track["id"] for track in tracks if track.get("id")]
+            except Exception as e:
+                logger.debug(f"Failed to get seed tracks for {genre}: {e}")
+                return []
+
+        # Виконуємо всі запити паралельно
+        try:
+            results = await asyncio.gather(*[search_genre(g) for g in genres])
+            seed_tracks = []
+            seen_ids = set()
+
+            # Об'єднуємо результати, уникаючи дублікатів
+            for track_ids in results:
+                for track_id in track_ids:
+                    if track_id not in seen_ids:
+                        seed_tracks.append(track_id)
+                        seen_ids.add(track_id)
                         if len(seed_tracks) >= 5:
                             break
                 if len(seed_tracks) >= 5:
                     break
-            except Exception as e:
-                logger.warning(f"Failed to get seed tracks for {genre}: {e}")
-                continue
+        except Exception as e:
+            logger.warning(
+                f"Parallel seed tracks search failed: {e}, falling back to sequential")
+            # Fallback до послідовного пошуку
+            seed_tracks = []
+            for genre in genres:
+                try:
+                    search_term = genre_map.get(genre.lower(), genre)
+                    search_results = sp.search(
+                        q=search_term,
+                        type="track",
+                        limit=limit_per_genre,
+                        market="US"
+                    )
+                    tracks = search_results.get("tracks", {}).get("items", [])
+                    for track in tracks:
+                        if track.get("id") and track["id"] not in seed_tracks:
+                            seed_tracks.append(track["id"])
+                            if len(seed_tracks) >= 5:
+                                break
+                    if len(seed_tracks) >= 5:
+                        break
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to get seed tracks for {genre}: {e}")
+                    continue
 
-        return seed_tracks[:5]  # Max 5 seeds
+        result = seed_tracks[:5]  # Max 5 seeds
+
+        # Зберегти в кеш
+        self._cache[cache_key] = (result, time.time())
+
+        return result
 
     async def get_recommendations_optimized(
         self,
@@ -1052,7 +1110,8 @@ class SpotifyService:
                         limit=min(50, limit * 3),
                         market="US"
                     )
-                    found_tracks = search_results.get("tracks", {}).get("items", [])
+                    found_tracks = search_results.get(
+                        "tracks", {}).get("items", [])
 
                     for track in found_tracks:
                         track_id = track.get("id")
@@ -1077,7 +1136,8 @@ class SpotifyService:
                         limit=limit,
                         market="US"
                     )
-                    all_tracks = search_results.get("tracks", {}).get("items", [])
+                    all_tracks = search_results.get(
+                        "tracks", {}).get("items", [])
                 except Exception as e:
                     logger.error(f"Final fallback search failed: {e}")
                     return []
@@ -1132,15 +1192,27 @@ class SpotifyService:
         user_token: Optional[str] = None
     ) -> List[Optional[Dict]]:
         """
-        Оптимізований batch запит для audio features.
+        Оптимізований batch запит для audio features з паралельними запитами.
 
         Spotify API дозволяє до 100 треків в одному запиті.
+        OPTIMIZATION: Паралельна обробка батчів для швидшої роботи.
         """
+        import asyncio
+
         if not track_ids:
             return []
 
-        features = []
         batch_size = min(batch_size, 100)  # Spotify limit
+
+        # Перевірка кешу
+        # Перші 50 для ключа
+        cache_key = f"audio_features_{hash(tuple(track_ids[:50]))}"
+        if cache_key in self._cache:
+            cached_data, timestamp = self._cache[cache_key]
+            if time.time() - timestamp < 3600:  # 1 година для audio features
+                logger.debug(
+                    f"Cache hit for audio features: {len(track_ids)} tracks")
+                return cached_data
 
         # Використовуємо User Auth якщо доступний
         if user_token:
@@ -1150,26 +1222,85 @@ class SpotifyService:
                 client_credentials_manager=self.client_credentials
             )
 
-        # Розбиваємо на батчі
-        for i in range(0, len(track_ids), batch_size):
-            batch = track_ids[i:i + batch_size]
-
+        # OPTIMIZATION: Паралельна обробка батчів
+        async def fetch_batch(batch: List[str], batch_num: int) -> List[Optional[Dict]]:
+            """Отримати audio features для одного батчу."""
             try:
-                batch_features = sp.audio_features(batch)
+                loop = asyncio.get_event_loop()
+                batch_features = await loop.run_in_executor(
+                    None,
+                    lambda: sp.audio_features(batch)
+                )
                 if batch_features:
-                    features.extend(batch_features)
+                    return batch_features
                 else:
-                    features.extend([None] * len(batch))
+                    return [None] * len(batch)
             except Exception as e:
                 error_str = str(e).lower()
                 if "403" in error_str or "forbidden" in error_str:
                     logger.warning(
-                        f"Audio features API returned 403 for batch {i//batch_size}. "
+                        f"Audio features API returned 403 for batch {batch_num}. "
                         "This may indicate insufficient permissions."
                     )
+                elif "429" in error_str or "rate limit" in error_str:
+                    logger.warning(
+                        f"Rate limit hit for batch {batch_num}, waiting 1s...")
+                    await asyncio.sleep(1)
+                    # Retry once
+                    try:
+                        loop = asyncio.get_event_loop()
+                        batch_features = await loop.run_in_executor(
+                            None,
+                            lambda: sp.audio_features(batch)
+                        )
+                        return batch_features if batch_features else [None] * len(batch)
+                    except Exception as retry_error:
+                        logger.warning(
+                            f"Retry failed for batch {batch_num}: {retry_error}")
                 else:
-                    logger.warning(f"Batch {i//batch_size} failed: {e}")
-                features.extend([None] * len(batch))
+                    logger.warning(f"Batch {batch_num} failed: {e}")
+                return [None] * len(batch)
+
+        # Розбиваємо на батчі та виконуємо паралельно
+        batches = [track_ids[i:i + batch_size]
+                   for i in range(0, len(track_ids), batch_size)]
+
+        try:
+            # Виконуємо всі батчі паралельно (але обмежуємо до 3 одночасно для rate limits)
+            features = []
+            semaphore = asyncio.Semaphore(3)  # Максимум 3 паралельні запити
+
+            async def fetch_with_semaphore(batch: List[str], batch_num: int):
+                async with semaphore:
+                    return await fetch_batch(batch, batch_num)
+
+            results = await asyncio.gather(*[
+                fetch_with_semaphore(batch, i)
+                for i, batch in enumerate(batches)
+            ])
+
+            # Об'єднуємо результати
+            for result in results:
+                features.extend(result)
+        except Exception as e:
+            logger.warning(
+                f"Parallel batch fetch failed: {e}, falling back to sequential")
+            # Fallback до послідовної обробки
+            features = []
+            for i, batch in enumerate(batches):
+                try:
+                    batch_features = sp.audio_features(batch)
+                    if batch_features:
+                        features.extend(batch_features)
+                    else:
+                        features.extend([None] * len(batch))
+                except Exception as batch_error:
+                    logger.warning(f"Batch {i} failed: {batch_error}")
+                    features.extend([None] * len(batch))
+
+        # Зберегти в кеш (тільки якщо успішно отримано більшість)
+        if features and sum(1 for f in features if f is not None) > len(features) * 0.5:
+            self._cache[cache_key] = (features, time.time())
 
         return features
 

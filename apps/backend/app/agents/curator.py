@@ -346,31 +346,119 @@ class MusicCuratorAgent(BaseAgent):
             # Ensure we have at least one valid genre
             seed_genres_list = valid_genres[:5] if valid_genres else ["pop", "electronic"]
 
-            # Try recommendations with min/max_tempo first (more reliable)
+            # OPTIMIZATION: Get seed tracks first (more reliable than seed_genres)
+            # Spotify Recommendations API works better with seed_tracks
+            seed_tracks_list = []
             try:
-                recommendations = sp.recommendations(
-                    seed_genres=seed_genres_list,  # Must be a list, not string
-                    min_tempo=bpm_min,
-                    max_tempo=bpm_max,
-                    limit=50,
-                )
+                # Search for tracks by genre to use as seeds
+                for genre in seed_genres_list[:2]:
+                    try:
+                        genre_map = {
+                            "pop": "pop music",
+                            "rock": "rock music",
+                            "electronic": "electronic music",
+                            "hip-hop": "hip hop",
+                            "country": "country music",
+                            "house": "house music",
+                            "techno": "techno music",
+                            "dance": "dance music",
+                            "edm": "edm music",
+                            "trance": "trance music",
+                        }
+                        search_term = genre_map.get(genre.lower(), genre)
+                        search_results = sp.search(
+                            q=search_term,
+                            type="track",
+                            limit=3,
+                            market="US"
+                        )
+                        tracks = search_results.get("tracks", {}).get("items", [])
+                        for track in tracks:
+                            if track.get("id") and track["id"] not in seed_tracks_list:
+                                seed_tracks_list.append(track["id"])
+                                if len(seed_tracks_list) >= 5:
+                                    break
+                        if len(seed_tracks_list) >= 5:
+                            break
+                    except Exception as genre_search_error:
+                        logger.debug(f"Genre search for {genre} failed: {genre_search_error}")
+                        continue
+            except Exception as seed_error:
+                logger.debug(f"Failed to get seed tracks: {seed_error}")
+
+            # Build recommendations parameters
+            rec_params = {
+                "limit": 50,
+                "target_energy": 0.7,  # High energy for workouts
+            }
+
+            # Add tempo parameters (use min/max_tempo, not target_tempo)
+            rec_params["min_tempo"] = bpm_min
+            rec_params["max_tempo"] = bpm_max
+
+            # Add seeds - prefer seed_tracks over seed_genres (more reliable)
+            if seed_tracks_list:
+                rec_params["seed_tracks"] = seed_tracks_list[:5]
+                logger.debug(f"Using {len(seed_tracks_list)} track seeds for recommendations")
+            elif seed_genres_list:
+                rec_params["seed_genres"] = seed_genres_list[:5]
+                logger.debug(f"Using {len(seed_genres_list)} genre seeds for recommendations")
+            else:
+                # Fallback: use default genres
+                rec_params["seed_genres"] = ["pop", "electronic"]
+                logger.warning("No seeds available, using default genres")
+
+            # Try recommendations with proper parameters
+            recommendations = None
+            try:
+                logger.debug(f"Attempting Spotify recommendations with params: {list(rec_params.keys())}")
+                recommendations = sp.recommendations(**rec_params)
+                logger.debug("Spotify recommendations successful")
             except Exception as e:
-                error_str = str(e)
-                logger.warning(f"Spotify recommendations failed with min/max_tempo: {e}, trying with target_tempo only")
-                # Retry with only target_tempo (no min/max)
-                try:
-                    recommendations = sp.recommendations(
-                        seed_genres=seed_genres_list,
-                        target_tempo=int(target_tempo),
-                        limit=50,
-                    )
-                except Exception as e2:
-                    logger.warning(f"Spotify recommendations failed with target_tempo: {e2}, trying without tempo")
-                    # Final fallback: no tempo parameters
-                    recommendations = sp.recommendations(
-                        seed_genres=seed_genres_list,
-                        limit=50,
-                    )
+                error_str = str(e).lower()
+                logger.warning(f"Spotify recommendations failed with min/max_tempo: {e}")
+
+                # If 404, try without tempo parameters
+                if "404" in error_str or "not found" in error_str:
+                    logger.warning("404 error - trying without tempo parameters")
+                    rec_params_no_tempo = {
+                        "limit": 50,
+                        "target_energy": 0.7,
+                    }
+                    if seed_tracks_list:
+                        rec_params_no_tempo["seed_tracks"] = seed_tracks_list[:5]
+                    elif seed_genres_list:
+                        rec_params_no_tempo["seed_genres"] = seed_genres_list[:5]
+                    else:
+                        rec_params_no_tempo["seed_genres"] = ["pop", "electronic"]
+
+                    try:
+                        recommendations = sp.recommendations(**rec_params_no_tempo)
+                        logger.debug("Spotify recommendations successful without tempo")
+                    except Exception as e2:
+                        logger.error(f"Spotify recommendations failed even without tempo: {e2}")
+                        # Final fallback: minimal request
+                        rec_params_minimal = {
+                            "limit": 50,
+                        }
+                        if seed_tracks_list:
+                            rec_params_minimal["seed_tracks"] = seed_tracks_list[:5]
+                        elif seed_genres_list:
+                            rec_params_minimal["seed_genres"] = seed_genres_list[:5]
+                        else:
+                            rec_params_minimal["seed_genres"] = ["pop", "electronic"]
+
+                        recommendations = sp.recommendations(**rec_params_minimal)
+                        logger.debug("Spotify recommendations successful with minimal params")
+                else:
+                    # For other errors, try without tempo
+                    try:
+                        rec_params_no_tempo = {k: v for k, v in rec_params.items() if k not in ["min_tempo", "max_tempo"]}
+                        recommendations = sp.recommendations(**rec_params_no_tempo)
+                        logger.debug("Spotify recommendations successful without tempo (retry)")
+                    except Exception as e2:
+                        logger.error(f"Spotify recommendations failed: {e2}")
+                        raise
 
             tracks = []
             total_duration = 0
