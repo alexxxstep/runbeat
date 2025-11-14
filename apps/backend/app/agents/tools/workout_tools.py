@@ -108,25 +108,48 @@ def activate_workout(workout_id: str, user_id: str) -> str:
     try:
         client = supabase_service.get_client()
 
-        # First, deactivate all other workouts for this user
-        client.table("workouts").update({"is_active": False}).eq(
-            "user_id", user_id
-        ).execute()
+        # Try to activate workout (if is_active column exists)
+        try:
+            # First, deactivate all other workouts for this user
+            client.table("workouts").update({"is_active": False}).eq(
+                "user_id", user_id
+            ).execute()
 
-        # Activate the specified workout
-        result = (
-            client.table("workouts")
-            .update({"is_active": True})
-            .eq("id", workout_id)
-            .eq("user_id", user_id)
-            .execute()
-        )
+            # Activate the specified workout
+            result = (
+                client.table("workouts")
+                .update({"is_active": True})
+                .eq("id", workout_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
 
-        if result.data and len(result.data) > 0:
-            logger.info(f"Activated workout {workout_id} for user {user_id}")
-            return "success"
-        else:
-            return "error: Workout not found or access denied"
+            if result.data and len(result.data) > 0:
+                logger.info(f"Activated workout {workout_id} for user {user_id}")
+                return "success"
+            else:
+                return "error: Workout not found or access denied"
+        except Exception as e:
+            error_dict = e if isinstance(e, dict) else {"code": None, "message": str(e)}
+            # If column doesn't exist, just verify workout exists and return success
+            if error_dict.get("code") == "42703" or "does not exist" in str(e).lower():
+                logger.debug("is_active column does not exist, verifying workout exists")
+                # Just verify the workout exists for this user
+                result = (
+                    client.table("workouts")
+                    .select("id")
+                    .eq("id", workout_id)
+                    .eq("user_id", user_id)
+                    .execute()
+                )
+
+                if result.data and len(result.data) > 0:
+                    logger.info(f"Workout {workout_id} exists for user {user_id} (is_active column not available)")
+                    return "success"
+                else:
+                    return "error: Workout not found or access denied"
+            else:
+                raise  # Re-raise if it's a different error
 
     except Exception as e:
         logger.error(f"Error activating workout: {e}")
@@ -149,18 +172,39 @@ def get_active_workout(user_id: str) -> str:
 
         client = supabase_service.get_client()
 
-        result = (
-            client.table("workouts")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("is_active", True)
-            .execute()
-        )
+        # Try to get active workout (if is_active column exists)
+        try:
+            result = (
+                client.table("workouts")
+                .select("*")
+                .eq("user_id", user_id)
+                .eq("is_active", True)
+                .execute()
+            )
 
-        if result.data and len(result.data) > 0:
-            return json.dumps(result.data[0], default=str)
-        else:
-            return "none"
+            if result.data and len(result.data) > 0:
+                return json.dumps(result.data[0], default=str)
+        except Exception as e:
+            error_dict = e if isinstance(e, dict) else {"code": None, "message": str(e)}
+            # If column doesn't exist, fallback to getting most recent workout
+            if error_dict.get("code") == "42703" or "does not exist" in str(e).lower():
+                logger.debug("is_active column does not exist, using most recent workout as fallback")
+                # Get most recent workout for user
+                result = (
+                    client.table("workouts")
+                    .select("*")
+                    .eq("user_id", user_id)
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+
+                if result.data and len(result.data) > 0:
+                    return json.dumps(result.data[0], default=str)
+            else:
+                raise  # Re-raise if it's a different error
+
+        return "none"
 
     except Exception as e:
         logger.error(f"Error getting active workout: {e}")

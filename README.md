@@ -88,6 +88,7 @@ npm run dev
 
 - [PRD](./PRD_CURSOR_AI.md) - Product Requirements Document
 - [API Documentation](./docs/API.md) - Complete API reference
+- [Testing Plan](./docs/TESTING_PLAN.md) - Comprehensive testing strategy and plan
 - [Deployment Guide](./docs/DEPLOYMENT.md) - Deployment instructions
 - [Project Status](./PROJECT_STATUS.md) - Current project status
 - [Backend README](./apps/backend/README.md) - Backend setup guide

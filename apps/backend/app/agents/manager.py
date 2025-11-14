@@ -181,9 +181,10 @@ class WorkoutManagerAgent(BaseAgent):
             # Check for recently created workout (within last 30 seconds) that might not be activated
             try:
                 client = supabase_service.get_client()
+                # Try to select without is_active first, then check if column exists
                 recent_workouts = (
                     client.table("workouts")
-                    .select("id, created_at, is_active")
+                    .select("id, created_at")
                     .eq("user_id", user_id)
                     .order("created_at", desc=True)
                     .limit(1)
@@ -200,32 +201,36 @@ class WorkoutManagerAgent(BaseAgent):
                         # If workout was created within last 30 seconds, try to activate it
                         if time_diff < 30:
                             workout_id = recent_workout.get("id")
-                            is_active = recent_workout.get("is_active", False)
 
                             if workout_id:
-                                if is_active:
-                                    logger.info(f"Found recently created active workout {workout_id}")
+                                # Try to activate the workout
+                                logger.info(f"Found recently created workout {workout_id}, activating it")
+                                activation_result = activate_workout(workout_id, user_id)
+                                if activation_result == "success":
                                     return f"Workout created and activated. ID: {workout_id}"
                                 else:
-                                    logger.info(f"Found recently created workout {workout_id}, activating it")
-                                    activation_result = activate_workout(workout_id, user_id)
-                                    if activation_result == "success":
-                                        return f"Workout created and activated. ID: {workout_id}"
-                                    else:
-                                        logger.warning(f"Failed to activate existing workout {workout_id}: {activation_result}")
-                                        # Continue to create new workout
+                                    logger.warning(f"Failed to activate existing workout {workout_id}: {activation_result}")
+                                    # Continue to create new workout
             except Exception as e:
-                logger.debug(f"Could not check for recent workouts: {e}")
+                error_dict = e if isinstance(e, dict) else {"message": str(e)}
+                # Check if error is about missing column
+                if error_dict.get("code") == "42703" or "does not exist" in str(e).lower():
+                    logger.debug("is_active column does not exist, skipping recent workout check")
+                else:
+                    logger.debug(f"Could not check for recent workouts: {e}")
                 # Continue to create new workout
 
             # Create workout using tool
             workout_intent_json = workout_intent.model_dump_json()
-            workout_id = create_workout(user_id, workout_intent_json)
+            workout_id_result = create_workout(user_id, workout_intent_json)
 
             # Check if creation was successful
-            if workout_id.startswith("error"):
-                logger.error(f"Failed to create workout: {workout_id}")
-                return workout_id
+            # create_workout returns either workout_id (UUID string) or "error: <message>"
+            if not workout_id_result or workout_id_result.startswith("error"):
+                logger.error(f"Failed to create workout: {workout_id_result}")
+                return workout_id_result if workout_id_result else "error: Failed to create workout - no response"
+
+            workout_id = workout_id_result  # This is the workout ID string
 
             # Activate workout
             activation_result = activate_workout(workout_id, user_id)
@@ -240,4 +245,6 @@ class WorkoutManagerAgent(BaseAgent):
 
         except Exception as e:
             logger.error(f"Error in fallback workout creation: {e}", exc_info=True)
-            return f"Error: Failed to create workout - {str(e)}"
+            # Ensure we return a string, not an exception object
+            error_message = str(e) if e else "Unknown error"
+            return f"Error: Failed to create workout - {error_message}"
