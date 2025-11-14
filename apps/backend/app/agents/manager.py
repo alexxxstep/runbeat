@@ -41,6 +41,7 @@ class WorkoutManagerAgent(BaseAgent):
         ]
 
         # Prompt (must include {tools}, {tool_names}, and {agent_scratchpad})
+        # Format matches other agents (parser, conversation, curator)
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", MANAGER_AGENT_SYSTEM_PROMPT),
             MessagesPlaceholder(variable_name="chat_history", optional=True),
@@ -126,4 +127,3 @@ class WorkoutManagerAgent(BaseAgent):
         except Exception as e:
             logger.error(f"Error in WorkoutManagerAgent: {e}")
             return f"Error: Failed to create workout - {str(e)}"
-

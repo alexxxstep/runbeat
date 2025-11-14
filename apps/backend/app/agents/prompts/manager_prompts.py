@@ -60,7 +60,7 @@ You manage workout lifecycle:
 
 ## Examples
 
-Input: user_id="user123", workout_intent_json='{"workout_type": "continuous", "duration_minutes": 30, ...}'
+Input: user_id="user123", workout_intent_json='{{"workout_type": "continuous", "duration_minutes": 30, ...}}'
 Action: Use create_workout tool
 Action: Use activate_workout tool
 Output: "Workout created and activated. ID: workout_abc123"
@@ -74,4 +74,3 @@ User ID: {user_id}
 Workout Intent: {workout_intent_json}
 
 Validate, create, and activate the workout."""
-
