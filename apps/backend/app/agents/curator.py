@@ -81,7 +81,8 @@ class MusicCuratorAgent(BaseAgent):
             memory=self.memory,
             verbose=False,
             handle_parsing_errors=True,
-            max_iterations=5,  # More iterations for complex playlist creation
+            max_iterations=10,  # Increased for complex playlist creation
+            max_execution_time=60,  # 60 seconds max execution time per playlist
         )
 
         logger.info("MusicCuratorAgent initialized with LangChain")
@@ -178,6 +179,11 @@ class MusicCuratorAgent(BaseAgent):
                 await asyncio.sleep(2)  # Brief wait
                 return await self._create_fallback_playlist_with_spotify(workout_intent)
 
+            # Check if agent stopped due to iteration/time limit
+            if "iteration limit" in error_str.lower() or "time limit" in error_str.lower() or "execution time" in error_str.lower():
+                logger.warning("Agent reached iteration/time limit, using Spotify fallback")
+                return await self._create_fallback_playlist_with_spotify(workout_intent)
+
             # Fallback: create minimal playlist
             return self._create_fallback_playlist(workout_intent)
 
@@ -219,6 +225,9 @@ class MusicCuratorAgent(BaseAgent):
             return self.output_parser.parse(output_text)
         except Exception as e:
             logger.error(f"Failed to parse agent output: {e}")
+            # If parsing fails and output contains iteration/time limit message, raise specific error
+            if "iteration limit" in output_text.lower() or "time limit" in output_text.lower():
+                raise ValueError(f"Agent stopped due to iteration/time limit: {output_text}")
             raise ValueError(f"Failed to parse playlist: {output_text}")
 
     def _create_fallback_playlist(self, workout_intent: WorkoutIntent) -> PlaylistResponse:

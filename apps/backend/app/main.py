@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from app.core.config import settings
-from app.api.routes import health, chat, playlists, auth, workouts, users
+from app.api.routes import health, chat, playlists, auth, workouts, users, error_logs
 
 # Configure logger
 log_dir = os.path.join(os.path.dirname(__file__), "..", "logs")
@@ -17,6 +17,15 @@ logger.add(
     rotation="1 day",
     retention="7 days",
     level=settings.LOG_LEVEL,
+)
+
+# Add database log handler for errors
+from app.utils.database_log_handler import DatabaseLogHandler
+logger.add(
+    DatabaseLogHandler(min_level="ERROR"),
+    level="ERROR",
+    format="{time} | {level} | {message}",
+    filter=lambda record: record["level"].name in ["ERROR", "CRITICAL", "WARNING"],
 )
 
 # Create FastAPI app
@@ -69,6 +78,7 @@ app.include_router(playlists.router, prefix=api_v1_prefix, tags=["playlists"])
 app.include_router(auth.router, prefix=api_v1_prefix, tags=["auth"])
 app.include_router(workouts.router, prefix=api_v1_prefix, tags=["workouts"])
 app.include_router(users.router, prefix=api_v1_prefix, tags=["users"])
+app.include_router(error_logs.router, prefix=api_v1_prefix, tags=["error-logs"])
 
 # Backward compatibility: also include without prefix for existing clients
 # TODO: Remove in future version

@@ -222,21 +222,69 @@ def get_spotify_recommendations(
             logger.warning(f"No valid Spotify genres found from {genres}, using defaults")
             valid_genres = ["pop", "electronic"]  # Safe defaults
 
+        # Validate parameters before API call
+        # Spotify API requires at least one seed (genre, artist, or track)
+        if not valid_genres:
+            logger.warning("No valid genres, using safe defaults")
+            valid_genres = ["pop", "electronic"]
+
+        # Ensure BPM range is valid (Spotify accepts 60-200 BPM)
+        bpm_min = max(60, min(200, bpm_min))
+        bpm_max = max(60, min(200, bpm_max))
+        if bpm_min > bpm_max:
+            bpm_min, bpm_max = bpm_max, bpm_min
+
+        # Ensure energy is between 0 and 1
+        energy = max(0.0, min(1.0, energy))
+
         # Get recommendations
         target_tempo = (bpm_min + bpm_max) / 2
+        target_tempo = max(60, min(200, target_tempo))  # Clamp target tempo
+
         try:
+            # Use only valid genres (max 5)
+            seed_genres = valid_genres[:5]
+            logger.debug(f"Requesting Spotify recommendations with genres: {seed_genres}, tempo: {target_tempo}, BPM range: {bpm_min}-{bpm_max}")
+
             recommendations = sp.recommendations(
-                seed_genres=valid_genres[:5],  # Max 5 genres
+                seed_genres=seed_genres,
                 target_tempo=target_tempo,
                 min_tempo=bpm_min,
                 max_tempo=bpm_max,
                 target_energy=energy,
-                limit=limit,
+                limit=min(limit, 100),  # Spotify max is 100
             )
+
+            if not recommendations or "tracks" not in recommendations:
+                logger.warning("Spotify recommendations returned empty or invalid response")
+                return json.dumps([], ensure_ascii=False)
+
         except Exception as e:
+            error_str = str(e)
             logger.error(f"Spotify recommendations API error: {e}")
-            # Return empty list instead of failing
-            return json.dumps([], ensure_ascii=False)
+
+            # If 404, try with simpler parameters
+            if "404" in error_str or "not found" in error_str.lower():
+                logger.warning("Spotify 404 error, trying with simplified parameters")
+                try:
+                    # Try with just pop genre and wider tempo range
+                    recommendations = sp.recommendations(
+                        seed_genres=["pop"],
+                        target_tempo=120,
+                        min_tempo=60,
+                        max_tempo=200,
+                        limit=min(limit, 100),
+                    )
+                    if recommendations and "tracks" in recommendations:
+                        logger.info("Successfully got recommendations with simplified parameters")
+                    else:
+                        return json.dumps([], ensure_ascii=False)
+                except Exception as e2:
+                    logger.error(f"Spotify recommendations retry also failed: {e2}")
+                    return json.dumps([], ensure_ascii=False)
+            else:
+                # Return empty list instead of failing
+                return json.dumps([], ensure_ascii=False)
 
         tracks = []
         for track in recommendations.get("tracks", []):

@@ -687,17 +687,21 @@ async def preview_playlist_variants(
             f"{request.workout.duration_minutes} min"
         )
 
-        # Add timeout for variant generation (120 seconds)
+        # Add timeout for variant generation (240 seconds for long workouts)
         async def generate_variants_with_timeout():
             return await _generate_variants_internal(request, generator)
 
+        # Calculate timeout based on workout duration (longer workouts need more time)
+        workout_duration = request.workout.duration_minutes
+        timeout_seconds = max(180.0, min(300.0, workout_duration * 2.5))  # 180-300 seconds
+
         try:
-            return await asyncio.wait_for(generate_variants_with_timeout(), timeout=120.0)
+            return await asyncio.wait_for(generate_variants_with_timeout(), timeout=timeout_seconds)
         except asyncio.TimeoutError:
-            logger.error("Timeout generating playlist variants (120s)")
+            logger.error(f"Timeout generating playlist variants ({timeout_seconds}s)")
             raise HTTPException(
                 status_code=504,
-                detail="Час генерації плейлисту вичерпано. Спробуйте ще раз або зменшіть тривалість тренування.",
+                detail=f"Час генерації плейлисту вичерпано ({int(timeout_seconds)}с). Спробуйте ще раз або зменшіть тривалість тренування.",
             )
     except HTTPException:
         raise

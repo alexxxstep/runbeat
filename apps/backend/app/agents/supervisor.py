@@ -31,6 +31,65 @@ class ConversationOrchestrator:
 
         logger.info("ConversationOrchestrator initialized")
 
+    def _is_explicit_workout_request(self, message: str) -> bool:
+        """
+        Check if message is an explicit workout request (contains workout keywords).
+
+        Args:
+            message: User message
+
+        Returns:
+            True if message contains workout-related keywords
+        """
+        message_lower = message.lower().strip()
+
+        # Workout type keywords
+        workout_types = [
+            "інтервали", "intervals", "фартлек", "fartlek",
+            "стабільна", "steady", "пробіжка", "біг", "run",
+            "тренування", "workout", "тренувань", "тренуванням"
+        ]
+
+        # Duration keywords
+        duration_keywords = [
+            "хв", "хвилин", "min", "minutes", "година", "hour",
+            "год", "часу", "time"
+        ]
+
+        # Intensity keywords
+        intensity_keywords = [
+            "легк", "easy", "легка", "легкий", "легку",
+            "помірн", "moderate", "середн", "medium",
+            "темпов", "tempo", "швидк", "fast", "висок", "high",
+            "інтенсивн", "intensity"
+        ]
+
+        # Music keywords
+        music_keywords = [
+            "музик", "music", "плейлист", "playlist",
+            "жанр", "genre", "рок", "rock", "поп", "pop",
+            "електрон", "electronic", "електронік", "edm"
+        ]
+
+        # Check if message contains workout-related content
+        has_workout_type = any(
+            keyword in message_lower for keyword in workout_types)
+        has_duration = any(
+            keyword in message_lower for keyword in duration_keywords)
+        has_intensity = any(
+            keyword in message_lower for keyword in intensity_keywords)
+        has_music = any(keyword in message_lower for keyword in music_keywords)
+
+        # Consider it explicit if it has workout type + (duration OR intensity OR music)
+        # Or if it has duration + intensity
+        is_explicit = (
+            (has_workout_type and (has_duration or has_intensity or has_music)) or
+            (has_duration and has_intensity) or
+            (has_duration and has_music)
+        )
+
+        return is_explicit
+
     async def process_message(
         self,
         user_id: str,
@@ -64,7 +123,18 @@ class ConversationOrchestrator:
 
         # Route to appropriate agent based on state
         if current_state == "new" or current_state == "needs_clarification":
-            # Use ConversationAgent to gather information
+            # Check if message is an explicit workout request (skip ConversationAgent for speed)
+            if self._is_explicit_workout_request(message):
+                logger.info(
+                    "Detected explicit workout request, skipping ConversationAgent")
+                # Parse intent directly
+                return await self._handle_intent_parsing(
+                    user_id=user_id,
+                    message=message,
+                    conversation_state=conversation_state,
+                )
+
+            # Use ConversationAgent to gather information for unclear requests
             return await self._handle_conversation(
                 user_id=user_id,
                 message=message,
@@ -99,7 +169,8 @@ class ConversationOrchestrator:
 
         else:
             # Unknown state - default to conversation
-            logger.warning(f"Unknown state: {current_state}, defaulting to conversation")
+            logger.warning(
+                f"Unknown state: {current_state}, defaulting to conversation")
             return await self._handle_conversation(
                 user_id=user_id,
                 message=message,
@@ -127,14 +198,17 @@ class ConversationOrchestrator:
         )
 
         # Update conversation state
-        conversation_state["messages"].append({"role": "user", "content": message})
-        conversation_state["messages"].append({"role": "assistant", "content": response})
+        conversation_state["messages"].append(
+            {"role": "user", "content": message})
+        conversation_state["messages"].append(
+            {"role": "assistant", "content": response})
 
         # Try to parse intent from conversation (only if message seems workout-related)
         # Don't try to parse if it's just a confirmation response
         workout_intent = None
         message_lower = message.lower().strip()
-        confirmation_responses = ["да", "так", "ні", "no", "yes", "n", "y", "ок", "ok"]
+        confirmation_responses = ["да", "так",
+                                  "ні", "no", "yes", "n", "y", "ок", "ok"]
 
         # Only try parsing if message is not a simple confirmation
         if not any(response in message_lower for response in confirmation_responses) or len(message_lower) > 3:
@@ -144,7 +218,8 @@ class ConversationOrchestrator:
                     conversation_history=conversation_history,
                 )
             except Exception as e:
-                logger.warning(f"Failed to parse intent in conversation handler: {e}")
+                logger.warning(
+                    f"Failed to parse intent in conversation handler: {e}")
                 workout_intent = None
 
         # Check if intent is complete
@@ -169,7 +244,8 @@ class ConversationOrchestrator:
             # Intent not complete - continue conversation
             conversation_state["state"] = "needs_clarification"
             if workout_intent:
-                conversation_state["workout_intent"] = workout_intent.model_dump()
+                conversation_state["workout_intent"] = workout_intent.model_dump(
+                )
 
             return {
                 "state": "needs_clarification",
@@ -225,11 +301,14 @@ class ConversationOrchestrator:
     ) -> Dict[str, Any]:
         """Handle workout confirmation (Да/Ні)."""
         message_lower = message.lower().strip()
-        positive_responses = ["да", "так", "yes", "y", "ok", "ок", "створ", "створити"]
+        positive_responses = ["да", "так", "yes",
+                              "y", "ok", "ок", "створ", "створити"]
         negative_responses = ["ні", "no", "n", "не", "не треба", "скасувати"]
 
-        is_positive = any(response in message_lower for response in positive_responses)
-        is_negative = any(response in message_lower for response in negative_responses)
+        is_positive = any(
+            response in message_lower for response in positive_responses)
+        is_negative = any(
+            response in message_lower for response in negative_responses)
 
         if not is_positive and not is_negative:
             return {
@@ -365,4 +444,3 @@ class ConversationOrchestrator:
         summary += f"🎵 BPM: {intent.target_bpm_min}-{intent.target_bpm_max}"
 
         return summary
-

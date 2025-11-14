@@ -25,7 +25,7 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: API_URL,
-      timeout: 30000,
+      timeout: 150000, // 150 seconds (2.5 minutes) for playlist generation
       headers: {
         'Content-Type': 'application/json',
       },
@@ -48,6 +48,9 @@ class ApiClient {
     // Add response interceptor for error handling
     this.client.interceptors.response.use(
       (response) => {
+        if (import.meta.env.DEV) {
+          console.log('API Response:', response.status, response.config.url);
+        }
         return response;
       },
       (error) => {

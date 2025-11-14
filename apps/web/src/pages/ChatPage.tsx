@@ -13,6 +13,7 @@ import type {
   Workout,
   PlaylistVariantsResponse,
   Track,
+  Message,
 } from '../types';
 
 export function ChatPage() {
@@ -71,6 +72,51 @@ export function ChatPage() {
     }
   }, [messages, variants, isLoading, loadingVariants]);
 
+  // Check for workout activation messages and set active workout
+  useEffect(() => {
+    // Look for the last message that contains "Активований воркаут" and has a workout
+    const activationMessage = messages
+      .slice()
+      .reverse()
+      .find(
+        (msg) =>
+          msg.role === 'assistant' &&
+          msg.content.includes('Активований воркаут') &&
+          msg.workout
+      );
+
+    if (activationMessage && activationMessage.workout) {
+      const workout = activationMessage.workout;
+      // Only update if not already set or if workout ID changed
+      if (
+        !activeWorkout ||
+        activeWorkout.id !== workout.id ||
+        activeWorkoutId !== workout.id
+      ) {
+        console.log('Found workout activation message, setting active workout:', workout);
+        setActiveWorkout(workout);
+        if (workout.id) {
+          setActiveWorkoutId(workout.id);
+        }
+        setShowPlaylistQuestion(true);
+        setExcludedTrackIds(new Set()); // Reset excluded tracks
+      }
+    }
+  }, [messages, activeWorkout, activeWorkoutId]);
+
+  // Debug: Log variants state changes
+  useEffect(() => {
+    if (variants) {
+      console.log('Variants state updated:', {
+        hasVariants: !!variants,
+        variant1Tracks: variants?.variant1?.tracks?.length || 0,
+        variant2Tracks: variants?.variant2?.tracks?.length || 0,
+        variant1Duration: variants?.variant1?.total_duration,
+        variant2Duration: variants?.variant2?.total_duration,
+      });
+    }
+  }, [variants]);
+
   const handleClearChat = () => {
     clearMessages();
     setVariants(null);
@@ -122,10 +168,32 @@ export function ChatPage() {
   };
 
   const generateVariants = async () => {
-    if (!activeWorkout) return;
+    if (!activeWorkout) {
+      console.error('Cannot generate variants: activeWorkout is null');
+      return;
+    }
+
+    if (!activeWorkoutId) {
+      console.error('Cannot generate variants: activeWorkoutId is missing');
+      // Try to get workout ID from the workout object
+      if (activeWorkout.id) {
+        setActiveWorkoutId(activeWorkout.id);
+      } else {
+        console.error('Workout ID not available');
+        return;
+      }
+    }
+
+    console.log('Generating variants for workout:', {
+      workout: activeWorkout,
+      workoutId: activeWorkoutId,
+      genres: workoutSettings.genres,
+      prompt: workoutSettings.prompt,
+    });
 
     setShowPlaylistQuestion(false);
     setLoadingVariants(true);
+    setError(null); // Clear any previous errors
     try {
       // Use saved genres and interval_stages from workout if available
       let genresToUse = workoutSettings.genres;
@@ -185,15 +253,31 @@ export function ChatPage() {
         prompt: promptToUse,
         excluded_track_ids: excludedIdsArray.length > 0 ? excludedIdsArray : undefined,
       };
+      console.log('Sending request to previewPlaylistVariants:', request);
       const variantsData = await api.previewPlaylistVariants(
         request
       );
+      console.log('Received variants data:', variantsData);
+
+      // Validate response structure
+      if (!variantsData) {
+        throw new Error('Отримано порожню відповідь від сервера');
+      }
+
+      if (!variantsData.variant1 || !variantsData.variant2) {
+        console.error('Invalid variants structure:', variantsData);
+        throw new Error('Невірна структура відповіді від сервера');
+      }
 
       // Validate variants - check if they are empty
       if (
         (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) &&
         (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
       ) {
+        console.error('Both variants are empty:', {
+          variant1: variantsData.variant1,
+          variant2: variantsData.variant2,
+        });
         throw new Error(
           'Не вдалося знайти треки для воркауту. Спробуйте змінити параметри або додати жанри музики.'
         );
@@ -204,7 +288,10 @@ export function ChatPage() {
         (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) ||
         (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
       ) {
-        console.warn('One of the variants is empty, but continuing with available variant');
+        console.warn('One of the variants is empty, but continuing with available variant', {
+          variant1Tracks: variantsData.variant1.tracks?.length || 0,
+          variant2Tracks: variantsData.variant2.tracks?.length || 0,
+        });
       }
 
       // Update excluded track IDs with tracks from new variants
@@ -221,11 +308,33 @@ export function ChatPage() {
       }
       setExcludedTrackIds(newExcludedIds);
 
+      console.log('Setting variants state:', {
+        variant1Tracks: variantsData.variant1.tracks?.length || 0,
+        variant2Tracks: variantsData.variant2.tracks?.length || 0,
+        variant1Duration: variantsData.variant1.total_duration,
+        variant2Duration: variantsData.variant2.total_duration,
+      });
+
       setVariants(variantsData);
+      setShowPlaylistQuestion(false); // Hide the button after successful generation
+
+      console.log('Variants state set successfully');
     } catch (error) {
       console.error('Failed to generate variants:', error);
-      // Error logged to console - no alert shown
+      const errorMessage = error instanceof Error ? error.message : 'Не вдалося згенерувати варіанти плейлисту';
+      setError(errorMessage);
+
+      // Add error message to chat
+      const errorMsg: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: `❌ Помилка: ${errorMessage}`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+
       setVariants(null);
+      setShowPlaylistQuestion(true); // Show button again so user can retry
     } finally {
       setLoadingVariants(false);
     }
@@ -574,8 +683,8 @@ export function ChatPage() {
           {variants && (
             <div className='max-w-4xl mx-auto space-y-4 px-2 md:px-0'>
               {/* Check if both variants are empty */}
-              {(!variants.variant1.tracks || variants.variant1.tracks.length === 0) &&
-               (!variants.variant2.tracks || variants.variant2.tracks.length === 0) ? (
+              {(!variants.variant1?.tracks || variants.variant1.tracks.length === 0) &&
+               (!variants.variant2?.tracks || variants.variant2.tracks.length === 0) ? (
                 <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 md:p-4'>
                   <p className='text-red-800 dark:text-red-200 font-medium'>
                     ❌ Помилка: Не вдалося згенерувати варіанти плейлистів
