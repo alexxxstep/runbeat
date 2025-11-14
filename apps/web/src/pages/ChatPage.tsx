@@ -13,14 +13,12 @@ import type {
   Workout,
   PlaylistVariantsResponse,
   Track,
-  Message,
 } from '../types';
 
 export function ChatPage() {
   const { user, spotifyAuthenticated } = useAuth();
   const {
     messages,
-    setMessages,
     sendMessage,
     generatePlaylist,
     clearMessages,
