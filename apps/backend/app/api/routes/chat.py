@@ -112,13 +112,24 @@ async def send_message(
             user_id=request.user_id, supabase=supabase
         )
 
-        # Process message through conversation manager
-        conversation_id, response_data = await conversation_manager.process_message(
-            user_id=request.user_id,
-            message=request.message,
-            conversation_id=request.conversation_id,
-            user_preferences=user_preferences,
-        )
+        # Process message through conversation manager with timeout handling
+        try:
+            import asyncio
+            conversation_id, response_data = await asyncio.wait_for(
+                conversation_manager.process_message(
+                    user_id=request.user_id,
+                    message=request.message,
+                    conversation_id=request.conversation_id,
+                    user_preferences=user_preferences,
+                ),
+                timeout=60.0  # 60 seconds timeout
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout processing message for user {request.user_id}")
+            raise HTTPException(
+                status_code=504,
+                detail="Час очікування вичерпано. Спробуйте ще раз.",
+            )
 
         # Convert workout_intent to Workout model if available
         workout = None

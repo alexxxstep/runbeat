@@ -74,13 +74,22 @@ def search_spotify_tracks(
             }
 
             # Get audio features if available
+            # Note: audio_features may return 403 if using client credentials
+            # In that case, we'll skip BPM/energy and continue
             try:
                 features = sp.audio_features([track_info["id"]])[0]
-                if features:
+                if features and features.get("tempo"):
                     track_info["bpm"] = features.get("tempo", 0)
                     track_info["energy"] = features.get("energy", 0.5)
-            except Exception:
-                pass
+                else:
+                    # Default values if features unavailable
+                    track_info["bpm"] = 120  # Default BPM
+                    track_info["energy"] = 0.5
+            except Exception as e:
+                # Log but don't fail - audio features are optional
+                logger.debug(f"Could not get audio features for track {track_info['id']}: {e}")
+                track_info["bpm"] = 120  # Default BPM
+                track_info["energy"] = 0.5
 
             # Filter by BPM if specified
             if bpm_min and track_info.get("bpm", 0) < bpm_min:
@@ -130,16 +139,104 @@ def get_spotify_recommendations(
         )
         sp = spotipy.Spotify(client_credentials_manager=client_credentials)
 
+        # Map genres to Spotify's valid seed genres
+        # Spotify has a limited set of valid genres for recommendations
+        valid_spotify_genres = {
+            "acoustic", "afrobeat", "alt-rock", "alternative", "ambient", "anime",
+            "black-metal", "bluegrass", "blues", "bossanova", "brazil", "breakbeat",
+            "british", "cantopop", "chicago-house", "children", "chill", "classical",
+            "club", "comedy", "country", "dance", "dancehall", "death-metal",
+            "deep-house", "detroit-techno", "disco", "disney", "drum-and-bass",
+            "dub", "dubstep", "edm", "electro", "electronic", "emo", "folk",
+            "forro", "french", "funk", "garage", "german", "gospel", "goth",
+            "grindcore", "groove", "grunge", "guitar", "happy", "hard-rock",
+            "hardcore", "hardstyle", "heavy-metal", "hip-hop", "holidays",
+            "honky-tonk", "house", "idm", "indian", "indie", "indie-pop",
+            "industrial", "iranian", "j-dance", "j-idol", "j-pop", "j-rock",
+            "jazz", "k-pop", "kids", "latin", "latino", "malay", "mandopop",
+            "metal", "metal-misc", "metalcore", "minimal-techno", "movies",
+            "mpb", "new-age", "new-release", "opera", "pagode", "party",
+            "philippines-opm", "piano", "pop", "pop-film", "post-dubstep",
+            "power-pop", "progressive-house", "psych-rock", "punk", "punk-rock",
+            "r-n-b", "rainy-day", "reggae", "reggaeton", "road-trip", "rock",
+            "rock-n-roll", "romance", "sad", "salsa", "samba", "sertanejo",
+            "show-tunes", "singer-songwriter", "ska", "sleep", "songwriter",
+            "soul", "soundtracks", "spanish", "study", "summer", "swedish",
+            "synth-pop", "tango", "techno", "trance", "trip-hop", "turkish",
+            "work-out", "world-music"
+        }
+
+        # Filter and map genres to valid Spotify genres
+        valid_genres = []
+        genre_mapping = {
+            "chill": "chill",
+            "ambient": "ambient",
+            "classical": "classical",
+            "jazz": "jazz",
+            "folk": "folk",
+            "electronic": "electronic",
+            "edm": "edm",
+            "house": "house",
+            "techno": "techno",
+            "trance": "trance",
+            "rock": "rock",
+            "pop": "pop",
+            "hip-hop": "hip-hop",
+            "r&b": "r-n-b",
+            "rnb": "r-n-b",
+            "country": "country",
+            "reggae": "reggae",
+            "metal": "metal",
+            "punk": "punk",
+            "indie": "indie",
+            "acoustic": "acoustic",
+            "dance": "dance",
+            "disco": "disco",
+            "funk": "funk",
+            "soul": "soul",
+            "blues": "blues",
+            "latin": "latin",
+            "world": "world-music",
+        }
+
+        for genre in genres[:5]:  # Max 5 genres
+            genre_lower = genre.lower().strip()
+            # Try direct match first
+            if genre_lower in valid_spotify_genres:
+                valid_genres.append(genre_lower)
+            # Try mapping
+            elif genre_lower in genre_mapping:
+                mapped = genre_mapping[genre_lower]
+                if mapped not in valid_genres:
+                    valid_genres.append(mapped)
+            # Try partial match
+            else:
+                for valid_genre in valid_spotify_genres:
+                    if genre_lower in valid_genre or valid_genre in genre_lower:
+                        if valid_genre not in valid_genres:
+                            valid_genres.append(valid_genre)
+                            break
+
+        # If no valid genres found, use defaults
+        if not valid_genres:
+            logger.warning(f"No valid Spotify genres found from {genres}, using defaults")
+            valid_genres = ["pop", "electronic"]  # Safe defaults
+
         # Get recommendations
         target_tempo = (bpm_min + bpm_max) / 2
-        recommendations = sp.recommendations(
-            seed_genres=genres[:5],  # Max 5 genres
-            target_tempo=target_tempo,
-            min_tempo=bpm_min,
-            max_tempo=bpm_max,
-            target_energy=energy,
-            limit=limit,
-        )
+        try:
+            recommendations = sp.recommendations(
+                seed_genres=valid_genres[:5],  # Max 5 genres
+                target_tempo=target_tempo,
+                min_tempo=bpm_min,
+                max_tempo=bpm_max,
+                target_energy=energy,
+                limit=limit,
+            )
+        except Exception as e:
+            logger.error(f"Spotify recommendations API error: {e}")
+            # Return empty list instead of failing
+            return json.dumps([], ensure_ascii=False)
 
         tracks = []
         for track in recommendations.get("tracks", []):
@@ -152,13 +249,19 @@ def get_spotify_recommendations(
             }
 
             # Get audio features
+            # Note: audio_features may return 403 if using client credentials
             try:
                 features = sp.audio_features([track_info["id"]])[0]
-                if features:
+                if features and features.get("tempo"):
                     track_info["bpm"] = features.get("tempo", 0)
                     track_info["energy"] = features.get("energy", 0.5)
-            except Exception:
-                pass
+                else:
+                    track_info["bpm"] = 120  # Default BPM
+                    track_info["energy"] = 0.5
+            except Exception as e:
+                logger.debug(f"Could not get audio features for track {track_info['id']}: {e}")
+                track_info["bpm"] = 120  # Default BPM
+                track_info["energy"] = 0.5
 
             tracks.append(track_info)
 

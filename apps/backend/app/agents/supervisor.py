@@ -130,11 +130,22 @@ class ConversationOrchestrator:
         conversation_state["messages"].append({"role": "user", "content": message})
         conversation_state["messages"].append({"role": "assistant", "content": response})
 
-        # Try to parse intent from conversation
-        workout_intent = await self.parser_agent.parse(
-            message=message,
-            conversation_history=conversation_history,
-        )
+        # Try to parse intent from conversation (only if message seems workout-related)
+        # Don't try to parse if it's just a confirmation response
+        workout_intent = None
+        message_lower = message.lower().strip()
+        confirmation_responses = ["да", "так", "ні", "no", "yes", "n", "y", "ок", "ok"]
+
+        # Only try parsing if message is not a simple confirmation
+        if not any(response in message_lower for response in confirmation_responses) or len(message_lower) > 3:
+            try:
+                workout_intent = await self.parser_agent.parse(
+                    message=message,
+                    conversation_history=conversation_history,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to parse intent in conversation handler: {e}")
+                workout_intent = None
 
         # Check if intent is complete
         if workout_intent and self._is_intent_complete(workout_intent):

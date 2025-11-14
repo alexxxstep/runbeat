@@ -78,19 +78,28 @@ RunBeat - це AI-powered система для генерації персон�
 │  │  • State Machine                                         │   │
 │  │  • Context Management                                    │   │
 │  │  • Multi-turn Conversations                              │   │
+│  │  • ConversationOrchestrator (Supervisor) Integration     │   │
+│  └────────────────────┬─────────────────────────────────────┘   │
+│                       │                                          │
+│                       v                                          │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │     ConversationOrchestrator (Supervisor)                │   │
+│  │  • Routes messages to appropriate agents                 │   │
+│  │  • Coordinates multi-agent workflow                      │   │
+│  │  • Manages conversation state                            │   │
 │  └────────────────────┬─────────────────────────────────────┘   │
 │                       │                                          │
 │         ┌─────────────┴─────────────┐                           │
 │         │                           │                           │
 │         v                           v                           │
 │  ┌──────────────┐          ┌──────────────┐                    │
-│  │ LangChain    │          │ Legacy       │                    │
-│  │ Agents       │          │ Services     │                    │
+│  │ LangChain    │          │ Fallback     │                    │
+│  │ Agents       │          │ (if needed)  │                    │
 │  │              │          │              │                    │
-│  │ • Parser     │          │ • LLMService │                    │
-│  │ • Curator    │          │ • Parser     │                    │
-│  │ • Manager    │          │              │                    │
-│  │ • Supervisor │          │              │                    │
+│  │ • Parser     │          │ • Legacy     │                    │
+│  │ • Curator    │          │   Parser     │                    │
+│  │ • Manager    │          │ • LLMService │                    │
+│  │ • Conversation│         │              │                    │
 │  └──────────────┘          └──────────────┘                    │
 └────────────────────────────┬────────────────────────────────────┘
                              │
@@ -245,36 +254,41 @@ apps/backend/app/
 │  │                                                           │   │
 │  │  1. Get/Create conversation                              │   │
 │  │  2. Add user message to history                          │   │
-│  │  3. Check current state                                  │   │
-│  │     ├── ASK_WORKOUT_CONFIRMATION?                        │   │
-│  │     │   └──→ Handle confirmation (Да/Ні)                │   │
-│  │     └──→ Parse user intent                               │   │
-│  │  4. Parse intent (Parser Agent)                          │   │
-│  │  5. Decide next action                                   │   │
+│  │  3. Check if Supervisor enabled                          │   │
+│  │     ├── Yes → Use ConversationOrchestrator               │   │
+│  │     │   └──→ Routes to appropriate agent                 │   │
+│  │     └── No  → Direct agent integration                   │   │
+│  │  4. Check for greetings/general questions                │   │
+│  │     └──→ Use ConversationAgent                           │   │
+│  │  5. Parse intent (WorkoutParserAgent)                    │   │
+│  │  6. Decide next action                                   │   │
 │  │     ├── Intent complete?                                 │   │
 │  │     │   ├── Yes → Ask for confirmation                   │   │
 │  │     │   └── No  → Ask clarification                      │   │
 │  │     └── User confirmed?                                  │   │
-│  │         └──→ Create workout → Generate playlist          │   │
-│  │  6. Save conversation                                    │   │
-│  │  7. Return response                                      │   │
+│  │         └──→ WorkoutManagerAgent → Create workout        │   │
+│  │         └──→ MusicCuratorAgent → Generate playlist       │   │
+│  │  7. Save conversation                                    │   │
+│  │  8. Return response                                      │   │
 │  └───────────────────────────────────────────────────────────┘   │
 │                                                                   │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Internal Methods:                                        │   │
+│  │  Agent Integration:                                       │   │
 │  │                                                           │   │
-│  │  • _parse_user_intent()                                  │   │
-│  │    └──→ WorkoutParserAgent.parse()                       │   │
+│  │  • ConversationOrchestrator (Supervisor)                  │   │
+│  │    └──→ Coordinates all agents                            │   │
 │  │                                                           │   │
-│  │  • _decide_next_action()                                 │   │
-│  │    ├──→ _is_intent_complete()                            │   │
-│  │    └──→ _generate_follow_up_question()                   │   │
+│  │  • ConversationAgent                                      │   │
+│  │    └──→ Handles greetings & general questions             │   │
 │  │                                                           │   │
-│  │  • _handle_workout_confirmation()                        │   │
-│  │    └──→ _create_workout_in_db()                          │   │
+│  │  • WorkoutParserAgent (LangChain)                         │   │
+│  │    └──→ Hybrid parsing (rule-based + AI)                  │   │
 │  │                                                           │   │
-│  │  • _create_spotify_playlist_from_llm()                   │   │
-│  │    └──→ SpotifyService.create_playlist()                 │   │
+│  │  • WorkoutManagerAgent (LangChain)                        │   │
+│  │    └──→ Creates & activates workouts                      │   │
+│  │                                                           │   │
+│  │  • MusicCuratorAgent (LangChain)                          │   │
+│  │    └──→ Generates playlists with Spotify tools            │   │
 │  └───────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -296,15 +310,27 @@ apps/backend/app/
 │  │                                                           │   │
 │  │  • new / needs_clarification                             │   │
 │  │    └──→ ConversationAgent                                │   │
+│  │        • Handles greetings ("привіт", "ти хто")         │   │
+│  │        • Asks clarifying questions                       │   │
+│  │        • Maintains conversation context                  │   │
 │  │                                                           │   │
 │  │  • intent_ready                                          │   │
 │  │    └──→ WorkoutParserAgent                               │   │
+│  │        • Hybrid parsing (rule-based + AI)                │   │
+│  │        • Extracts workout parameters                     │   │
+│  │        • Validates intent completeness                   │   │
 │  │                                                           │   │
 │  │  • workout_confirmation                                  │   │
 │  │    └──→ WorkoutManagerAgent                              │   │
+│  │        • Creates workout in database                     │   │
+│  │        • Activates workout                               │   │
+│  │        • Returns workout_id                              │   │
 │  │                                                           │   │
 │  │  • workout_created                                       │   │
 │  │    └──→ MusicCuratorAgent                                │   │
+│  │        • Generates playlist with Spotify tools           │   │
+│  │        • Matches BPM to workout                          │   │
+│  │        • Creates playlist in Spotify                     │   │
 │  └───────────────────────────────────────────────────────────┘   │
 └────────────────────────────┬────────────────────────────────────┘
                              │
@@ -319,7 +345,8 @@ apps/backend/app/
 │   language   │    │   parsing    │    │   generation │
 │ • Questions  │    │ • Rule-based │    │ • BPM        │
 │ • Context    │    │   + AI       │    │   matching   │
-│              │    │ • Validation │    │ • Spotify    │
+│ • Greetings  │    │ • Validation │    │ • Spotify    │
+│              │    │ • Tools      │    │ • Tools      │
 └──────────────┘    └──────────────┘    └──────────────┘
         │                    │                    │
         └────────────────────┼────────────────────┘
@@ -333,6 +360,7 @@ apps/backend/app/
                     │   workout    │
                     │ • Activate   │
                     │ • Database   │
+                    │ • Tools      │
                     └──────────────┘
 ```
 
@@ -681,8 +709,23 @@ CREATE TABLE conversations (
 │  ConversationManager                                         │
 │  • Get/Create conversation                                   │
 │  • Add message to history                                    │
-│  • Check state: NEW                                          │
-│  • Call _parse_user_intent()                                 │
+│  • Check if Supervisor enabled → YES                         │
+│  • Use ConversationOrchestrator                              │
+└────┬─────────────────────────────────────────────────────────┘
+     │
+     v
+┌─────────────────────────────────────────────────────────────┐
+│  ConversationOrchestrator (Supervisor)                       │
+│  • State: NEW                                                │
+│  • Route to: ConversationAgent                               │
+└────┬─────────────────────────────────────────────────────────┘
+     │
+     v
+┌─────────────────────────────────────────────────────────────┐
+│  ConversationAgent (LangChain)                               │
+│  • Analyze message                                           │
+│  • Detect: workout intent present                            │
+│  • Route to: WorkoutParserAgent                              │
 └────┬─────────────────────────────────────────────────────────┘
      │
      v
@@ -712,9 +755,8 @@ CREATE TABLE conversations (
      │
      v
 ┌─────────────────────────────────────────────────────────────┐
-│  ConversationManager._decide_next_action()                   │
-│  • Check: _is_intent_complete() → True                       │
-│  • Action: ASK_WORKOUT_CONFIRMATION                          │
+│  ConversationOrchestrator                                    │
+│  • Intent complete → State: workout_confirmation            │
 │  • Format workout summary                                    │
 │  • Return: "Створити воркаут? (Да/Ні)"                      │
 └────┬─────────────────────────────────────────────────────────┘
@@ -750,15 +792,23 @@ CREATE TABLE conversations (
 ┌─────────────────────────────────────────────────────────────┐
 │  ConversationManager                                         │
 │  • State: ASK_WORKOUT_CONFIRMATION                           │
-│  • Call _handle_workout_confirmation()                       │
-│  • Parse: "Так" → is_positive = true                        │
+│  • Use ConversationOrchestrator                              │
 └────┬─────────────────────────────────────────────────────────┘
      │
      v
 ┌─────────────────────────────────────────────────────────────┐
-│  ConversationManager._create_workout_in_db()                 │
-│  • Map WorkoutIntent to DB format                            │
-│  • Insert into workouts table                                │
+│  ConversationOrchestrator                                    │
+│  • State: workout_confirmation                               │
+│  • Route to: WorkoutManagerAgent                             │
+└────┬─────────────────────────────────────────────────────────┘
+     │
+     v
+┌─────────────────────────────────────────────────────────────┐
+│  WorkoutManagerAgent (LangChain)                             │
+│  • Parse: "Так" → is_positive = true                        │
+│  • Use tools: create_workout, activate_workout              │
+│  • Create workout in database                                │
+│  • Activate workout                                          │
 │  • Return workout_id                                         │
 └────┬─────────────────────────────────────────────────────────┘
      │
@@ -808,16 +858,25 @@ CREATE TABLE conversations (
      │
      v
 ┌─────────────────────────────────────────────────────────────┐
+│  ConversationOrchestrator                                    │
+│  • State: workout_created                                    │
+│  • Route to: MusicCuratorAgent                               │
+└────┬─────────────────────────────────────────────────────────┘
+     │
+     v
+┌─────────────────────────────────────────────────────────────┐
 │  MusicCuratorAgent (LangChain)                               │
 │  ┌───────────────────────────────────────────────────────┐   │
 │  │  1. Analyze workout requirements                     │   │
-│  │  2. Use tools:                                        │   │
+│  │  2. Use LangChain Agent with tools:                  │   │
 │  │     ├── search_spotify_tracks()                       │   │
 │  │     ├── get_spotify_recommendations()                 │   │
 │  │     ├── calculate_bpm_progression()                   │   │
-│  │     └── get_user_preferences()                        │   │
+│  │     ├── get_user_preferences()                        │   │
+│  │     └── get_user_music_history()                      │   │
 │  │  3. Generate playlist structure                       │   │
-│  │  4. Output: PlaylistResponse                          │   │
+│  │  4. Output: PlaylistResponse (Pydantic)               │   │
+│  │  5. Create playlist in Spotify                        │   │
 │  └───────────────────────────────────────────────────────┘   │
 └────┬─────────────────────────────────────────────────────────┘
      │
@@ -978,15 +1037,17 @@ CREATE TABLE conversations (
 
 ## 📈 Feature Flags
 
-### Поточна конфігурація
+### Поточна конфігурація (Production)
 
 ```python
 # apps/backend/app/core/config.py
 
-USE_LANGCHAIN_PARSER: bool = False      # Legacy parser by default
-USE_LANGCHAIN_CURATOR: bool = False     # Legacy LLMService by default
-USE_LANGCHAIN_SUPERVISOR: bool = False  # Not yet integrated
+USE_LANGCHAIN_PARSER: bool = True       # ✅ LangChain WorkoutParserAgent enabled
+USE_LANGCHAIN_CURATOR: bool = True      # ✅ LangChain MusicCuratorAgent enabled
+USE_LANGCHAIN_SUPERVISOR: bool = True   # ✅ ConversationOrchestrator (Supervisor) enabled
 ```
+
+**Статус:** Повна міграція на LangChain multi-agent систему завершена ✅
 
 ### Можливі конфігурації
 
@@ -994,24 +1055,33 @@ USE_LANGCHAIN_SUPERVISOR: bool = False  # Not yet integrated
 ┌─────────────────────────────────────────────────────────────┐
 │                    Feature Flag Combinations                 │
 ├─────────────────────────────────────────────────────────────┤
-│ Configuration 1: Legacy (Current Default)                   │
+│ Configuration 1: Legacy (Fallback)                          │
 │   • USE_LANGCHAIN_PARSER = False                            │
 │   • USE_LANGCHAIN_CURATOR = False                           │
+│   • USE_LANGCHAIN_SUPERVISOR = False                        │
 │   → Uses: LegacyWorkoutParserAgent + LLMService             │
 │                                                                 │
 │ Configuration 2: Hybrid Parser                               │
 │   • USE_LANGCHAIN_PARSER = True                             │
 │   • USE_LANGCHAIN_CURATOR = False                           │
+│   • USE_LANGCHAIN_SUPERVISOR = False                        │
 │   → Uses: LangChainWorkoutParserAgent + LLMService          │
 │                                                                 │
-│ Configuration 3: Full LangChain                              │
+│ Configuration 3: Full LangChain Agents                       │
 │   • USE_LANGCHAIN_PARSER = True                             │
 │   • USE_LANGCHAIN_CURATOR = True                            │
+│   • USE_LANGCHAIN_SUPERVISOR = False                        │
 │   → Uses: LangChainWorkoutParserAgent + MusicCuratorAgent   │
+│   → Direct agent integration in ConversationManager         │
 │                                                                 │
-│ Configuration 4: Full Multi-Agent (Future)                   │
+│ Configuration 4: Full Multi-Agent System (CURRENT) ✅        │
+│   • USE_LANGCHAIN_PARSER = True                             │
+│   • USE_LANGCHAIN_CURATOR = True                            │
 │   • USE_LANGCHAIN_SUPERVISOR = True                         │
-│   → Uses: ConversationOrchestrator (coordinates all agents) │
+│   → Uses: ConversationOrchestrator (Supervisor)             │
+│   → Coordinates: ConversationAgent, WorkoutParserAgent,     │
+│                  WorkoutManagerAgent, MusicCuratorAgent     │
+│   → Full LangChain multi-agent orchestration                │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -1102,29 +1172,43 @@ USE_LANGCHAIN_SUPERVISOR: bool = False  # Not yet integrated
 
 ## 🎯 Висновки
 
-### Поточна архітектура
+### Поточна архітектура (Повна міграція на LangChain)
 
-1. **Гібридна система**: Legacy + LangChain агенти (feature flags)
-2. **Модульність**: Чітке розділення відповідальностей
-3. **Масштабованість**: Готовність до переходу на повну LangChain систему
-4. **Адаптивність**: Frontend працює на всіх пристроях
-5. **Надійність**: Fallback механізми на всіх рівнях
+1. **✅ Повна LangChain інтеграція**: Всі агенти використовують LangChain
+2. **✅ Multi-Agent система**: ConversationOrchestrator (Supervisor) координує всіх агентів
+3. **✅ ConversationAgent**: Обробка привітань та загальних питань
+4. **✅ Гібридний парсинг**: Rule-based + AI для оптимальної швидкості та точності
+5. **✅ Модульність**: Чітке розділення відповідальностей між агентами
+6. **✅ Адаптивність**: Frontend працює на всіх пристроях
+7. **✅ Надійність**: Fallback механізми на всіх рівнях
 
 ### Переваги поточної архітектури
 
-✅ **Гнучкість**: Можливість використання legacy або LangChain системи
-✅ **Швидкість**: Rule-based parser для швидкого парсингу
-✅ **Точність**: AI parsing для складних випадків
-✅ **Масштабованість**: Готовність до додавання нових агентів
-✅ **Тестованість**: Можливість тестувати компоненти окремо
+✅ **Повна LangChain інтеграція**: Всі агенти використовують LangChain framework
+✅ **Supervisor Pattern**: ConversationOrchestrator координує workflow
+✅ **Спеціалізовані агенти**: Кожен агент має чітку роль та інструменти
+✅ **Гібридний парсинг**: Rule-based для швидкості + AI для точності
+✅ **Природна мова**: ConversationAgent обробляє привітання та питання
+✅ **Масштабованість**: Легко додавати нові агенти та інструменти
+✅ **Тестованість**: Кожен агент може тестуватися окремо
+✅ **Fallback механізми**: Legacy система доступна як резерв
+
+### Активні компоненти
+
+✅ **ConversationOrchestrator (Supervisor)** - Координує всіх агентів
+✅ **ConversationAgent** - Обробка привітань, питань, контексту
+✅ **WorkoutParserAgent** - Гібридний парсинг workout intent
+✅ **WorkoutManagerAgent** - Створення та активація воркаутів
+✅ **MusicCuratorAgent** - Генерація плейлистів з Spotify інтеграцією
 
 ### Майбутні покращення
 
-🔮 **Повна інтеграція ConversationOrchestrator**
-🔮 **Додавання моніторингу та логування**
-🔮 **Кешування для оптимізації**
+🔮 **Додавання моніторингу та логування** (LangSmith integration)
+🔮 **Кешування для оптимізації** (Redis для агентів)
 🔮 **Batch processing для плейлистів**
 🔮 **A/B тестування різних агентів**
+🔮 **Streaming responses** для кращого UX
+🔮 **Agent memory persistence** для довготривалих розмов
 
 ---
 
@@ -1540,6 +1624,105 @@ class PlaylistTrack(BaseModel):
 
 ---
 
+---
+
+## 🔄 Поточний стан міграції
+
+### Статус LangChain інтеграції
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              LangChain Migration Status                      │
+├─────────────────────────────────────────────────────────────┤
+│ ✅ Phase 1: WorkoutParserAgent          [COMPLETED]         │
+│ ✅ Phase 2: MusicCuratorAgent           [COMPLETED]         │
+│ ✅ Phase 3: ConversationAgent           [COMPLETED]         │
+│ ✅ Phase 4: WorkoutManagerAgent         [COMPLETED]         │
+│ ✅ Phase 5: ConversationOrchestrator    [COMPLETED]         │
+│ ✅ Phase 6: Full Integration            [COMPLETED]         │
+│                                                               │
+│ Status: 🟢 FULLY MIGRATED TO LANGCHAIN                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Активні агенти
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Active LangChain Agents                   │
+├─────────────────────────────────────────────────────────────┤
+│ 1. ConversationAgent                                        │
+│    • Handles greetings & general questions                  │
+│    • Maintains conversation context                         │
+│    • Tools: get_user_preferences, get_conversation_history  │
+│                                                               │
+│ 2. WorkoutParserAgent                                       │
+│    • Hybrid parsing (rule-based + AI)                       │
+│    • Extracts workout parameters                            │
+│    • Tools: rule_based_parse, validate_intent               │
+│                                                               │
+│ 3. WorkoutManagerAgent                                      │
+│    • Creates & activates workouts                           │
+│    • Database operations                                    │
+│    • Tools: create_workout, activate_workout, get_active    │
+│                                                               │
+│ 4. MusicCuratorAgent                                        │
+│    • Generates playlists                                    │
+│    • Spotify integration                                    │
+│    • Tools: search_spotify_tracks, get_recommendations,     │
+│             calculate_bpm_progression                        │
+│                                                               │
+│ 5. ConversationOrchestrator (Supervisor)                    │
+│    • Coordinates all agents                                 │
+│    • Routes messages based on state                         │
+│    • Manages conversation flow                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Потік обробки повідомлення (з Supervisor)
+
+```
+User Message
+     │
+     v
+┌─────────────────────────────────────────────────────────────┐
+│  ConversationManager.process_message()                      │
+│  • Check: use_supervisor = True                             │
+│  • Use: ConversationOrchestrator                            │
+└────┬─────────────────────────────────────────────────────────┘
+     │
+     v
+┌─────────────────────────────────────────────────────────────┐
+│  ConversationOrchestrator.process_message()                 │
+│  • Analyze current state                                    │
+│  • Route to appropriate agent                               │
+└────┬─────────────────────────────────────────────────────────┘
+     │
+     ├─── State: new / needs_clarification
+     │    └──→ ConversationAgent
+     │         • Respond to greetings/questions
+     │         • Ask clarifying questions
+     │         • Try to parse intent
+     │
+     ├─── State: intent_ready
+     │    └──→ WorkoutParserAgent
+     │         • Parse workout intent
+     │         • Validate completeness
+     │
+     ├─── State: workout_confirmation
+     │    └──→ WorkoutManagerAgent
+     │         • Create workout if "Да"
+     │         • Activate workout
+     │
+     └─── State: workout_created
+          └──→ MusicCuratorAgent
+               • Generate playlist
+               • Create in Spotify
+```
+
+---
+
 **Дата створення:** 2025-11-14
-**Версія документа:** 1.0
-**Статус:** Актуальний
+**Останнє оновлення:** 2025-11-14
+**Версія документа:** 2.0
+**Статус:** Актуальний - Повна міграція на LangChain завершена ✅

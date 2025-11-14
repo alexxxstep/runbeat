@@ -144,13 +144,19 @@ class ConversationAgent(BaseAgent):
             # Extract output
             response = result.get("output", "")
 
+            # Check if agent stopped due to iteration/time limit
+            if "Agent stopped due to iteration limit" in response or "Agent stopped due to time limit" in response:
+                logger.warning("ConversationAgent stopped due to iteration/time limit")
+                # Return a helpful fallback response
+                return "Вибачте, це зайняло занадто багато часу. Можете спробувати описати тренування більш детально або задати конкретне питання."
+
             # Note: Memory is already updated by agent_executor, no need to add again
 
             logger.info(f"ConversationAgent response: {response[:50]}...")
             return response
 
         except Exception as e:
-            logger.error(f"Error in ConversationAgent: {e}")
+            logger.error(f"Error in ConversationAgent: {e}", exc_info=True)
             # Fallback response
             return "Вибачте, виникла помилка. Спробуйте ще раз або опишіть тренування детальніше."
 

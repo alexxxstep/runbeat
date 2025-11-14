@@ -167,7 +167,17 @@ class MusicCuratorAgent(BaseAgent):
             return playlist
 
         except Exception as e:
+            error_str = str(e)
             logger.error(f"Error generating playlist: {e}")
+
+            # Check if it's a rate limit error
+            if "rate_limit" in error_str.lower() or "429" in error_str or "rate limit" in error_str.lower():
+                logger.warning("OpenAI rate limit reached, using fallback playlist generation")
+                # Wait a bit and try fallback with direct Spotify API
+                import asyncio
+                await asyncio.sleep(2)  # Brief wait
+                return await self._create_fallback_playlist_with_spotify(workout_intent)
+
             # Fallback: create minimal playlist
             return self._create_fallback_playlist(workout_intent)
 
@@ -256,3 +266,97 @@ class MusicCuratorAgent(BaseAgent):
             primary_genres=["pop"],
             curation_notes="Fallback playlist - please try again for better results.",
         )
+
+    async def _create_fallback_playlist_with_spotify(
+        self, workout_intent: WorkoutIntent
+    ) -> PlaylistResponse:
+        """
+        Create fallback playlist using Spotify API directly (bypassing agent).
+
+        Args:
+            workout_intent: Workout intent
+
+        Returns:
+            PlaylistResponse with tracks from Spotify
+        """
+        logger.info("Creating fallback playlist using Spotify API directly")
+
+        try:
+            from app.services.spotify_service import SpotifyService
+            from app.schemas.llm_responses import PlaylistTrack
+
+            spotify_service = SpotifyService()
+            sp = spotify_service.get_user_client("")  # Use client credentials
+
+            # Get genres from workout intent
+            genres = workout_intent.music_genres or ["pop", "electronic"]
+            # Map to valid Spotify genres
+            valid_genres = []
+            for genre in genres[:5]:
+                genre_lower = genre.lower().strip()
+                # Simple mapping
+                if genre_lower in ["pop", "rock", "electronic", "edm", "house", "techno",
+                                   "trance", "hip-hop", "r&b", "country", "jazz", "classical",
+                                   "ambient", "chill", "folk", "metal", "punk", "indie"]:
+                    valid_genres.append(genre_lower)
+
+            if not valid_genres:
+                valid_genres = ["pop", "electronic"]
+
+            # Get recommendations
+            target_tempo = (workout_intent.target_bpm_min + workout_intent.target_bpm_max) / 2
+            recommendations = sp.recommendations(
+                seed_genres=valid_genres[:5],
+                target_tempo=target_tempo,
+                min_tempo=workout_intent.target_bpm_min,
+                max_tempo=workout_intent.target_bpm_max,
+                limit=50,
+            )
+
+            tracks = []
+            total_duration = 0
+            target_duration = workout_intent.duration_minutes * 60  # seconds
+
+            for track in recommendations.get("tracks", []):
+                duration_seconds = track.get("duration_ms", 0) / 1000
+                if total_duration + duration_seconds > target_duration * 1.2:  # 20% buffer
+                    break
+
+                # Try to get audio features (may fail with 403)
+                bpm = target_tempo
+                try:
+                    features = sp.audio_features([track.get("id")])[0]
+                    if features and features.get("tempo"):
+                        bpm = features.get("tempo")
+                except Exception:
+                    pass  # Use default BPM
+
+                tracks.append(PlaylistTrack(
+                    title=track.get("name", "Unknown"),
+                    artist=", ".join([a["name"] for a in track.get("artists", [])]),
+                    duration_seconds=duration_seconds,
+                    bpm=float(bpm),
+                    energy_level=0.7,
+                    genre=valid_genres[0] if valid_genres else "pop",
+                    phase="main",
+                ))
+                total_duration += duration_seconds
+
+            if not tracks:
+                # If no tracks, return minimal fallback
+                return self._create_fallback_playlist(workout_intent)
+
+            return PlaylistResponse(
+                playlist_name=f"{workout_intent.workout_type.capitalize()} Workout Playlist",
+                tracks=tracks,
+                bpm_range=[workout_intent.target_bpm_min, workout_intent.target_bpm_max],
+                total_tracks=len(tracks),
+                total_duration_minutes=total_duration / 60,
+                progression_type="steady",
+                primary_genres=valid_genres[:3] if valid_genres else ["pop"],
+                curation_notes="Fallback playlist (generated via Spotify API)",
+            )
+        except Exception as e:
+            logger.error(f"Error in Spotify fallback: {e}")
+            # Final fallback
+            return self._create_fallback_playlist(workout_intent)

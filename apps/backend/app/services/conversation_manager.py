@@ -245,8 +245,24 @@ class ConversationManager:
                 logger.info("Using ConversationOrchestrator (Supervisor) for message processing")
                 try:
                     # Convert conversation state to format expected by orchestrator
+                    # Map ConversationManager states to ConversationOrchestrator states
+                    state_value = current_state.value if isinstance(current_state, ConversationStateEnum) else current_state
+
+                    # Map states between ConversationManager and ConversationOrchestrator
+                    orchestrator_state_mapping = {
+                        "new": "new",
+                        "parsing_intent": "intent_ready",
+                        "needs_clarification": "needs_clarification",
+                        "ask_workout_confirmation": "workout_confirmation",  # Map to orchestrator's expected state
+                        "ready_to_generate": "workout_created",
+                        "generating_playlist": "workout_created",
+                        "complete": "workout_created",
+                    }
+
+                    mapped_state_value = orchestrator_state_mapping.get(state_value, state_value)
+
                     orchestrator_state = {
-                        "state": current_state.value if isinstance(current_state, ConversationStateEnum) else current_state,
+                        "state": mapped_state_value,
                         "workout_intent": conversation.get("workout_intent"),
                         "workout_id": conversation.get("workout_id"),
                         "messages": conversation.get("messages", [])[:-1],  # Exclude current message
