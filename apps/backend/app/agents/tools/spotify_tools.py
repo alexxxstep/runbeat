@@ -238,19 +238,28 @@ def get_spotify_recommendations(
         energy = max(0.0, min(1.0, energy))
 
         # Get recommendations
+        # Spotify API doesn't accept target_tempo together with min_tempo/max_tempo
+        # Use min_tempo and max_tempo to define the range
         target_tempo = (bpm_min + bpm_max) / 2
         target_tempo = max(60, min(200, target_tempo))  # Clamp target tempo
 
-        try:
-            # Use only valid genres (max 5)
-            seed_genres = valid_genres[:5]
-            logger.debug(f"Requesting Spotify recommendations with genres: {seed_genres}, tempo: {target_tempo}, BPM range: {bpm_min}-{bpm_max}")
+        # Ensure BPM range is valid
+        bpm_min_safe = max(60, min(200, int(bpm_min)))
+        bpm_max_safe = max(60, min(200, int(bpm_max)))
+        if bpm_min_safe > bpm_max_safe:
+            bpm_min_safe, bpm_max_safe = bpm_max_safe, bpm_min_safe
 
+        # Use only valid genres (max 5) - ensure it's a list
+        seed_genres_list = valid_genres[:5] if valid_genres else ["pop", "electronic"]
+
+        try:
+            logger.debug(f"Requesting Spotify recommendations with genres: {seed_genres_list}, BPM range: {bpm_min_safe}-{bpm_max_safe}")
+
+            # First attempt: min/max_tempo only (no target_tempo)
             recommendations = sp.recommendations(
-                seed_genres=seed_genres,
-                target_tempo=target_tempo,
-                min_tempo=bpm_min,
-                max_tempo=bpm_max,
+                seed_genres=seed_genres_list,  # Must be a list, not string
+                min_tempo=bpm_min_safe,
+                max_tempo=bpm_max_safe,
                 target_energy=energy,
                 limit=min(limit, 100),  # Spotify max is 100
             )
@@ -263,25 +272,37 @@ def get_spotify_recommendations(
             error_str = str(e)
             logger.error(f"Spotify recommendations API error: {e}")
 
-            # If 404, try with simpler parameters
+            # If 404 or other error, try with target_tempo only (no min/max)
             if "404" in error_str or "not found" in error_str.lower():
-                logger.warning("Spotify 404 error, trying with simplified parameters")
+                logger.warning("Spotify 404 error, trying with target_tempo only (no min/max)")
                 try:
-                    # Try with just pop genre and wider tempo range
                     recommendations = sp.recommendations(
-                        seed_genres=["pop"],
-                        target_tempo=120,
-                        min_tempo=60,
-                        max_tempo=200,
+                        seed_genres=seed_genres_list,
+                        target_tempo=int(target_tempo),
+                        target_energy=energy,
                         limit=min(limit, 100),
                     )
                     if recommendations and "tracks" in recommendations:
-                        logger.info("Successfully got recommendations with simplified parameters")
+                        logger.info("Successfully got recommendations with target_tempo only")
                     else:
-                        return json.dumps([], ensure_ascii=False)
+                        # Try without tempo at all
+                        raise ValueError("Empty response, trying without tempo")
                 except Exception as e2:
-                    logger.error(f"Spotify recommendations retry also failed: {e2}")
-                    return json.dumps([], ensure_ascii=False)
+                    logger.warning(f"Spotify recommendations with target_tempo failed: {e2}, trying without tempo")
+                    try:
+                        # Final fallback: no tempo parameters
+                        recommendations = sp.recommendations(
+                            seed_genres=seed_genres_list,
+                            target_energy=energy,
+                            limit=min(limit, 100),
+                        )
+                        if recommendations and "tracks" in recommendations:
+                            logger.info("Successfully got recommendations without tempo parameters")
+                        else:
+                            return json.dumps([], ensure_ascii=False)
+                    except Exception as e3:
+                        logger.error(f"Spotify recommendations retry also failed: {e3}")
+                        return json.dumps([], ensure_ascii=False)
             else:
                 # Return empty list instead of failing
                 return json.dumps([], ensure_ascii=False)

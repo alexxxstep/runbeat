@@ -14,7 +14,7 @@ def get_user_preferences(user_id: str) -> str:
     Get user's music and workout preferences from database.
 
     Args:
-        user_id: User ID
+        user_id: User ID (must be a valid UUID)
 
     Returns:
         JSON string with user preferences:
@@ -25,6 +25,15 @@ def get_user_preferences(user_id: str) -> str:
     """
     try:
         import json
+        from uuid import UUID
+
+        # Validate user_id is a valid UUID
+        try:
+            # Try to parse as UUID to validate format
+            UUID(user_id)
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid user_id format: {user_id}, returning empty preferences")
+            return json.dumps({})
 
         client = supabase_service.get_client()
 
@@ -82,13 +91,21 @@ def get_user_music_history(user_id: str) -> str:
     Get user's music/playlist history.
 
     Args:
-        user_id: User ID
+        user_id: User ID (must be a valid UUID)
 
     Returns:
         JSON string with list of previous playlists
     """
     try:
         import json
+        from uuid import UUID
+
+        # Validate user_id is a valid UUID
+        try:
+            UUID(user_id)
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid user_id format: {user_id}, returning empty history")
+            return json.dumps([])
 
         client = supabase_service.get_client()
 

@@ -778,7 +778,41 @@ async def _generate_variants_internal(
                 except Exception as token_error:
                     logger.warning(f"Failed to get user token: {token_error}")
 
-            playlist_data_variant1 = await generator.generate(
+            # OPTIMIZATION: Prepare variant 2 preferences before generating variant 1
+            # This allows us to generate both variants in parallel
+            user_prefs_variant2 = user_prefs_variant1.copy()
+
+            # Add more variation between variants to ensure different tracks
+            # Variation strategy: rotate/reverse genres, adjust BPM
+            if "top_genres" in user_prefs_variant2 and user_prefs_variant2["top_genres"]:
+                # More aggressive variation: rotate genres (move first to last)
+                genres = user_prefs_variant2["top_genres"].copy()
+                if len(genres) > 1:
+                    # Rotate genres for more variety (move first to last)
+                    genres = genres[1:] + genres[:1]
+                else:
+                    # If only one genre, shuffle doesn't help, rely on excluded tracks
+                    random.shuffle(genres)
+                user_prefs_variant2["top_genres"] = genres
+                logger.debug(f"Variant 2: Rotated genres for variety: {genres}")
+
+            # Also adjust BPM slightly as additional variation
+            if "avg_bpm" in user_prefs_variant2:
+                # Slight BPM variation (±5 to ±10)
+                bpm_adjustment = random.choice([-10, -5, 5, 10])
+                user_prefs_variant2["avg_bpm"] = max(60, min(200, user_prefs_variant2.get(
+                    "avg_bpm", 145) + bpm_adjustment))
+                logger.debug(f"Variant 2: Adjusted BPM by {bpm_adjustment}: {user_prefs_variant2['avg_bpm']}")
+            elif not user_prefs_variant2.get("top_genres"):
+                # If no genres, add BPM variation
+                user_prefs_variant2["avg_bpm"] = 145 + random.choice([-10, -5, 5, 10])
+
+            # OPTIMIZATION: Generate both variants in parallel
+            # Variant 2 will exclude only tracks from previous generations (not variant 1)
+            # We'll filter duplicates from variant 1 after generation
+            logger.info("Generating variants in parallel for better performance...")
+
+            variant1_task = generator.generate(
                 workout=request.workout,
                 user_preferences=user_prefs_variant1,
                 interval_stages=interval_stages,
@@ -786,6 +820,35 @@ async def _generate_variants_internal(
                 user_token=user_token,
                 excluded_track_ids=excluded_track_ids_from_request if excluded_track_ids_from_request else None,
             )
+
+            variant2_task = generator.generate(
+                workout=request.workout,
+                user_preferences=user_prefs_variant2,
+                interval_stages=interval_stages,
+                prompt=request.prompt,
+                user_token=user_token,
+                excluded_track_ids=excluded_track_ids_from_request if excluded_track_ids_from_request else None,
+                # Note: We don't exclude variant 1 tracks here - we'll filter them after generation
+            )
+
+            # Execute both tasks in parallel
+            try:
+                playlist_data_variant1, playlist_data_variant2 = await asyncio.gather(
+                    variant1_task,
+                    variant2_task,
+                    return_exceptions=True
+                )
+            except Exception as e:
+                logger.error(f"Failed to generate variants in parallel: {e}", exc_info=True)
+                raise
+
+            # Handle exceptions from parallel execution
+            if isinstance(playlist_data_variant1, Exception):
+                logger.error(f"Variant 1 generation failed: {playlist_data_variant1}", exc_info=True)
+                raise playlist_data_variant1
+            if isinstance(playlist_data_variant2, Exception):
+                logger.error(f"Variant 2 generation failed: {playlist_data_variant2}", exc_info=True)
+                raise playlist_data_variant2
 
             # Validate variant 1 has tracks
             if not playlist_data_variant1 or playlist_data_variant1.total_tracks == 0:
@@ -800,109 +863,67 @@ async def _generate_variants_internal(
                     excluded_track_ids=None,  # Don't exclude any tracks
                 )
 
-        except Exception as e:
-            logger.error(f"Failed to generate variant 1: {e}", exc_info=True)
-            raise
+            # OPTIMIZATION: Filter duplicate tracks from variant 2 (that are in variant 1)
+            # This ensures variants are different while allowing parallel generation
+            variant1_track_ids = {track.id for track in playlist_data_variant1.tracks}
+            original_variant2_count = playlist_data_variant2.total_tracks  # Save original count before filtering
+            variant2_tracks_filtered = [
+                track for track in playlist_data_variant2.tracks
+                if track.id not in variant1_track_ids
+            ]
 
-        # Generate second variant with slightly different preferences
-        # AND exclude tracks from variant 1 + previous generations to ensure different tracks
-        user_prefs_variant2 = user_prefs_variant1.copy()
+            # Check if we have enough tracks after filtering
+            min_required_tracks = max(5, original_variant2_count * 0.7)  # At least 70% of original or 5 tracks
 
-        # Add more variation between variants to ensure different tracks
-        # Variation strategy: rotate/reverse genres, adjust BPM
-        if "top_genres" in user_prefs_variant2 and user_prefs_variant2["top_genres"]:
-            # More aggressive variation: rotate genres (move first to last)
-            genres = user_prefs_variant2["top_genres"].copy()
-            if len(genres) > 1:
-                # Rotate genres for more variety (move first to last)
-                genres = genres[1:] + genres[:1]
-            else:
-                # If only one genre, shuffle doesn't help, rely on excluded tracks
-                random.shuffle(genres)
-            user_prefs_variant2["top_genres"] = genres
-            logger.debug(f"Variant 2: Rotated genres for variety: {genres}")
-
-        # Also adjust BPM slightly as additional variation
-        if "avg_bpm" in user_prefs_variant2:
-            # Slight BPM variation (±5 to ±10)
-            bpm_adjustment = random.choice([-10, -5, 5, 10])
-            user_prefs_variant2["avg_bpm"] = max(60, min(200, user_prefs_variant2.get(
-                "avg_bpm", 145) + bpm_adjustment))
-            logger.debug(f"Variant 2: Adjusted BPM by {bpm_adjustment}: {user_prefs_variant2['avg_bpm']}")
-        elif not user_prefs_variant2.get("top_genres"):
-            # If no genres, add BPM variation
-            user_prefs_variant2["avg_bpm"] = 145 + random.choice([-10, -5, 5, 10])
-
-        # Exclude tracks from variant 1 + previous generations to ensure different tracks in variant 2
-        variant1_track_ids = [track.id for track in playlist_data_variant1.tracks]
-        # Combine excluded tracks: from previous generations + from variant 1
-        excluded_track_ids_for_variant2 = list(set(excluded_track_ids_from_request + variant1_track_ids))
-        logger.info(
-            f"Excluding {len(excluded_track_ids_for_variant2)} tracks when generating variant 2 "
-            f"({len(excluded_track_ids_from_request)} from previous generations + {len(variant1_track_ids)} from variant 1)"
-        )
-
-        # Try to generate variant 2 with retry logic
-        playlist_data_variant2 = None
-        max_retries = 2
-        for attempt in range(max_retries):
-            try:
-                playlist_data_variant2 = await generator.generate(
-                    workout=request.workout,
-                    user_preferences=user_prefs_variant2,
-                    interval_stages=interval_stages,
-                    prompt=request.prompt,
-                    user_token=user_token,
-                    excluded_track_ids=excluded_track_ids_for_variant2 if excluded_track_ids_for_variant2 else None,
+            if len(variant2_tracks_filtered) < min_required_tracks:
+                logger.info(
+                    f"Variant 2 has {len(variant2_tracks_filtered)} unique tracks after filtering "
+                    f"(need at least {int(min_required_tracks)}). Generating additional tracks..."
                 )
 
-                # Check if variant 2 has tracks
-                if playlist_data_variant2 and playlist_data_variant2.total_tracks > 0:
-                    logger.info(f"Variant 2 generated successfully on attempt {attempt + 1}: {playlist_data_variant2.total_tracks} tracks")
-                    break
-                else:
-                    logger.warning(f"Variant 2 is empty on attempt {attempt + 1}, retrying with different strategy...")
-                    # If empty and not last attempt, try with fewer excluded tracks
-                    if attempt < max_retries - 1:
-                        # Reduce excluded tracks - only exclude variant 1 tracks, not previous generations
-                        excluded_track_ids_for_variant2 = variant1_track_ids
-                        logger.info(f"Retry {attempt + 2}: Using fewer excluded tracks ({len(excluded_track_ids_for_variant2)} tracks)")
-                        # Also try with more different preferences
-                        if "top_genres" in user_prefs_variant2 and user_prefs_variant2["top_genres"]:
-                            # Try completely different genre order
-                            genres = user_prefs_variant2["top_genres"].copy()
-                            genres.reverse()  # Reverse order
-                            user_prefs_variant2["top_genres"] = genres
-                            logger.debug(f"Retry {attempt + 2}: Reversed genres: {genres}")
+                # Generate additional tracks for variant 2, excluding both variant 1 and existing variant 2 tracks
+                excluded_for_additional = list(variant1_track_ids | {t.id for t in variant2_tracks_filtered})
 
-            except Exception as e:
-                logger.error(f"Failed to generate variant 2 on attempt {attempt + 1}: {e}", exc_info=True)
-                if attempt < max_retries - 1:
-                    # Try with fewer excluded tracks on retry
-                    excluded_track_ids_for_variant2 = variant1_track_ids
-                    logger.info(f"Retry {attempt + 2}: Reducing excluded tracks and retrying...")
-                else:
-                    # Last attempt failed, create fallback variant 2
-                    logger.warning("All attempts to generate variant 2 failed, creating fallback variant")
-                    # Create variant 2 as a copy of variant 1 with different track order/shuffle
-                    # This ensures we always have 2 variants
-                    from app.models.playlist import PlaylistData
-                    variant2_tracks = playlist_data_variant1.tracks.copy()
-                    random.shuffle(variant2_tracks)
-                    # Take different subset if possible
-                    if len(variant2_tracks) > 3:
-                        # Take different subset
-                        start_idx = len(variant2_tracks) // 3
-                        variant2_tracks = variant2_tracks[start_idx:] + variant2_tracks[:start_idx]
-
-                    variant2_duration = sum(t.duration_ms for t in variant2_tracks) / 1000
-                    playlist_data_variant2 = PlaylistData(
-                        tracks=variant2_tracks,
-                        total_duration=variant2_duration,
-                        total_tracks=len(variant2_tracks),
+                try:
+                    additional_playlist = await generator.generate(
+                        workout=request.workout,
+                        user_preferences=user_prefs_variant2,
+                        interval_stages=interval_stages,
+                        prompt=request.prompt,
+                        user_token=user_token,
+                        excluded_track_ids=excluded_for_additional if excluded_for_additional else None,
                     )
-                    logger.info(f"Created fallback variant 2 with {len(variant2_tracks)} tracks (shuffled from variant 1)")
-                    break
+
+                    if additional_playlist and additional_playlist.total_tracks > 0:
+                        # Add unique tracks from additional generation
+                        additional_tracks = [
+                            track for track in additional_playlist.tracks
+                            if track.id not in variant1_track_ids
+                        ]
+                        variant2_tracks_filtered.extend(additional_tracks)
+                        logger.info(f"Added {len(additional_tracks)} additional unique tracks to variant 2")
+                except Exception as e:
+                    logger.warning(f"Failed to generate additional tracks for variant 2: {e}")
+
+            # Recalculate variant 2 duration and create new PlaylistData
+            variant2_duration = sum(t.duration_ms for t in variant2_tracks_filtered) / 1000
+            from app.models.playlist import PlaylistData
+            playlist_data_variant2 = PlaylistData(
+                tracks=variant2_tracks_filtered,
+                total_duration=variant2_duration,
+                total_tracks=len(variant2_tracks_filtered),
+            )
+
+            logger.info(
+                f"Variants generated in parallel: "
+                f"Variant 1: {playlist_data_variant1.total_tracks} tracks, "
+                f"Variant 2: {playlist_data_variant2.total_tracks} tracks "
+                f"(filtered from {original_variant2_count} to remove duplicates with variant 1)"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to generate variants: {e}", exc_info=True)
+            raise
 
         # Final check: if variant 2 is still empty or None, create fallback
         if not playlist_data_variant2 or playlist_data_variant2.total_tracks == 0:
@@ -972,13 +993,46 @@ async def _generate_variants_internal(
                     genres = ["pop", "electronic", "rock"]
 
                 # Get recommendations
-                recommendations = sp.recommendations(
-                    seed_genres=genres[:5] if len(genres) >= 5 else genres + ["pop", "electronic"][:5-len(genres)],
-                    target_tempo=target_tempo,
-                    min_tempo=max(60, bpm_min - 10),
-                    max_tempo=min(200, bpm_max + 10),
-                    limit=50,
-                )
+                # Ensure genres is a list and has at least one genre
+                seed_genres_list = genres[:5] if genres and len(genres) >= 1 else ["pop", "electronic"]
+                if len(seed_genres_list) < 5 and len(genres) < 5:
+                    # Fill up to 5 genres if needed
+                    default_genres = ["pop", "electronic", "rock", "house", "dance"]
+                    for g in default_genres:
+                        if g not in seed_genres_list and len(seed_genres_list) < 5:
+                            seed_genres_list.append(g)
+
+                # Ensure BPM range is valid
+                bpm_min_safe = max(60, min(200, int(bpm_min - 10)))
+                bpm_max_safe = max(60, min(200, int(bpm_max + 10)))
+                if bpm_min_safe > bpm_max_safe:
+                    bpm_min_safe, bpm_max_safe = bpm_max_safe, bpm_min_safe
+
+                # Try recommendations with min/max_tempo first (Spotify doesn't like target_tempo + min/max together)
+                try:
+                    recommendations = sp.recommendations(
+                        seed_genres=seed_genres_list,  # Must be a list
+                        min_tempo=bpm_min_safe,
+                        max_tempo=bpm_max_safe,
+                        limit=50,
+                    )
+                except Exception as e:
+                    logger.warning(f"Spotify recommendations failed with min/max_tempo: {e}, trying with target_tempo only")
+                    # Retry with only target_tempo
+                    try:
+                        target_tempo_safe = max(60, min(200, int(target_tempo)))
+                        recommendations = sp.recommendations(
+                            seed_genres=seed_genres_list,
+                            target_tempo=target_tempo_safe,
+                            limit=50,
+                        )
+                    except Exception as e2:
+                        logger.warning(f"Spotify recommendations failed with target_tempo: {e2}, trying without tempo")
+                        # Final fallback: no tempo parameters
+                        recommendations = sp.recommendations(
+                            seed_genres=seed_genres_list,
+                            limit=50,
+                        )
 
                 # Convert to Track objects
                 fallback_tracks = []

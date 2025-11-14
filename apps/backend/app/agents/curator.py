@@ -81,8 +81,8 @@ class MusicCuratorAgent(BaseAgent):
             memory=self.memory,
             verbose=False,
             handle_parsing_errors=True,
-            max_iterations=10,  # Increased for complex playlist creation
-            max_execution_time=60,  # 60 seconds max execution time per playlist
+            max_iterations=8,  # Reduced to avoid timeout, but still enough for playlist creation
+            max_execution_time=45,  # 45 seconds max execution time per playlist (reduced to avoid timeout)
         )
 
         logger.info("MusicCuratorAgent initialized with LangChain")
@@ -333,14 +333,44 @@ class MusicCuratorAgent(BaseAgent):
                 valid_genres = ["pop", "electronic"]
 
             # Get recommendations
+            # Spotify API doesn't accept target_tempo together with min_tempo/max_tempo
+            # Use min_tempo and max_tempo to define the range
             target_tempo = (workout_intent.target_bpm_min + workout_intent.target_bpm_max) / 2
-            recommendations = sp.recommendations(
-                seed_genres=valid_genres[:5],
-                target_tempo=target_tempo,
-                min_tempo=workout_intent.target_bpm_min,
-                max_tempo=workout_intent.target_bpm_max,
-                limit=50,
-            )
+
+            # Ensure BPM range is valid (Spotify accepts 60-200 BPM)
+            bpm_min = max(60, min(200, int(workout_intent.target_bpm_min)))
+            bpm_max = max(60, min(200, int(workout_intent.target_bpm_max)))
+            if bpm_min > bpm_max:
+                bpm_min, bpm_max = bpm_max, bpm_min
+
+            # Ensure we have at least one valid genre
+            seed_genres_list = valid_genres[:5] if valid_genres else ["pop", "electronic"]
+
+            # Try recommendations with min/max_tempo first (more reliable)
+            try:
+                recommendations = sp.recommendations(
+                    seed_genres=seed_genres_list,  # Must be a list, not string
+                    min_tempo=bpm_min,
+                    max_tempo=bpm_max,
+                    limit=50,
+                )
+            except Exception as e:
+                error_str = str(e)
+                logger.warning(f"Spotify recommendations failed with min/max_tempo: {e}, trying with target_tempo only")
+                # Retry with only target_tempo (no min/max)
+                try:
+                    recommendations = sp.recommendations(
+                        seed_genres=seed_genres_list,
+                        target_tempo=int(target_tempo),
+                        limit=50,
+                    )
+                except Exception as e2:
+                    logger.warning(f"Spotify recommendations failed with target_tempo: {e2}, trying without tempo")
+                    # Final fallback: no tempo parameters
+                    recommendations = sp.recommendations(
+                        seed_genres=seed_genres_list,
+                        limit=50,
+                    )
 
             tracks = []
             total_duration = 0
