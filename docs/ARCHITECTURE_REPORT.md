@@ -1,8 +1,9 @@
 # 📊 RunBeat - Детальний звіт по архітектурі проекту
 
 **Дата:** 2025-11-14
-**Версія:** 2.0
+**Версія:** 2.1
 **Статус:** Production Ready
+**Останнє оновлення:** 2025-11-14 (Додано систему логування помилок)
 
 ---
 
@@ -140,10 +141,14 @@ apps/backend/app/
 │   ├── llm_service.py             # OpenAI integration
 │   ├── spotify_service.py         # Spotify API client
 │   ├── supabase_service.py        # Database client
+│   ├── error_logging_service.py   # Error logging to database
 │   ├── workout_parser_agent.py    # Legacy parser agent
 │   ├── playlist_generator.py      # Playlist generation logic
 │   └── parsers/
 │       └── rule_based_parser.py   # Rule-based parsing
+├── utils/
+│   ├── logger.py                  # Logger utility
+│   └── database_log_handler.py    # Custom loguru handler for DB logging
 ├── agents/                        # LangChain multi-agent system
 │   ├── base.py                    # Base agent class
 │   ├── parser.py                  # WorkoutParserAgent
@@ -203,6 +208,11 @@ apps/backend/app/
 │  │  /api/v1/auth/spotify                                    │   │
 │  │  ├── GET  /login          → Initiate OAuth               │   │
 │  │  └── GET  /callback       → OAuth callback               │   │
+│  │                                                           │   │
+│  │  /api/v1/error-logs                                      │   │
+│  │  ├── POST /              → Create error log (frontend)   │   │
+│  │  ├── GET  /              → Get error logs                │   │
+│  │  └── GET  /statistics    → Get error statistics          │   │
 │  └───────────────────────────────────────────────────────────┘   │
 └────────────────────────────┬────────────────────────────────────┘
                              │
@@ -670,6 +680,34 @@ CREATE TABLE conversations (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+```
+
+#### error_logs
+
+```sql
+CREATE TABLE error_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    level TEXT NOT NULL CHECK (level IN ('ERROR', 'CRITICAL', 'WARNING')),
+    message TEXT NOT NULL,
+    error_type TEXT,
+    error_details JSONB,
+    stack_trace TEXT,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    request_path TEXT,
+    request_method TEXT,
+    request_body JSONB,
+    response_status INTEGER,
+    environment TEXT DEFAULT 'production',
+    service_name TEXT DEFAULT 'runbeat-backend',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for efficient querying
+CREATE INDEX idx_error_logs_level ON error_logs(level);
+CREATE INDEX idx_error_logs_created_at ON error_logs(created_at DESC);
+CREATE INDEX idx_error_logs_user_id ON error_logs(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX idx_error_logs_error_type ON error_logs(error_type) WHERE error_type IS NOT NULL;
+CREATE INDEX idx_error_logs_environment ON error_logs(environment);
 ```
 
 ---
@@ -1165,6 +1203,49 @@ USE_LANGCHAIN_SUPERVISOR: bool = True   # ✅ ConversationOrchestrator (Supervis
 │ User Experience:                                             │
 │   • Time to first playlist:     <15s                        │
 │   • User satisfaction:          TBD                         │
+│                                                                 │
+│ Error Logging:                                               │
+│   • Errors logged to database:  Automatic                   │
+│   • Frontend errors:            Logged via errorLogger      │
+│   • Backend errors:             Logged via DatabaseHandler  │
+│   • Retention period:           90 days                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Система логування помилок
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Error Logging System                      │
+├─────────────────────────────────────────────────────────────┤
+│ Backend Logging:                                             │
+│   • DatabaseLogHandler (loguru handler)                     │
+│     └──→ Automatically logs ERROR, CRITICAL, WARNING        │
+│   • ErrorLoggingService                                      │
+│     └──→ Stores errors in error_logs table                  │
+│   • Thread-safe async logging (non-blocking)                │
+│                                                                 │
+│ Frontend Logging:                                            │
+│   • ErrorLogger service                                      │
+│     └──→ Sends errors to backend via API                    │
+│   • Global error handlers                                    │
+│     ├── window.onerror                                       │
+│     └── unhandledrejection                                   │
+│   • API interceptor logging                                  │
+│     └──→ Logs all API errors automatically                  │
+│                                                                 │
+│ Error Data Captured:                                         │
+│   • Level (ERROR, CRITICAL, WARNING)                         │
+│   • Message & stack trace                                    │
+│   • Error type & details                                     │
+│   • User context (user_id)                                   │
+│   • Request context (path, method, body, status)             │
+│   • Environment & service name                               │
+│                                                                 │
+│ API Endpoints:                                               │
+│   • POST /api/v1/error-logs/     → Create error log         │
+│   • GET  /api/v1/error-logs/     → Get error logs           │
+│   • GET  /api/v1/error-logs/statistics → Get statistics     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -1192,6 +1273,8 @@ USE_LANGCHAIN_SUPERVISOR: bool = True   # ✅ ConversationOrchestrator (Supervis
 ✅ **Масштабованість**: Легко додавати нові агенти та інструменти
 ✅ **Тестованість**: Кожен агент може тестуватися окремо
 ✅ **Fallback механізми**: Legacy система доступна як резерв
+✅ **Система логування помилок**: Автоматичне зберігання помилок в БД (backend + frontend)
+✅ **Моніторинг**: API для перегляду та аналізу помилок
 
 ### Активні компоненти
 
@@ -1200,15 +1283,20 @@ USE_LANGCHAIN_SUPERVISOR: bool = True   # ✅ ConversationOrchestrator (Supervis
 ✅ **WorkoutParserAgent** - Гібридний парсинг workout intent
 ✅ **WorkoutManagerAgent** - Створення та активація воркаутів
 ✅ **MusicCuratorAgent** - Генерація плейлистів з Spotify інтеграцією
+✅ **ErrorLoggingService** - Зберігання помилок в базі даних
+✅ **DatabaseLogHandler** - Custom loguru handler для автоматичного логування
+✅ **ErrorLogger (Frontend)** - Сервіс для відправки помилок на backend
 
 ### Майбутні покращення
 
+✅ **Система логування помилок** (Завершено - зберігання в БД)
 🔮 **Додавання моніторингу та логування** (LangSmith integration)
 🔮 **Кешування для оптимізації** (Redis для агентів)
 🔮 **Batch processing для плейлистів**
 🔮 **A/B тестування різних агентів**
 🔮 **Streaming responses** для кращого UX
 🔮 **Agent memory persistence** для довготривалих розмов
+🔮 **Error analytics dashboard** (візуалізація помилок)
 
 ---
 
@@ -1487,6 +1575,28 @@ POST   /api/v1/playlists/generate
 GET    /api/v1/playlists/:id
 ```
 
+### Error Logs API
+
+```
+POST   /api/v1/error-logs/
+Request:
+{
+  "level": "ERROR",
+  "message": "Failed to generate playlist",
+  "error_type": "ValueError",
+  "error_details": { ... },
+  "stack_trace": "...",
+  "user_id": "uuid" (optional),
+  "request_path": "/api/v1/playlists/generate",
+  "request_method": "POST",
+  "request_body": { ... } (optional),
+  "response_status": 500 (optional)
+}
+
+GET    /api/v1/error-logs/?level=ERROR&limit=100&offset=0
+GET    /api/v1/error-logs/statistics?days=7
+```
+
 ---
 
 ## 🧪 Тестування
@@ -1724,5 +1834,18 @@ User Message
 
 **Дата створення:** 2025-11-14
 **Останнє оновлення:** 2025-11-14
-**Версія документа:** 2.0
+**Версія документа:** 2.1
 **Статус:** Актуальний - Повна міграція на LangChain завершена ✅
+
+### Останні зміни (v2.1)
+
+✅ **Додано систему логування помилок:**
+
+- Backend: `ErrorLoggingService` та `DatabaseLogHandler` для автоматичного логування помилок в БД
+- Frontend: `ErrorLogger` сервіс для відправки помилок на backend
+- Таблиця `error_logs` в базі даних з індексами для швидкого пошуку
+- API endpoints для перегляду та аналізу помилок
+- Глобальні обробники помилок на frontend (window.onerror, unhandledrejection)
+- Автоматичне логування помилок API через interceptors
+- Thread-safe асинхронне логування (не блокує основний потік)
+- Зберігання контексту помилок (user_id, request_path, stack_trace, тощо)

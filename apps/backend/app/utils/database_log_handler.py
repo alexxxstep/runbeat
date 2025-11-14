@@ -38,8 +38,37 @@ class DatabaseLogHandler:
             message: Log message dictionary from loguru
         """
         try:
-            # Get log level
-            level = message["level"].name
+            # Ensure message is a dictionary
+            if not isinstance(message, dict):
+                return
+
+            # Get log level - handle both object and string formats
+            level_obj = message.get("level")
+            level = None
+
+            if level_obj is not None:
+                if hasattr(level_obj, "name"):
+                    level = level_obj.name
+                elif isinstance(level_obj, str):
+                    level = level_obj
+                elif isinstance(level_obj, dict):
+                    level = level_obj.get("name", "ERROR")
+
+            # If still no level, try alternative paths
+            if not level or not isinstance(level, str):
+                record = message.get("record", {})
+                if isinstance(record, dict):
+                    record_level = record.get("level")
+                    if hasattr(record_level, "name"):
+                        level = record_level.name
+                    elif isinstance(record_level, str):
+                        level = record_level
+                    elif isinstance(record_level, dict):
+                        level = record_level.get("name", "ERROR")
+
+            # Final fallback
+            if not level or not isinstance(level, str):
+                level = "ERROR"
 
             # Only log ERROR and CRITICAL to database
             if level not in ["ERROR", "CRITICAL", "WARNING"]:
@@ -49,21 +78,34 @@ class DatabaseLogHandler:
             if self.level_map.get(level, 0) < self.level_map.get(self.min_level, 0):
                 return
 
-            # Extract message text
-            message_text = message["message"]
+            # Extract message text - handle different formats
+            message_text = message.get("message", "")
+            if not message_text:
+                # Try alternative paths
+                message_text = message.get("record", {}).get("message", "") if isinstance(message.get("record"), dict) else ""
+            if not message_text:
+                message_text = str(message)  # Last resort
 
             # Extract exception if present
             exception = message.get("exception")
-            if exception:
+            if exception and hasattr(exception, "value"):
                 exception = exception.value
+            elif exception and isinstance(exception, Exception):
+                exception = exception
+            else:
+                exception = None
 
-            # Extract user context if available
-            user_id = message.get("extra", {}).get("user_id")
-            request_path = message.get("extra", {}).get("request_path")
-            request_method = message.get("extra", {}).get("request_method")
-            request_body = message.get("extra", {}).get("request_body")
-            response_status = message.get("extra", {}).get("response_status")
-            error_details = message.get("extra", {}).get("error_details")
+            # Extract user context if available - safely handle nested dicts
+            extra = message.get("extra", {})
+            if not isinstance(extra, dict):
+                extra = {}
+
+            user_id = extra.get("user_id") if isinstance(extra, dict) else None
+            request_path = extra.get("request_path") if isinstance(extra, dict) else None
+            request_method = extra.get("request_method") if isinstance(extra, dict) else None
+            request_body = extra.get("request_body") if isinstance(extra, dict) else None
+            response_status = extra.get("response_status") if isinstance(extra, dict) else None
+            error_details = extra.get("error_details") if isinstance(extra, dict) else None
 
             # Log to database asynchronously (fire and forget)
             # Use threading to avoid blocking the main event loop

@@ -197,6 +197,14 @@ class MusicCuratorAgent(BaseAgent):
         Returns:
             PlaylistResponse instance
         """
+        # Check if output indicates iteration/time limit was reached
+        if not output_text or not output_text.strip():
+            raise ValueError("Agent returned empty output")
+
+        output_lower = output_text.lower()
+        if "iteration limit" in output_lower or "time limit" in output_lower or "execution time" in output_lower:
+            raise ValueError(f"Agent stopped due to iteration/time limit: {output_text}")
+
         # Try to extract JSON from output
         try:
             # Remove markdown code blocks if present
@@ -204,10 +212,15 @@ class MusicCuratorAgent(BaseAgent):
             cleaned = re.sub(r"```\n?", "", cleaned)
             cleaned = cleaned.strip()
 
+            # Skip if empty after cleaning
+            if not cleaned:
+                raise ValueError("Output is empty after cleaning")
+
             # Try parsing as JSON
             json_data = json.loads(cleaned)
             return PlaylistResponse(**json_data)
-        except (json.JSONDecodeError, ValueError):
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.debug(f"Failed to parse as direct JSON: {e}")
             pass
 
         # Try to find JSON object in text
@@ -217,7 +230,8 @@ class MusicCuratorAgent(BaseAgent):
             try:
                 json_data = json.loads(json_match.group())
                 return PlaylistResponse(**json_data)
-            except (json.JSONDecodeError, ValueError):
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.debug(f"Failed to parse JSON from match: {e}")
                 pass
 
         # Use output parser
@@ -291,11 +305,17 @@ class MusicCuratorAgent(BaseAgent):
         logger.info("Creating fallback playlist using Spotify API directly")
 
         try:
-            from app.services.spotify_service import SpotifyService
+            import spotipy
+            from spotipy.oauth2 import SpotifyClientCredentials
+            from app.core.config import settings
             from app.schemas.llm_responses import PlaylistTrack
 
-            spotify_service = SpotifyService()
-            sp = spotify_service.get_user_client("")  # Use client credentials
+            # Use client credentials instead of user token
+            client_credentials = SpotifyClientCredentials(
+                client_id=settings.SPOTIFY_CLIENT_ID,
+                client_secret=settings.SPOTIFY_CLIENT_SECRET,
+            )
+            sp = spotipy.Spotify(client_credentials_manager=client_credentials)
 
             # Get genres from workout intent
             genres = workout_intent.music_genres or ["pop", "electronic"]
