@@ -27,9 +27,9 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4"
 
     # LangChain Feature Flags
-    USE_LANGCHAIN_PARSER: bool = False  # Use LangChain WorkoutParserAgent
-    USE_LANGCHAIN_CURATOR: bool = False  # Use LangChain MusicCuratorAgent
-    USE_LANGCHAIN_SUPERVISOR: bool = False  # Use LangChain Supervisor
+    USE_LANGCHAIN_PARSER: bool = True  # Use LangChain WorkoutParserAgent (default: enabled)
+    USE_LANGCHAIN_CURATOR: bool = True  # Use LangChain MusicCuratorAgent (default: enabled)
+    USE_LANGCHAIN_SUPERVISOR: bool = True  # Use LangChain Supervisor (ConversationOrchestrator) - full migration
 
     # App Settings
     ENVIRONMENT: str = "development"

@@ -364,7 +364,7 @@ export function ChatPage() {
 
               <div className='bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg shadow-lg p-4 md:p-6 mb-4 md:mb-6 border border-blue-200 dark:border-blue-800'>
                 <h2 className='text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-4 md:mb-6 text-center'>
-                  📋 Алгоритм роботи
+                  📋 Як це працює
                 </h2>
 
                 <div className='space-y-4 md:space-y-6'>
@@ -376,112 +376,126 @@ export function ChatPage() {
                       </div>
                       <div className='flex-1 min-w-0'>
                         <h3 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-2'>
-                          Створи або вибери воркаут
+                          Опиши своє тренування
                         </h3>
                         <p className='text-gray-700 dark:text-gray-300 mb-3'>
-                          <strong>Варіант А:</strong> Створи новий воркаут у
-                          панелі <strong>Воркаут</strong> (справа):
+                          Просто напиши мені, що ти хочеш зробити. Я розумію природну мову! Наприклад:
                         </p>
                         <ul className='list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400 ml-4 mb-3'>
                           <li>
-                            Оберіть тип тренування (стабільна, прогресивна,
-                            інтервальна, фартлек)
-                          </li>
-                          <li>Встановіть тривалість (години та хвилини)</li>
-                          <li>
-                            Виберіть інтенсивність (легка, середня, висока)
+                            <strong>"хочу легку пробіжку 30 хвилин"</strong>
                           </li>
                           <li>
-                            Налаштуйте частоту серцебиття (мінімум та максимум)
+                            <strong>"інтервали 40 хв, рок-музика"</strong>
                           </li>
-                          <li>Оберіть жанри музики (опціонально)</li>
                           <li>
-                            Натисніть кнопку <strong>"Зберегти"</strong>
+                            <strong>"фартлек 55 хв під електронну музику"</strong>
+                          </li>
+                          <li>
+                            <strong>"темповий біг 45 хв, енергійна музика для ранкового бігу"</strong>
                           </li>
                         </ul>
                         <p className='text-gray-700 dark:text-gray-300'>
-                          <strong>Варіант Б:</strong> Вибери існуючий воркаут з
-                          панелі <strong>Історія</strong> (зліва) - секція
-                          "Воркаути"
+                          Я можу розпізнати: <strong>тип тренування</strong> (стабільна, інтервальна, фартлек),
+                          <strong> тривалість</strong>, <strong>інтенсивність</strong> (легка, середня, висока),
+                          та <strong>музичні побажання</strong> (жанри, опис).
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Step 2 */}
-                  <div className='bg-white dark:bg-gray-800 rounded-lg p-3 md:p-5 border-l-4 border-green-500'>
+                  <div className='bg-white dark:bg-gray-800 rounded-lg p-3 md:p-5 border-l-4 border-yellow-500'>
                     <div className='flex items-start gap-2 md:gap-4'>
-                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm md:text-lg'>
+                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-yellow-500 text-white rounded-full flex items-center justify-center font-bold text-sm md:text-lg'>
                         2
                       </div>
                       <div className='flex-1 min-w-0'>
                         <h3 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-2'>
-                          Активуй воркаут
+                          Я задам уточнюючі питання (якщо потрібно)
                         </h3>
                         <p className='text-gray-700 dark:text-gray-300'>
-                          Після створення або вибору воркауту, він автоматично
-                          активується. У чаті з'явиться картка з параметрами
-                          воркауту та питанням:
-                          <strong>
-                            "Створити під цей воркаут плейлист? Да/Ні"
-                          </strong>
+                          Якщо мені потрібна додаткова інформація, я запитаю.
+                          Наприклад: <em>"Який інтервал роботи/відпочинку?"</em> або
+                          <em>"Яка інтенсивність?"</em> Просто відповідай на мої питання.
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Step 3 */}
-                  <div className='bg-white dark:bg-gray-800 rounded-lg p-3 md:p-5 border-l-4 border-purple-500'>
+                  <div className='bg-white dark:bg-gray-800 rounded-lg p-3 md:p-5 border-l-4 border-green-500'>
                     <div className='flex items-start gap-2 md:gap-4'>
-                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-sm md:text-lg'>
+                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm md:text-lg'>
                         3
                       </div>
                       <div className='flex-1 min-w-0'>
                         <h3 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-2'>
-                          Переглянь варіанти плейлистів
+                          Підтверди створення воркауту
                         </h3>
-                        <p className='text-gray-700 dark:text-gray-300 mb-3'>
-                          Після натискання <strong>"Так"</strong> система
-                          згенерує 2 варіанти саундтреків:
+                        <p className='text-gray-700 dark:text-gray-300'>
+                          Коли я зібрав всю інформацію, я покажу тобі резюме воркауту та запитаю:
+                          <strong>"Створити воркаут? (Да/Ні)"</strong>. Натисни <strong>"Так"</strong>,
+                          щоб створити воркаут, або <strong>"Ні"</strong>, щоб скасувати.
                         </p>
-                        <ul className='list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400 ml-4'>
-                          <li>
-                            Кожен варіант містить список треків (№, Назва,
-                            Виконавець, Тривалість)
-                          </li>
-                          <li>Порівняй варіанти та обери найкращий для себе</li>
-                        </ul>
                       </div>
                     </div>
                   </div>
 
                   {/* Step 4 */}
-                  <div className='bg-white dark:bg-gray-800 rounded-lg p-3 md:p-5 border-l-4 border-orange-500'>
+                  <div className='bg-white dark:bg-gray-800 rounded-lg p-3 md:p-5 border-l-4 border-purple-500'>
                     <div className='flex items-start gap-2 md:gap-4'>
-                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold text-sm md:text-lg'>
+                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-sm md:text-lg'>
                         4
                       </div>
                       <div className='flex-1 min-w-0'>
                         <h3 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-2'>
                           Згенеруй плейлист
                         </h3>
+                        <p className='text-gray-700 dark:text-gray-300 mb-3'>
+                          Після створення воркауту, натисни <strong>"Так, згенерувати плейлист"</strong>.
+                          Я створю 2 варіанти плейлистів з урахуванням твоїх побажань:
+                        </p>
+                        <ul className='list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400 ml-4'>
+                          <li>
+                            Кожен варіант містить список треків (№, Назва, Виконавець, Тривалість)
+                          </li>
+                          <li>Порівняй варіанти та обери найкращий для себе</li>
+                          <li>Натисни <strong>"Обрати цей варіант"</strong> під обраним варіантом</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 5 */}
+                  <div className='bg-white dark:bg-gray-800 rounded-lg p-3 md:p-5 border-l-4 border-orange-500'>
+                    <div className='flex items-start gap-2 md:gap-4'>
+                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold text-sm md:text-lg'>
+                        5
+                      </div>
+                      <div className='flex-1 min-w-0'>
+                        <h3 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-2'>
+                          Відкрий в Spotify
+                        </h3>
                         <p className='text-gray-700 dark:text-gray-300'>
-                          Натисни кнопку <strong>"Обрати цей варіант"</strong>{' '}
-                          під обраним варіантом. Плейлист буде створено та
-                          збережено в твоїй історії (панель зліва - секція
-                          "Плейлисти").
+                          Плейлист буде створено та збережено в твоїй історії (панель зліва - секція
+                          "Плейлисти"). Натисни <strong>"Відкрити в Spotify"</strong>, щоб відкрити
+                          плейлист у додатку Spotify та почати тренування! 🎵
                         </p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className='mt-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800'>
-                  <p className='text-sm text-yellow-800 dark:text-yellow-200'>
-                    <strong>💡 Порада:</strong> Всі збережені воркаути та
-                    плейлисти доступні в панелі
-                    <strong> Історія</strong> (зліва). Ти можеш використовувати
-                    їх знову або видаляти непотрібні.
+                <div className='mt-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800'>
+                  <p className='text-sm text-blue-800 dark:text-blue-200 mb-2'>
+                    <strong>💡 Альтернативний спосіб:</strong> Ти також можеш створити воркаут вручну
+                    через панель <strong>Воркаут</strong> (справа) або вибрати існуючий з панелі
+                    <strong> Історія</strong> (зліва).
+                  </p>
+                  <p className='text-sm text-blue-800 dark:text-blue-200'>
+                    <strong>🤖 AI-асистент:</strong> Я використовую гібридну систему парсингу (rule-based + AI)
+                    для швидкого та точного розуміння твоїх побажань. Якщо щось незрозуміло - просто спитай!
                   </p>
                 </div>
               </div>

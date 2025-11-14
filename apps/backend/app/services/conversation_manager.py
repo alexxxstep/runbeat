@@ -20,6 +20,8 @@ from app.core.config import settings
 LANGCHAIN_AVAILABLE = False
 LangChainWorkoutParserAgent = None
 LangChainMusicCuratorAgent = None
+ConversationAgent = None
+ConversationOrchestrator = None
 
 if settings.USE_LANGCHAIN_PARSER:
     try:
@@ -38,6 +40,23 @@ if settings.USE_LANGCHAIN_CURATOR:
     except ImportError as e:
         logger.warning(f"LangChain MusicCuratorAgent not available: {e}")
         LangChainMusicCuratorAgent = None
+
+# Always try to import ConversationAgent for handling greetings and general questions
+try:
+    from app.agents.conversation import ConversationAgent
+    logger.info("ConversationAgent imported successfully")
+except ImportError as e:
+    logger.warning(f"ConversationAgent not available: {e}")
+    ConversationAgent = None
+
+# Import ConversationOrchestrator (Supervisor) if enabled
+if settings.USE_LANGCHAIN_SUPERVISOR:
+    try:
+        from app.agents.supervisor import ConversationOrchestrator
+        logger.info("ConversationOrchestrator (Supervisor) imported successfully")
+    except ImportError as e:
+        logger.warning(f"ConversationOrchestrator not available: {e}")
+        ConversationOrchestrator = None
 
 
 class ConversationStateEnum(str, Enum):
@@ -134,6 +153,33 @@ class ConversationManager:
             self.use_langchain_curator = False
             logger.info("Using legacy LLMService for playlist generation")
 
+        # Initialize ConversationAgent for handling greetings and general questions
+        if ConversationAgent:
+            try:
+                self.conversation_agent = ConversationAgent()
+                logger.info("ConversationAgent initialized for handling greetings and general questions")
+            except Exception as e:
+                logger.warning(f"Failed to initialize ConversationAgent: {e}")
+                self.conversation_agent = None
+        else:
+            self.conversation_agent = None
+            logger.info("ConversationAgent not available")
+
+        # Initialize ConversationOrchestrator (Supervisor) if enabled
+        if settings.USE_LANGCHAIN_SUPERVISOR and ConversationOrchestrator:
+            try:
+                self.orchestrator = ConversationOrchestrator()
+                self.use_supervisor = True
+                logger.info("ConversationOrchestrator (Supervisor) initialized - using full LangChain multi-agent system")
+            except Exception as e:
+                logger.warning(f"Failed to initialize ConversationOrchestrator: {e}")
+                self.orchestrator = None
+                self.use_supervisor = False
+        else:
+            self.orchestrator = None
+            self.use_supervisor = False
+            logger.info("ConversationOrchestrator not enabled - using direct agent integration")
+
         self.conversations: Dict[str, Dict[str, Any]] = {}
         logger.info("ConversationManager initialized")
 
@@ -193,6 +239,121 @@ class ConversationManager:
             # Determine current state and next action
             current_state = conversation.get("state", ConversationStateEnum.NEW)
             logger.debug(f"Current state: {current_state}")
+
+            # If Supervisor (ConversationOrchestrator) is enabled, use it for full multi-agent orchestration
+            if self.use_supervisor and self.orchestrator:
+                logger.info("Using ConversationOrchestrator (Supervisor) for message processing")
+                try:
+                    # Convert conversation state to format expected by orchestrator
+                    orchestrator_state = {
+                        "state": current_state.value if isinstance(current_state, ConversationStateEnum) else current_state,
+                        "workout_intent": conversation.get("workout_intent"),
+                        "workout_id": conversation.get("workout_id"),
+                        "messages": conversation.get("messages", [])[:-1],  # Exclude current message
+                    }
+
+                    # Process through orchestrator
+                    orchestrator_response = await self.orchestrator.process_message(
+                        user_id=user_id,
+                        message=message,
+                        conversation_state=orchestrator_state,
+                        user_preferences=user_preferences,
+                    )
+
+                    # Convert orchestrator response to ConversationManager format
+                    # Map orchestrator state to ConversationStateEnum
+                    state_mapping = {
+                        "new": ConversationStateEnum.NEW,
+                        "needs_clarification": ConversationStateEnum.NEEDS_CLARIFICATION,
+                        "intent_ready": ConversationStateEnum.PARSING_INTENT,
+                        "workout_confirmation": ConversationStateEnum.ASK_WORKOUT_CONFIRMATION,
+                        "workout_created": ConversationStateEnum.COMPLETE,
+                        "complete": ConversationStateEnum.COMPLETE,
+                    }
+
+                    mapped_state = state_mapping.get(
+                        orchestrator_response.get("state", "new"),
+                        ConversationStateEnum.NEEDS_CLARIFICATION
+                    )
+
+                    # Update conversation with orchestrator response
+                    conversation["state"] = mapped_state.value
+                    conversation["workout_intent"] = orchestrator_response.get("workout_intent")
+                    conversation["workout_id"] = orchestrator_response.get("workout_id")
+                    if orchestrator_response.get("message_to_user"):
+                        conversation["messages"].append({
+                            "role": "assistant",
+                            "content": orchestrator_response["message_to_user"],
+                            "timestamp": datetime.utcnow().isoformat(),
+                        })
+                    conversation["updated_at"] = datetime.utcnow().isoformat()
+
+                    # Save conversation
+                    await self._save_conversation(conversation)
+
+                    # Map action
+                    action_mapping = {
+                        "ask_clarification": ConversationAction.ASK_CLARIFICATION,
+                        "ask_confirmation": ConversationAction.ASK_WORKOUT_CONFIRMATION,
+                        "workout_created": ConversationAction.CREATE_WORKOUT,
+                        "generate_playlist": ConversationAction.GENERATE_PLAYLIST,
+                    }
+
+                    mapped_action = action_mapping.get(
+                        orchestrator_response.get("action", "ask_clarification"),
+                        ConversationAction.ASK_CLARIFICATION
+                    )
+
+                    return conversation_id, {
+                        "state": mapped_state,
+                        "action": mapped_action,
+                        "message_to_user": orchestrator_response.get("message_to_user", ""),
+                        "workout_intent": orchestrator_response.get("workout_intent"),
+                        "workout_id": orchestrator_response.get("workout_id"),
+                        "playlist": orchestrator_response.get("playlist"),
+                    }
+                except Exception as e:
+                    logger.error(f"Error in ConversationOrchestrator: {e}", exc_info=True)
+                    # Fall through to normal processing
+
+            # Check if message is a greeting or general question (not workout-related)
+            # Use ConversationAgent if available
+            if self.conversation_agent and self._is_greeting_or_general_question(message, current_state):
+                logger.info(f"Detected greeting/general question: '{message}', using ConversationAgent")
+                try:
+                    # Use ConversationAgent to handle the message
+                    response = await self.conversation_agent.respond(
+                        message=message,
+                        user_id=user_id,
+                        conversation_history=conversation["messages"][:-1],  # Exclude current message
+                        user_preferences=user_preferences,
+                    )
+
+                    # Add assistant response to history
+                    conversation["messages"].append(
+                        {
+                            "role": "assistant",
+                            "content": response,
+                            "timestamp": datetime.utcnow().isoformat(),
+                        }
+                    )
+
+                    # Keep state as NEW or NEEDS_CLARIFICATION (don't change to workout-related states)
+                    conversation["state"] = ConversationStateEnum.NEEDS_CLARIFICATION
+                    conversation["updated_at"] = datetime.utcnow().isoformat()
+
+                    # Save conversation
+                    await self._save_conversation(conversation)
+
+                    return conversation_id, {
+                        "state": ConversationStateEnum.NEEDS_CLARIFICATION,
+                        "action": ConversationAction.ASK_CLARIFICATION,
+                        "message_to_user": response,
+                        "workout_intent": None,
+                    }
+                except Exception as e:
+                    logger.error(f"Error in ConversationAgent: {e}")
+                    # Fall through to normal processing
 
             # Check if user is responding to workout confirmation question
             if current_state == ConversationStateEnum.ASK_WORKOUT_CONFIRMATION:
@@ -410,6 +571,54 @@ class ConversationManager:
                 "workout_intent": workout_intent.model_dump(),
                 "confidence": workout_intent.confidence,
             }
+
+    def _is_greeting_or_general_question(self, message: str, current_state: ConversationStateEnum) -> bool:
+        """
+        Check if message is a greeting or general question (not workout-related).
+
+        Args:
+            message: User's message
+            current_state: Current conversation state
+
+        Returns:
+            True if message is greeting/general question, False if workout-related
+        """
+        message_lower = message.lower().strip()
+
+        # If state is NEW, check for greetings
+        if current_state == ConversationStateEnum.NEW:
+            greetings = [
+                "привіт", "вітаю", "добрий день", "добрий вечір", "доброго ранку",
+                "hello", "hi", "hey", "вітаю", "здоров", "здоровенькі були",
+            ]
+            if any(greeting in message_lower for greeting in greetings):
+                return True
+
+        # Check for general questions
+        general_questions = [
+            "ти хто", "хто ти", "що ти", "що це", "як це працює", "як працює",
+            "допомога", "help", "що ти вмієш", "що можеш", "можливості",
+            "who are you", "what are you", "what is this", "how does this work",
+        ]
+        if any(question in message_lower for question in general_questions):
+            return True
+
+        # Check if message is very short and doesn't contain workout keywords
+        workout_keywords = [
+            "біг", "пробіжка", "тренування", "воркаут", "workout", "run", "running",
+            "хвилин", "хв", "година", "години", "minutes", "hour", "hours",
+            "інтервали", "фартлек", "темповий", "легкий", "важкий", "інтенсивність",
+            "intervals", "fartlek", "tempo", "easy", "hard", "intensity",
+        ]
+
+        # If message is short (< 20 chars) and doesn't contain workout keywords, might be greeting/question
+        if len(message_lower) < 20 and not any(keyword in message_lower for keyword in workout_keywords):
+            # But check if it's clearly a workout description
+            if any(char.isdigit() for char in message_lower):  # Contains numbers - might be workout
+                return False
+            return True
+
+        return False
 
     def _is_intent_complete(self, intent: WorkoutIntent) -> bool:
         """

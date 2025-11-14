@@ -122,6 +122,7 @@ class WorkoutIntent(BaseModel):
 class PlaylistTrack(BaseModel):
     """Track in playlist response."""
 
+    id: Optional[str] = Field(None, description="Spotify track ID (if available)")
     title: str = Field(..., description="Track title")
     artist: str = Field(..., description="Artist name")
     bpm: float = Field(..., description="BPM (tempo)")

@@ -121,15 +121,22 @@ class ConversationAgent(BaseAgent):
             ])
             user_prompt += f"\n\nUser preferences: {prefs_str}"
 
-        # Add conversation history to memory if provided
+        # Clear memory first to avoid duplicates
+        self.clear_memory()
+
+        # Add conversation history to memory if provided (excluding current message)
         if conversation_history:
-            for msg in conversation_history[:-1]:  # Exclude current message
+            for msg in conversation_history:
                 role = msg.get("role", "user")
                 content = msg.get("content", "")
-                self.add_to_memory(role, content)
+                if content:  # Only add non-empty messages
+                    self.add_to_memory(role, content)
+
+        # Add current user message to memory (AgentExecutor will add response automatically)
+        self.add_to_memory("user", message)
 
         try:
-            # Invoke agent
+            # Invoke agent (memory is automatically used by AgentExecutor)
             result = await self.agent_executor.ainvoke({
                 "input": user_prompt,
             })
@@ -137,9 +144,7 @@ class ConversationAgent(BaseAgent):
             # Extract output
             response = result.get("output", "")
 
-            # Add current message and response to memory
-            self.add_to_memory("user", message)
-            self.add_to_memory("assistant", response)
+            # Note: Memory is already updated by agent_executor, no need to add again
 
             logger.info(f"ConversationAgent response: {response[:50]}...")
             return response
