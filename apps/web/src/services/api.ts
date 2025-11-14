@@ -53,38 +53,53 @@ class ApiClient {
         }
         return response;
       },
-      (error) => {
+      async (error) => {
         // Better error handling
-        if (error.code === 'ECONNABORTED') {
-          console.error('API Request timeout');
-          return Promise.reject(
-            new Error('Час очікування вичерпано. Спробуйте ще раз.')
-          );
-        }
+        let errorMessage = 'Невідома помилка';
+        let statusCode: number | undefined;
 
-        if (error.response) {
+        if (error.code === 'ECONNABORTED') {
+          errorMessage = 'Час очікування вичерпано. Спробуйте ще раз.';
+          console.error('API Request timeout');
+        } else if (error.response) {
           // Server responded with error status
-          const status = error.response.status;
-          const message =
+          statusCode = error.response.status;
+          errorMessage =
             error.response.data?.detail ||
             error.response.data?.message ||
-            `Помилка сервера: ${status}`;
-          console.error('API Error Response:', status, message);
-          return Promise.reject(new Error(message));
+            `Помилка сервера: ${statusCode}`;
+          console.error('API Error Response:', statusCode, errorMessage);
         } else if (error.request) {
           // Request was made but no response received
+          errorMessage =
+            'Не вдалося підключитися до сервера. Перевірте, чи працює backend API.';
           console.error('API No Response:', error.request);
           console.error('API URL was:', API_URL);
-          return Promise.reject(
-            new Error(
-              'Не вдалося підключитися до сервера. Перевірте, чи працює backend API.'
-            )
-          );
         } else {
           // Something else happened
-          console.error('API Error:', error.message);
-          return Promise.reject(new Error(error.message || 'Невідома помилка'));
+          errorMessage = error.message || 'Невідома помилка';
+          console.error('API Error:', errorMessage);
         }
+
+        // Log error to backend (fire and forget)
+        try {
+          const { errorLogger } = await import('./errorLogger');
+          errorLogger.logError(new Error(errorMessage), {
+            request_path: error.config?.url,
+            request_method: error.config?.method?.toUpperCase(),
+            request_body: error.config?.data,
+            response_status: statusCode,
+            error_details: {
+              code: error.code,
+              isAxiosError: error.isAxiosError,
+            },
+          });
+        } catch (logError) {
+          // Don't fail if error logging fails
+          console.debug('Failed to log error to backend:', logError);
+        }
+
+        return Promise.reject(new Error(errorMessage));
       }
     );
   }

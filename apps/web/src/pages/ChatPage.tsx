@@ -50,6 +50,7 @@ export function ChatPage() {
     null
   );
   const [loadingVariants, setLoadingVariants] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [excludedTrackIds, setExcludedTrackIds] = useState<Set<string>>(new Set());
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -193,7 +194,7 @@ export function ChatPage() {
 
     setShowPlaylistQuestion(false);
     setLoadingVariants(true);
-    setError(null); // Clear any previous errors
+    setLocalError(null); // Clear any previous errors
     try {
       // Use saved genres and interval_stages from workout if available
       let genresToUse = workoutSettings.genres;
@@ -322,16 +323,27 @@ export function ChatPage() {
     } catch (error) {
       console.error('Failed to generate variants:', error);
       const errorMessage = error instanceof Error ? error.message : 'Не вдалося згенерувати варіанти плейлисту';
-      setError(errorMessage);
+      setLocalError(errorMessage);
 
-      // Add error message to chat
-      const errorMsg: Message = {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: `❌ Помилка: ${errorMessage}`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      // Log error to backend
+      try {
+        const { errorLogger } = await import('../services/errorLogger');
+        errorLogger.logError(
+          error instanceof Error ? error : new Error(String(error)),
+          {
+            user_id: user?.id,
+            request_path: '/api/v1/playlists/preview-variants',
+            request_method: 'POST',
+            error_details: {
+              workout_id: activeWorkoutId,
+              workout_type: activeWorkout?.type,
+            },
+          }
+        );
+      } catch (logError) {
+        // Don't fail if error logging fails
+        console.debug('Failed to log error:', logError);
+      }
 
       setVariants(null);
       setShowPlaylistQuestion(true); // Show button again so user can retry
@@ -617,11 +629,12 @@ export function ChatPage() {
               )}
             </div>
           )}
-          {error && (
+          {(error || localError) && (
             <ErrorDisplay
-              error={error}
+              error={error || localError || ''}
               onDismiss={() => {
-                // Error will be cleared on next message
+                setLocalError(null);
+                // Error from useChat will be cleared on next message
               }}
             />
           )}

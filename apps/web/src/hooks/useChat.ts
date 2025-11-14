@@ -98,6 +98,25 @@ export function useChat() {
         console.error('Unknown chat error:', err);
       }
 
+      // Log error to backend
+      try {
+        const { errorLogger } = await import('../services/errorLogger');
+        errorLogger.logError(
+          err instanceof Error ? err : new Error(String(err)),
+          {
+            request_path: '/api/v1/chat/message',
+            request_method: 'POST',
+            error_details: {
+              conversation_id,
+              user_id,
+            },
+          }
+        );
+      } catch (logError) {
+        // Don't fail if error logging fails
+        console.debug('Failed to log chat error:', logError);
+      }
+
       setError(errorMessage);
 
       const errorMsg: Message = {

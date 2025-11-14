@@ -13,6 +13,36 @@ from app.models.error_log import ErrorLog
 router = APIRouter(prefix="/error-logs", tags=["error-logs"])
 
 
+@router.post("/")
+def create_error_log(
+    error_log: ErrorLog,
+):
+    """
+    Create a new error log entry.
+
+    Used by frontend to log client-side errors.
+    """
+    try:
+        error_log_id = error_logging_service.log_error(
+            level=error_log.level,
+            message=error_log.message,
+            exception=None,  # Frontend errors don't have Python exceptions
+            user_id=error_log.user_id,
+            request_path=error_log.request_path,
+            request_method=error_log.request_method,
+            request_body=error_log.request_body,
+            response_status=error_log.response_status,
+            error_details=error_log.error_details,
+        )
+
+        return {"id": error_log_id, "status": "logged"}
+
+    except Exception as e:
+        logger.error(f"Failed to create error log: {e}")
+        # Don't fail if error logging fails
+        return {"status": "failed", "message": str(e)}
+
+
 @router.get("/", response_model=List[ErrorLog])
 def get_error_logs(
     level: Optional[str] = Query(None, description="Filter by log level (ERROR, CRITICAL, WARNING)"),
