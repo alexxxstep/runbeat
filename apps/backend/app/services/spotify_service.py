@@ -708,6 +708,50 @@ class SpotifyService:
             logger.error(f"Failed to get audio features: {e}")
             raise
 
+    async def search_track_by_name(
+        self,
+        track_name: str,
+        artist_name: Optional[str] = None,
+        limit: int = 1,
+    ) -> Optional[Dict]:
+        """
+        Search for a specific track by name and optionally artist.
+
+        Args:
+            track_name: Track name
+            artist_name: Optional artist name for better matching
+            limit: Number of results to return (default 1 for best match)
+
+        Returns:
+            Track dictionary if found, None otherwise
+        """
+        try:
+            sp = spotipy.Spotify(
+                client_credentials_manager=self.client_credentials
+            )
+
+            # Build search query
+            if artist_name:
+                query = f"track:{track_name} artist:{artist_name}"
+            else:
+                query = f"track:{track_name}"
+
+            search_results = sp.search(
+                q=query,
+                type="track",
+                limit=limit,
+                market="US"
+            )
+
+            tracks = search_results.get("tracks", {}).get("items", [])
+            if tracks:
+                return tracks[0]
+            return None
+
+        except Exception as e:
+            logger.warning(f"Failed to search track '{track_name}' by '{artist_name}': {e}")
+            return None
+
     async def create_playlist(
         self,
         user_client: spotipy.Spotify,

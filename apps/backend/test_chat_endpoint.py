@@ -41,9 +41,10 @@ Extract:
 Return ONLY valid JSON.
 """
 
-        result = await llm.parse_workout(prompt)
+        result = await llm.parse_workout(prompt=prompt)
         print("[OK] LLMService test passed!")
-        print(f"Result: {result}")
+        print(f"Result type: {type(result).__name__}")
+        print(f"Result: {result.model_dump() if hasattr(result, 'model_dump') else result}")
         return True
 
     except Exception as e:

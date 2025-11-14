@@ -68,7 +68,20 @@ export function ChatPage() {
   const handleSend = async (text: string) => {
     const workout = await sendMessage(text, user?.id);
 
-    // If workout is ready, show workout info and ask for confirmation
+    // Check if playlist was generated in conversation flow
+    // The playlist is already added to messages by useChat hook
+    // Use useEffect to check after messages update, or check workout marker
+    if (workout && (workout as any)._hasPlaylist) {
+      // Playlist was generated automatically in conversation flow
+      // No need to show playlist question - it's already in the chat
+      setActiveWorkout(workout);
+      setShowPlaylistQuestion(false);
+      return;
+    }
+
+    // If workout is ready and complete, show workout info and ask for confirmation
+    // Note: If needs_clarification is true, the conversation continues automatically
+    // The AI message with clarification question is already added to messages
     if (workout && !workout.needs_clarification) {
       // Set active workout and show question
       setActiveWorkout(workout);
@@ -77,6 +90,8 @@ export function ChatPage() {
       addWorkoutActivationMessage(workout);
       setShowPlaylistQuestion(true);
     }
+    // If needs_clarification, user can continue the conversation naturally
+    // The clarification question is already displayed in the chat
   };
 
   const generateVariants = async () => {
@@ -695,7 +710,17 @@ export function ChatPage() {
             </div>
           )}
 
-          {(isLoading || loadingVariants) && <TypingIndicator />}
+          {(isLoading || loadingVariants) && (
+            <TypingIndicator
+              message={
+                loadingVariants
+                  ? 'Генерую варіанти плейлисту...'
+                  : isLoading
+                  ? 'Обробляю повідомлення...'
+                  : undefined
+              }
+            />
+          )}
         </div>
 
         <InputBar onSend={handleSend} disabled={isLoading || loadingVariants} />

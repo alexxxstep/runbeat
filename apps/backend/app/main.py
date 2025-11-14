@@ -58,8 +58,20 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# Include routers
+# Include routers with API versioning
+# Health check endpoints (no versioning)
 app.include_router(health.router, tags=["health"])
+
+# API v1 endpoints
+api_v1_prefix = "/api/v1"
+app.include_router(chat.router, prefix=api_v1_prefix, tags=["chat"])
+app.include_router(playlists.router, prefix=api_v1_prefix, tags=["playlists"])
+app.include_router(auth.router, prefix=api_v1_prefix, tags=["auth"])
+app.include_router(workouts.router, prefix=api_v1_prefix, tags=["workouts"])
+app.include_router(users.router, prefix=api_v1_prefix, tags=["users"])
+
+# Backward compatibility: also include without prefix for existing clients
+# TODO: Remove in future version
 app.include_router(chat.router, tags=["chat"])
 app.include_router(playlists.router, tags=["playlists"])
 app.include_router(auth.router, tags=["auth"])

@@ -89,7 +89,7 @@ class ApiClient {
   // Chat endpoints
   async sendMessage(request: ChatRequest): Promise<ChatResponse> {
     const response = await this.client.post<ChatResponse>(
-      '/chat/message',
+      '/api/v1/chat/message',
       request
     );
     return response.data;

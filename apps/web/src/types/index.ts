@@ -55,12 +55,38 @@ export interface Playlist {
 export interface ChatRequest {
   message: string;
   user_id?: string;
+  conversation_id?: string;
 }
 
 export interface ChatResponse {
   message: string;
   workout?: Workout;
+  playlist?: PlaylistFromLLM;
   needs_clarification: boolean;
+  conversation_id?: string;
+  is_complete?: boolean;
+}
+
+// Playlist response from LLM (conversation flow)
+export interface PlaylistFromLLM {
+  playlist_name: string;
+  total_tracks: number;
+  total_duration_minutes: number;
+  bpm_range: [number, number];
+  progression_type: 'steady' | 'building' | 'wave' | 'pyramid';
+  primary_genres: string[];
+  tracks: PlaylistTrackFromLLM[];
+  curation_notes?: string;
+}
+
+export interface PlaylistTrackFromLLM {
+  title: string;
+  artist: string;
+  bpm: number;
+  duration_seconds: number;
+  energy_level: number;
+  genre: string;
+  phase: 'warm-up' | 'main' | 'cool-down';
 }
 
 export interface PlaylistGenerateRequest {

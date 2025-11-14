@@ -5,6 +5,7 @@ import pytest
 from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 from app.main import app
+from app.schemas.llm_responses import WorkoutIntent
 
 client = TestClient(app)
 
@@ -12,28 +13,28 @@ client = TestClient(app)
 @pytest.fixture
 def mock_llm_response():
     """Mock LLM response for testing."""
-    return {
-        "type": "steady",
-        "duration_minutes": 30,
-        "intensity": "low",
-        "hr_zones": [110, 130],
-        "confidence": 0.95,
-        "needs_clarification": False,
-    }
+    return WorkoutIntent(
+        workout_type="recovery",
+        duration_minutes=30,
+        target_bpm_min=110,
+        target_bpm_max=130,
+        confidence=0.95,
+        needs_clarification=False,
+    )
 
 
 @pytest.fixture
 def mock_llm_response_clarification():
     """Mock LLM response requiring clarification."""
-    return {
-        "type": "intervals",
-        "duration_minutes": 40,
-        "intensity": "moderate",
-        "hr_zones": [130, 180],
-        "confidence": 0.8,
-        "needs_clarification": True,
-        "clarification_question": "Який буде інтервал роботи/відпочинку?",
-    }
+    return WorkoutIntent(
+        workout_type="intervals",
+        duration_minutes=40,
+        target_bpm_min=130,
+        target_bpm_max=180,
+        confidence=0.8,
+        needs_clarification=True,
+        clarification_question="Який буде інтервал роботи/відпочинку?",
+    )
 
 
 @patch("app.api.routes.chat.LLMService")

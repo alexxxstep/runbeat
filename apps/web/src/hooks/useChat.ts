@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
 import { api } from '../services/api';
-import type { Message, Workout, ChatRequest, Track } from '../types';
+import type { Message, Workout, ChatRequest, Track, PlaylistFromLLM } from '../types';
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | undefined>();
 
   const sendMessage = useCallback(async (text: string, userId?: string) => {
     const userMessage: Message = {
@@ -22,8 +23,14 @@ export function useChat() {
       const request: ChatRequest = {
         message: text,
         user_id: userId,
+        conversation_id: conversationId,
       };
       const response = await api.sendMessage(request);
+
+      // Update conversation ID if provided
+      if (response.conversation_id) {
+        setConversationId(response.conversation_id);
+      }
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -31,13 +38,51 @@ export function useChat() {
         content: response.message,
         timestamp: new Date(),
         workout: response.workout,
+        // Convert LLM playlist to frontend Playlist format if available
+        playlist: response.playlist
+          ? {
+              playlist_id: response.playlist.spotify_playlist_id || undefined,
+              spotify_url: response.playlist.spotify_url || undefined,
+              tracks: response.playlist.tracks.map((track) => ({
+                id: `${track.title}-${track.artist}`, // Temporary ID
+                name: track.title,
+                artist: track.artist,
+                artist_id: '', // Not available from LLM
+                album: undefined,
+                duration_ms: track.duration_seconds * 1000,
+                spotify_url: '',
+                spotify_uri: '',
+                preview_url: undefined,
+                external_urls: {},
+                tempo: track.bpm,
+                bpm: track.bpm,
+                energy: track.energy_level,
+                danceability: 0.5, // Default
+                valence: 0.5, // Default
+                genres: [track.genre],
+                phase: track.phase, // Preserve phase info for display
+              })),
+              total_duration: response.playlist.total_duration_minutes * 60, // Convert to seconds
+              total_tracks: response.playlist.total_tracks,
+              generation_time_seconds: undefined,
+            }
+          : undefined,
       };
       setMessages((prev) => [...prev, aiMessage]);
 
-      if (response.workout && !response.needs_clarification) {
+      // Return workout and playlist info if available
+      // If playlist is available, it means workout is complete and playlist is generated
+      if (response.playlist) {
+        // Playlist is already in the message, return workout for compatibility
+        // Also return a special marker to indicate playlist is available
+        return { ...response.workout, _hasPlaylist: true } as Workout & { _hasPlaylist?: boolean } || null;
+      }
+
+      if (response.workout && response.is_complete && !response.needs_clarification) {
         return response.workout;
       }
 
+      // If needs clarification, return null but conversation continues
       return null;
     } catch (err) {
       // Better error handling
@@ -63,7 +108,7 @@ export function useChat() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [conversationId]);
 
   const generatePlaylist = useCallback(
     async (
@@ -163,6 +208,7 @@ export function useChat() {
   const clearMessages = useCallback(() => {
     setMessages([]);
     setError(null);
+    setConversationId(undefined);
   }, []);
 
   const addWorkoutActivationMessage = useCallback((workout: Workout) => {
@@ -207,5 +253,6 @@ export function useChat() {
     addWorkoutActivationMessage,
     isLoading,
     error,
+    conversationId,
   };
 }
