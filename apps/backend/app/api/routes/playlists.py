@@ -715,533 +715,72 @@ async def _generate_variants_internal(
     request: PlaylistGenerateRequest,
     generator: PlaylistGenerator,
 ) -> PlaylistVariantsResponse:
-    """Internal function to generate variants."""
+    """Internal function to generate variants using the new WorkoutProfiler."""
     start_time = time.time()
 
     try:
+        interval_stages = [stage.model_dump() for stage in request.interval_stages] if request.interval_stages else None
 
-        # Prepare interval stages
-        interval_stages = None
-        if request.interval_stages:
-            interval_stages = [
-                {
-                    "name": stage.name,
-                    "duration_minutes": stage.duration_minutes,
-                    "hr_zone": stage.hr_zone,
-                    "bpm_range": stage.bpm_range,
-                }
-                for stage in request.interval_stages
-            ]
-
-        # Get excluded track IDs from request (from previous generations)
-        excluded_track_ids_from_request = request.excluded_track_ids or []
-        logger.info(
-            f"Generating new variants. Excluding {len(excluded_track_ids_from_request)} tracks from previous generations"
+        # --- Generate Variant 1 (Primary) ---
+        playlist_data_variant1 = await generator.generate(
+            workout=request.workout,
+            user_preferences=request.user_preferences or {},
+            interval_stages=interval_stages,
+            prompt=request.prompt,
+            excluded_track_ids=request.excluded_track_ids,
+            variant_strategy="primary",
         )
 
-        # Generate first variant with original preferences
-        # Exclude tracks from previous generations if any
-        user_prefs_variant1 = request.user_preferences or {}
+        # --- Generate Variant 2 (Alternative) ---
+        # Exclude tracks from Variant 1 to ensure uniqueness
+        variant1_track_ids = {track.id for track in playlist_data_variant1.tracks}
+        all_excluded_ids = list(variant1_track_ids | set(request.excluded_track_ids or []))
 
-        # Add slight variation to variant 1 if there are excluded tracks (from previous generations)
-        # This ensures that even variant 1 is different from previous generations
-        if excluded_track_ids_from_request:
-            # If we're generating new variants (excluded tracks exist), add variation to variant 1 too
-            if "top_genres" in user_prefs_variant1 and user_prefs_variant1["top_genres"]:
-                # Shuffle genres for variant 1 when regenerating
-                genres_v1 = user_prefs_variant1["top_genres"].copy()
-                random.shuffle(genres_v1)
-                user_prefs_variant1["top_genres"] = genres_v1
-                logger.debug(f"Variant 1 (regeneration): Shuffled genres for variety: {genres_v1}")
+        playlist_data_variant2 = await generator.generate(
+            workout=request.workout,
+            user_preferences=request.user_preferences or {},
+            interval_stages=interval_stages,
+            prompt=request.prompt,
+            excluded_track_ids=all_excluded_ids,
+            variant_strategy="alternative",
+        )
 
-        try:
-            # Get user token for variants generation
-            user_token = None
-            if request.user_id:
-                try:
-                    supabase = SupabaseService().get_client()
-                    user_data = (
-                        supabase.table("users")
-                        .select("spotify_access_token, spotify_token_expires_at")
-                        .eq("id", request.user_id)
-                        .execute()
-                    )
-
-                    if user_data.data and user_data.data[0].get("spotify_access_token"):
-                        expires_at_str = user_data.data[0].get("spotify_token_expires_at")
-                        if expires_at_str:
-                            expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
-                            if expires_at > datetime.now(expires_at.tzinfo):
-                                user_token = user_data.data[0]["spotify_access_token"]
-                except Exception as token_error:
-                    logger.warning(f"Failed to get user token: {token_error}")
-
-            # OPTIMIZATION: Prepare variant 2 preferences before generating variant 1
-            # This allows us to generate both variants in parallel
-            user_prefs_variant2 = user_prefs_variant1.copy()
-
-            # Add more variation between variants to ensure different tracks
-            # Variation strategy: rotate/reverse genres, adjust BPM
-            if "top_genres" in user_prefs_variant2 and user_prefs_variant2["top_genres"]:
-                # More aggressive variation: rotate genres (move first to last)
-                genres = user_prefs_variant2["top_genres"].copy()
-                if len(genres) > 1:
-                    # Rotate genres for more variety (move first to last)
-                    genres = genres[1:] + genres[:1]
-                else:
-                    # If only one genre, shuffle doesn't help, rely on excluded tracks
-                    random.shuffle(genres)
-                user_prefs_variant2["top_genres"] = genres
-                logger.debug(f"Variant 2: Rotated genres for variety: {genres}")
-
-            # Also adjust BPM slightly as additional variation
-            if "avg_bpm" in user_prefs_variant2:
-                # Slight BPM variation (±5 to ±10)
-                bpm_adjustment = random.choice([-10, -5, 5, 10])
-                user_prefs_variant2["avg_bpm"] = max(60, min(200, user_prefs_variant2.get(
-                    "avg_bpm", 145) + bpm_adjustment))
-                logger.debug(f"Variant 2: Adjusted BPM by {bpm_adjustment}: {user_prefs_variant2['avg_bpm']}")
-            elif not user_prefs_variant2.get("top_genres"):
-                # If no genres, add BPM variation
-                user_prefs_variant2["avg_bpm"] = 145 + random.choice([-10, -5, 5, 10])
-
-            # OPTIMIZATION: Generate both variants in parallel
-            # Variant 2 will exclude only tracks from previous generations (not variant 1)
-            # We'll filter duplicates from variant 1 after generation
-            logger.info("Generating variants in parallel for better performance...")
-
-            # For LangChain integration, create different workout_intents for variants
-            # This ensures the agent generates different playlists
-            workout_intent_variant1 = None
-            workout_intent_variant2 = None
-
-            # If using LangChain, create WorkoutIntent with variations
-            if generator.use_langchain_curator:
-                from app.schemas.llm_responses import WorkoutIntent
-
-                # Map workout.type to WorkoutIntent.workout_type
-                workout_type_map = {
-                    "steady": "continuous",
-                    "progressive": "continuous",
-                    "intervals": "intervals",
-                    "fartlek": "fartlek",
-                }
-                workout_type = workout_type_map.get(request.workout.type, "continuous")
-
-                # Get BPM from hr_zones
-                bpm_min = request.workout.hr_zones[0] if request.workout.hr_zones and len(request.workout.hr_zones) > 0 else 120
-                bpm_max = request.workout.hr_zones[1] if request.workout.hr_zones and len(request.workout.hr_zones) > 1 else 160
-
-                # Variant 1: Original preferences
-                music_genres_v1 = user_prefs_variant1.get("top_genres", []) if isinstance(user_prefs_variant1, dict) else []
-                workout_intent_variant1 = WorkoutIntent(
-                    workout_type=workout_type,
-                    duration_minutes=request.workout.duration_minutes,
-                    target_bpm_min=bpm_min,
-                    target_bpm_max=bpm_max,
-                    intervals=None,
-                    energy_profile="steady",
-                    music_genres=music_genres_v1 if music_genres_v1 else None,
-                    music_prompt=request.prompt,
-                    confidence=0.9,
-                    needs_clarification=False,
-                )
-
-                # Variant 2: Modified preferences (different genres, slightly different BPM)
-                music_genres_v2 = user_prefs_variant2.get("top_genres", []) if isinstance(user_prefs_variant2, dict) else []
-                # Adjust BPM slightly for variant 2 (±5 BPM)
-                bpm_adjustment = random.choice([-5, 5])
-                bpm_min_v2 = max(60, min(200, bpm_min + bpm_adjustment))
-                bpm_max_v2 = max(60, min(200, bpm_max + bpm_adjustment))
-
-                # Modify prompt slightly for variant 2
-                prompt_v2 = request.prompt
-                if prompt_v2:
-                    # Add variation hint to prompt
-                    prompt_v2 = f"{prompt_v2} (alternative style)"
-
-                workout_intent_variant2 = WorkoutIntent(
-                    workout_type=workout_type,
-                    duration_minutes=request.workout.duration_minutes,
-                    target_bpm_min=bpm_min_v2,
-                    target_bpm_max=bpm_max_v2,
-                    intervals=None,
-                    energy_profile="steady",
-                    music_genres=music_genres_v2 if music_genres_v2 else None,
-                    music_prompt=prompt_v2,
-                    confidence=0.9,
-                    needs_clarification=False,
-                )
-
-                # Add intervals if interval_stages provided
-                if interval_stages and workout_type in ["intervals", "fartlek"]:
-                    from app.schemas.llm_responses import IntervalPhase
-                    intervals = []
-                    for stage in interval_stages:
-                        phase_type = "work" if stage.get("hr_zone", 3) >= 3 else "rest"
-                        bpm_range = stage.get("bpm_range", [bpm_min, bpm_max])
-                        target_bpm = int((bpm_range[0] + bpm_range[1]) / 2)
-                        intervals.append(IntervalPhase(
-                            type=phase_type,
-                            duration_minutes=stage.get("duration_minutes", 5),
-                            target_bpm=target_bpm,
-                        ))
-                    workout_intent_variant1.intervals = intervals
-                    workout_intent_variant2.intervals = intervals
-
-                logger.debug(f"Created WorkoutIntent for variant 1: genres={music_genres_v1}, BPM={bpm_min}-{bpm_max}")
-                logger.debug(f"Created WorkoutIntent for variant 2: genres={music_genres_v2}, BPM={bpm_min_v2}-{bpm_max_v2}")
-
-            variant1_task = generator.generate(
-                workout=request.workout,
-                user_preferences=user_prefs_variant1,
-                interval_stages=interval_stages,
-                prompt=request.prompt,
-                user_token=user_token,
-                excluded_track_ids=excluded_track_ids_from_request if excluded_track_ids_from_request else None,
-                workout_intent=workout_intent_variant1,  # Pass WorkoutIntent for LangChain
-            )
-
-            variant2_task = generator.generate(
-                workout=request.workout,
-                user_preferences=user_prefs_variant2,
-                interval_stages=interval_stages,
-                prompt=request.prompt,
-                user_token=user_token,
-                excluded_track_ids=excluded_track_ids_from_request if excluded_track_ids_from_request else None,
-                workout_intent=workout_intent_variant2,  # Pass different WorkoutIntent for LangChain
-                # Note: We don't exclude variant 1 tracks here - we'll filter them after generation
-            )
-
-            # Execute both tasks in parallel
-            try:
-                playlist_data_variant1, playlist_data_variant2 = await asyncio.gather(
-                    variant1_task,
-                    variant2_task,
-                    return_exceptions=True
-                )
-            except Exception as e:
-                logger.error(f"Failed to generate variants in parallel: {e}", exc_info=True)
-                raise
-
-            # Handle exceptions from parallel execution
-            if isinstance(playlist_data_variant1, Exception):
-                logger.error(f"Variant 1 generation failed: {playlist_data_variant1}", exc_info=True)
-                raise playlist_data_variant1
-            if isinstance(playlist_data_variant2, Exception):
-                logger.error(f"Variant 2 generation failed: {playlist_data_variant2}", exc_info=True)
-                raise playlist_data_variant2
-
-            # Validate variant 1 has tracks
-            if not playlist_data_variant1 or playlist_data_variant1.total_tracks == 0:
-                logger.warning("Variant 1 is empty, retrying without excluded tracks...")
-                # Retry without excluded tracks if variant 1 is empty
-                playlist_data_variant1 = await generator.generate(
-                    workout=request.workout,
-                    user_preferences=user_prefs_variant1,
-                    interval_stages=interval_stages,
-                    prompt=request.prompt,
-                    user_token=user_token,
-                    excluded_track_ids=None,  # Don't exclude any tracks
-                    workout_intent=workout_intent_variant1,  # Keep WorkoutIntent for LangChain
-                )
-
-            # OPTIMIZATION: Filter duplicate tracks from variant 2 (that are in variant 1)
-            # This ensures variants are different while allowing parallel generation
-            variant1_track_ids = {track.id for track in playlist_data_variant1.tracks}
-            original_variant2_count = playlist_data_variant2.total_tracks  # Save original count before filtering
-            variant2_tracks_filtered = [
-                track for track in playlist_data_variant2.tracks
-                if track.id not in variant1_track_ids
-            ]
-
-            # Check if we have enough tracks after filtering
-            min_required_tracks = max(5, original_variant2_count * 0.7)  # At least 70% of original or 5 tracks
-
-            if len(variant2_tracks_filtered) < min_required_tracks:
-                logger.info(
-                    f"Variant 2 has {len(variant2_tracks_filtered)} unique tracks after filtering "
-                    f"(need at least {int(min_required_tracks)}). Generating additional tracks..."
-                )
-
-                # Generate additional tracks for variant 2, excluding both variant 1 and existing variant 2 tracks
-                excluded_for_additional = list(variant1_track_ids | {t.id for t in variant2_tracks_filtered})
-
-                try:
-                    additional_playlist = await generator.generate(
-                        workout=request.workout,
-                        user_preferences=user_prefs_variant2,
-                        interval_stages=interval_stages,
-                        prompt=request.prompt,
-                        user_token=user_token,
-                        excluded_track_ids=excluded_for_additional if excluded_for_additional else None,
-                        workout_intent=workout_intent_variant2,  # Keep WorkoutIntent for LangChain
-                    )
-
-                    if additional_playlist and additional_playlist.total_tracks > 0:
-                        # Add unique tracks from additional generation
-                        additional_tracks = [
-                            track for track in additional_playlist.tracks
-                            if track.id not in variant1_track_ids
-                        ]
-                        variant2_tracks_filtered.extend(additional_tracks)
-                        logger.info(f"Added {len(additional_tracks)} additional unique tracks to variant 2")
-                except Exception as e:
-                    logger.warning(f"Failed to generate additional tracks for variant 2: {e}")
-
-            # Recalculate variant 2 duration and create new PlaylistData
-            variant2_duration = sum(t.duration_ms for t in variant2_tracks_filtered) / 1000
-            from app.models.playlist import PlaylistData
-            playlist_data_variant2 = PlaylistData(
-                tracks=variant2_tracks_filtered,
-                total_duration=variant2_duration,
-                total_tracks=len(variant2_tracks_filtered),
-            )
-
-            logger.info(
-                f"Variants generated in parallel: "
-                f"Variant 1: {playlist_data_variant1.total_tracks} tracks, "
-                f"Variant 2: {playlist_data_variant2.total_tracks} tracks "
-                f"(filtered from {original_variant2_count} to remove duplicates with variant 1)"
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to generate variants: {e}", exc_info=True)
-            raise
-
-        # Final check: if variant 2 is still empty or None, create fallback
+        # --- Fallback Logic ---
+        # If variant 2 is empty, create a fallback by shuffling variant 1
         if not playlist_data_variant2 or playlist_data_variant2.total_tracks == 0:
-            logger.warning("Variant 2 is still empty after all retries, creating fallback")
-            from app.models.playlist import PlaylistData
-
-            # If variant 1 has tracks, use them for variant 2
+            logger.warning("Variant 2 is empty, creating fallback from Variant 1.")
             if playlist_data_variant1 and playlist_data_variant1.total_tracks > 0:
                 variant2_tracks = playlist_data_variant1.tracks.copy()
                 random.shuffle(variant2_tracks)
                 variant2_duration = sum(t.duration_ms for t in variant2_tracks) / 1000
-                playlist_data_variant2 = PlaylistData(
+                playlist_data_variant2 = playlist_data_variant1.__class__(
                     tracks=variant2_tracks,
                     total_duration=variant2_duration,
                     total_tracks=len(variant2_tracks),
                 )
-            else:
-                # Both variants are empty - will be handled by validation below
-                logger.warning("Both variants are empty, will create fallback playlists")
-                playlist_data_variant2 = PlaylistData(tracks=[], total_duration=0, total_tracks=0)
 
         generation_time = time.time() - start_time
-
-        # Calculate minimum required duration (workout duration in seconds)
-        min_duration_seconds = request.workout.duration_minutes * 60
-
-        # Recalculate durations after potential fallback creation
-        variant1_duration = playlist_data_variant1.total_duration if playlist_data_variant1 else 0
-        variant2_duration = playlist_data_variant2.total_duration if playlist_data_variant2 else 0
-
         logger.info(
-            f"Variants generated: "
-            f"Variant 1: {playlist_data_variant1.total_tracks} tracks, "
-            f"{variant1_duration:.1f}s ({variant1_duration / 60:.1f} min), "
-            f"Variant 2: {playlist_data_variant2.total_tracks} tracks, "
-            f"{variant2_duration:.1f}s ({variant2_duration / 60:.1f} min), "
-            f"Target: {min_duration_seconds}s ({request.workout.duration_minutes} min), "
-            f"{generation_time:.2f}s"
+            f"Variants generated successfully in {generation_time:.2f}s. "
+            f"V1: {playlist_data_variant1.total_tracks} tracks, V2: {playlist_data_variant2.total_tracks} tracks."
         )
-
-        # Validate that variants are not empty - create fallback playlists if both are empty
-        if playlist_data_variant1.total_tracks == 0 and playlist_data_variant2.total_tracks == 0:
-            logger.warning("Both variants are empty, creating fallback playlists with popular tracks")
-            # Create fallback playlists using basic Spotify recommendations
-            from app.models.playlist import PlaylistData, Track
-
-            try:
-                # Get basic recommendations for workout
-                import spotipy
-                from spotipy.oauth2 import SpotifyClientCredentials
-                from app.core.config import settings
-
-                client_credentials = SpotifyClientCredentials(
-                    client_id=settings.SPOTIFY_CLIENT_ID,
-                    client_secret=settings.SPOTIFY_CLIENT_SECRET,
-                )
-                sp = spotipy.Spotify(client_credentials_manager=client_credentials)
-
-                # Get BPM range from workout
-                bpm_min = request.workout.hr_zones[0] if request.workout.hr_zones and len(request.workout.hr_zones) > 0 else 120
-                bpm_max = request.workout.hr_zones[1] if request.workout.hr_zones and len(request.workout.hr_zones) > 1 else 160
-                target_tempo = (bpm_min + bpm_max) / 2
-
-                # Get genres from user preferences or use defaults
-                genres = request.user_preferences.get("top_genres", []) if request.user_preferences else []
-                if not genres:
-                    genres = ["pop", "electronic", "rock"]
-
-                # Get recommendations
-                # Ensure genres is a list and has at least one genre
-                seed_genres_list = genres[:5] if genres and len(genres) >= 1 else ["pop", "electronic"]
-                if len(seed_genres_list) < 5 and len(genres) < 5:
-                    # Fill up to 5 genres if needed
-                    default_genres = ["pop", "electronic", "rock", "house", "dance"]
-                    for g in default_genres:
-                        if g not in seed_genres_list and len(seed_genres_list) < 5:
-                            seed_genres_list.append(g)
-
-                # Ensure BPM range is valid
-                bpm_min_safe = max(60, min(200, int(bpm_min - 10)))
-                bpm_max_safe = max(60, min(200, int(bpm_max + 10)))
-                if bpm_min_safe > bpm_max_safe:
-                    bpm_min_safe, bpm_max_safe = bpm_max_safe, bpm_min_safe
-
-                # Try recommendations with min/max_tempo first (Spotify doesn't like target_tempo + min/max together)
-                try:
-                    recommendations = sp.recommendations(
-                        seed_genres=seed_genres_list,  # Must be a list
-                        min_tempo=bpm_min_safe,
-                        max_tempo=bpm_max_safe,
-                        limit=50,
-                    )
-                except Exception as e:
-                    logger.warning(f"Spotify recommendations failed with min/max_tempo: {e}, trying with target_tempo only")
-                    # Retry with only target_tempo
-                    try:
-                        target_tempo_safe = max(60, min(200, int(target_tempo)))
-                        recommendations = sp.recommendations(
-                            seed_genres=seed_genres_list,
-                            target_tempo=target_tempo_safe,
-                            limit=50,
-                        )
-                    except Exception as e2:
-                        logger.warning(f"Spotify recommendations failed with target_tempo: {e2}, trying without tempo")
-                        # Final fallback: no tempo parameters
-                        recommendations = sp.recommendations(
-                            seed_genres=seed_genres_list,
-                            limit=50,
-                        )
-
-                # Convert to Track objects
-                fallback_tracks = []
-                target_duration = request.workout.duration_minutes * 60  # seconds
-                total_duration = 0
-
-                for track_data in recommendations.get("tracks", [])[:30]:  # Limit to 30 tracks
-                    duration_ms = track_data.get("duration_ms", 0)
-                    duration_seconds = duration_ms / 1000
-
-                    if total_duration + duration_seconds > target_duration * 1.2:  # 20% buffer
-                        break
-
-                    track = Track(
-                        id=track_data.get("id", ""),
-                        name=track_data.get("name", "Unknown"),
-                        artist=", ".join([a["name"] for a in track_data.get("artists", [])]),
-                        artist_id=track_data.get("artists", [{}])[0].get("id", "") if track_data.get("artists") else "",
-                        duration_ms=duration_ms,
-                        spotify_uri=track_data.get("uri", ""),
-                        spotify_url=track_data.get("external_urls", {}).get("spotify", ""),
-                        preview_url=track_data.get("preview_url"),
-                        album=track_data.get("album", {}).get("name", "") if isinstance(track_data.get("album"), dict) else "",
-                        tempo=target_tempo,
-                        bpm=target_tempo,
-                        energy=0.7,
-                        danceability=0.7,
-                        valence=0.7,
-                        genres=genres[:1] if genres else ["pop"],
-                    )
-                    fallback_tracks.append(track)
-                    total_duration += duration_seconds
-
-                if fallback_tracks:
-                    # Create variant 1 from first half
-                    variant1_tracks = fallback_tracks[:len(fallback_tracks)//2 + 1]
-                    variant1_duration = sum(t.duration_ms for t in variant1_tracks) / 1000
-                    playlist_data_variant1 = PlaylistData(
-                        tracks=variant1_tracks,
-                        total_duration=variant1_duration,
-                        total_tracks=len(variant1_tracks),
-                    )
-
-                    # Create variant 2 from second half (shuffled)
-                    variant2_tracks = fallback_tracks[len(fallback_tracks)//2:]
-                    random.shuffle(variant2_tracks)
-                    variant2_duration = sum(t.duration_ms for t in variant2_tracks) / 1000
-                    playlist_data_variant2 = PlaylistData(
-                        tracks=variant2_tracks,
-                        total_duration=variant2_duration,
-                        total_tracks=len(variant2_tracks),
-                    )
-
-                    logger.info(
-                        f"Created fallback playlists: "
-                        f"Variant 1: {len(variant1_tracks)} tracks, "
-                        f"Variant 2: {len(variant2_tracks)} tracks"
-                    )
-                else:
-                    # Ultimate fallback: create minimal playlists
-                    logger.error("Could not create fallback playlists, creating minimal playlists")
-                    # This should not happen, but if it does, create empty playlists
-                    playlist_data_variant1 = PlaylistData(tracks=[], total_duration=0, total_tracks=0)
-                    playlist_data_variant2 = PlaylistData(tracks=[], total_duration=0, total_tracks=0)
-
-            except Exception as fallback_error:
-                logger.error(f"Failed to create fallback playlists: {fallback_error}", exc_info=True)
-                # Ultimate fallback: create minimal playlists
-                playlist_data_variant1 = PlaylistData(tracks=[], total_duration=0, total_tracks=0)
-                playlist_data_variant2 = PlaylistData(tracks=[], total_duration=0, total_tracks=0)
-
-        # Validate duration - both variants should exceed workout duration
-        if variant1_duration < min_duration_seconds:
-            logger.warning(
-                f"Variant 1 duration ({variant1_duration:.1f}s) is less than workout duration "
-                f"({min_duration_seconds}s). This may indicate insufficient tracks."
-            )
-        if variant2_duration < min_duration_seconds:
-            logger.warning(
-                f"Variant 2 duration ({variant2_duration:.1f}s) is less than workout duration "
-                f"({min_duration_seconds}s). This may indicate insufficient tracks."
-            )
-
-        # If both variants are shorter than workout, this is a problem
-        if variant1_duration < min_duration_seconds and variant2_duration < min_duration_seconds:
-            logger.error(
-                f"Both variants are shorter than workout duration. "
-                f"Variant 1: {variant1_duration:.1f}s, Variant 2: {variant2_duration:.1f}s, "
-                f"Target: {min_duration_seconds}s"
-            )
-            # Still return the variants, but log the issue
-
-        if playlist_data_variant1.total_tracks == 0:
-            logger.warning("Variant 1 is empty, but variant 2 has tracks")
-        if playlist_data_variant2.total_tracks == 0:
-            logger.warning("Variant 2 is empty, but variant 1 has tracks")
-
-        # Convert tracks to dict for response
-        tracks_variant1 = [track.model_dump()
-                           for track in playlist_data_variant1.tracks]
-        tracks_variant2 = [track.model_dump()
-                           for track in playlist_data_variant2.tracks]
 
         return PlaylistVariantsResponse(
             variant1=TrackVariant(
-                tracks=tracks_variant1,
+                tracks=[track.model_dump() for track in playlist_data_variant1.tracks],
                 total_duration=playlist_data_variant1.total_duration,
                 total_tracks=playlist_data_variant1.total_tracks,
             ),
             variant2=TrackVariant(
-                tracks=tracks_variant2,
+                tracks=[track.model_dump() for track in playlist_data_variant2.tracks],
                 total_duration=playlist_data_variant2.total_duration,
                 total_tracks=playlist_data_variant2.total_tracks,
             ),
             generation_time_seconds=generation_time,
         )
 
-    except HTTPException:
-        # Re-raise HTTP exceptions (like 422 for empty variants)
-        raise
     except Exception as e:
         logger.error(f"Failed to generate playlist variants: {e}", exc_info=True)
-        import traceback
-        error_details = traceback.format_exc()
-        logger.error(f"Full traceback: {error_details}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate playlist variants: {str(e)}",
