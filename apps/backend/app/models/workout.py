@@ -8,6 +8,7 @@ from typing import List, Optional, Literal
 class Workout(BaseModel):
     """Workout model with parameters."""
 
+    id: Optional[str] = Field(None, description="Workout ID (if saved in database)")
     type: Literal["steady", "progressive", "intervals", "fartlek"] = Field(
         ..., description="Type of workout"
     )

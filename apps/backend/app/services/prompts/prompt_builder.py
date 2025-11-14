@@ -184,6 +184,8 @@ class PromptBuilder:
   "duration_minutes": <number>,
   "intensity": "low|moderate|high",
   "hr_zones": [<min>, <max>],
+  "music_genres": <array of strings or null>,  // e.g., ["rock", "electronic", "hip-hop"] - extract if user mentions genres
+  "music_prompt": <string or null>,  // User's description of desired music (e.g., "мотивуюча музика", "агресивний рок") - extract if mentioned
   "confidence": <0-1>,
   "needs_clarification": <bool>,
   "clarification_question": "<string if needed>"
@@ -230,6 +232,7 @@ class PromptBuilder:
   "duration_minutes": 37,
   "intensity": "low",
   "hr_zones": [110, 130],
+  "music_prompt": "легка мотивуюча музика",
   "confidence": 0.9,
   "needs_clarification": false
 }
@@ -242,6 +245,43 @@ class PromptBuilder:
   "hr_zones": [140, 160],
   "confidence": 0.9,
   "needs_clarification": false
+}
+
+"30 хв інтервалів під рок-музику" →
+{
+  "type": "intervals",
+  "duration_minutes": 30,
+  "intensity": "high",
+  "hr_zones": [160, 180],
+  "music_genres": ["rock"],
+  "confidence": 0.85,
+  "needs_clarification": true,
+  "clarification_question": "Який буде інтервал роботи/відпочинку?"
+}
+
+"Легкий біг 40 хв під електронну музику, мотивуючу" →
+{
+  "type": "steady",
+  "duration_minutes": 40,
+  "intensity": "low",
+  "hr_zones": [110, 130],
+  "music_genres": ["electronic"],
+  "music_prompt": "мотивуюча",
+  "confidence": 0.95,
+  "needs_clarification": false
+}
+
+"Хочу побігати під хіп-хоп та електроніку, агресивну" →
+{
+  "type": "continuous",
+  "duration_minutes": 30,
+  "intensity": "moderate",
+  "hr_zones": [130, 160],
+  "music_genres": ["hip-hop", "electronic"],
+  "music_prompt": "агресивна",
+  "confidence": 0.7,
+  "needs_clarification": true,
+  "clarification_question": "Скільки часу плануєш бігти?"
 }'''
         )
 
@@ -255,12 +295,23 @@ class PromptBuilder:
    - "легкий", "легкому", "easy", "recovery", "відновлення" → low intensity → Zone 1-2 (110-130 BPM)
    - "темповий", "tempo", "помірний", "moderate" → moderate intensity → Zone 2-3 (130-160 BPM)
    - "швидкий", "fast", "інтервали", "intervals", "висока" → high intensity → Zone 4-5 (160-180 BPM)
-3. When user provides duration AND intensity/pace, consider the intent COMPLETE
-4. Infer missing parameters when possible (e.g., duration from workout type)
-5. Set confidence HIGH (0.9+) when duration and intensity are clearly stated
-6. Only ask clarifying questions when CRITICAL parameters are missing (e.g., intervals without work/rest ratio)
-7. If conversation history contains previous clarification, use that context to complete the intent
-8. Return ONLY valid JSON without markdown formatting"""
+3. Extract music preferences from user message:
+   - Music genres: Look for genre names like "рок", "rock", "електроніка", "electronic", "хіп-хоп", "hip-hop", "поп", "pop", "метал", "metal", "техно", "techno", "хаус", "house", "джаз", "jazz", "класика", "classical", etc.
+   - Music prompt: Extract descriptive words about music style, mood, or characteristics:
+     * "мотивуюча", "мотивуючу" → "мотивуюча музика"
+     * "агресивна", "агресивний" → "агресивна"
+     * "спокійна", "спокійна" → "спокійна"
+     * "енергійна", "енергійна" → "енергійна"
+     * "ритмічна", "ритмічна" → "ритмічна"
+     * Any other descriptive phrases about music (e.g., "під біт", "з басами", "мелодійна")
+   - If user mentions music but doesn't specify genre, extract the description to music_prompt
+   - If user mentions both genre and description, extract both
+4. When user provides duration AND intensity/pace, consider the intent COMPLETE
+5. Infer missing parameters when possible (e.g., duration from workout type)
+6. Set confidence HIGH (0.9+) when duration and intensity are clearly stated
+7. Only ask clarifying questions when CRITICAL parameters are missing (e.g., intervals without work/rest ratio)
+8. If conversation history contains previous clarification, use that context to complete the intent
+9. Return ONLY valid JSON without markdown formatting"""
         )
 
         return "\n".join(prompt_parts)
@@ -394,7 +445,16 @@ class PromptBuilder:
         if workout_intent.get("mood"):
             prompt += f"\n**Mood:** {workout_intent['mood']}"
 
-        if workout_intent.get("genre_preferences"):
+        # Add music preferences from workout intent
+        if workout_intent.get("music_genres"):
+            genres = ", ".join(workout_intent["music_genres"])
+            prompt += f"\n**Requested Music Genres:** {genres}"
+
+        if workout_intent.get("music_prompt"):
+            prompt += f"\n**Music Style/Mood Description:** {workout_intent['music_prompt']}"
+
+        # Legacy support for genre_preferences
+        if workout_intent.get("genre_preferences") and not workout_intent.get("music_genres"):
             genres = ", ".join(workout_intent["genre_preferences"])
             prompt += f"\n**Genre Request:** {genres}"
 

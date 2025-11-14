@@ -73,8 +73,9 @@ async def test_new_conversation_creation(conversation_manager, llm_service_mock)
 
     assert conversation_id is not None
     assert conversation_id in conversation_manager.conversations
-    assert response["state"] == ConversationStateEnum.COMPLETE
-    assert response["action"] == ConversationAction.SHOW_PLAYLIST
+    # New flow: system asks for workout confirmation before generating playlist
+    assert response["state"] == ConversationStateEnum.ASK_WORKOUT_CONFIRMATION
+    assert response["action"] == ConversationAction.ASK_WORKOUT_CONFIRMATION
 
 
 @pytest.mark.asyncio
@@ -164,8 +165,9 @@ async def test_multi_turn_conversation(conversation_manager, llm_service_mock):
         user_id=user_id, message="5-2", conversation_id=conv_id
     )
 
-    assert response2["state"] == ConversationStateEnum.COMPLETE
-    assert response2["playlist"] is not None
+    # New flow: system asks for workout confirmation before generating playlist
+    assert response2["state"] == ConversationStateEnum.ASK_WORKOUT_CONFIRMATION
+    assert response2["action"] == ConversationAction.ASK_WORKOUT_CONFIRMATION
 
 
 def test_is_intent_complete(conversation_manager):

@@ -132,10 +132,18 @@ async def send_message(
         # Determine needs_clarification and is_complete from state
         state = response_data.get("state", ConversationStateEnum.NEEDS_CLARIFICATION)
         needs_clarification = state == ConversationStateEnum.NEEDS_CLARIFICATION
-        is_complete = state == ConversationStateEnum.COMPLETE
+        is_complete = state == ConversationStateEnum.COMPLETE or state == ConversationStateEnum.ASK_WORKOUT_CONFIRMATION
+
+        # Get workout_id if workout was created
+        workout_id = response_data.get("workout_id")
 
         # Get playlist if available (when conversation is complete)
         playlist = response_data.get("playlist")
+
+        # Add workout_id to workout if available
+        if workout and workout_id:
+            # Workout model now supports id field
+            workout.id = workout_id
 
         return ChatResponse(
             message=response_data.get("message_to_user", ""),

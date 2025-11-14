@@ -78,7 +78,10 @@ export function useChat() {
         return (response.workout ? { ...response.workout, _hasPlaylist: true } : null) as (Workout & { _hasPlaylist?: boolean }) | null;
       }
 
-      if (response.workout && response.is_complete && !response.needs_clarification) {
+      // Return workout if available (may have workout_id if it was just created)
+      if (response.workout) {
+        // Check if workout has ID (was created in database)
+        // This happens after user confirms workout creation
         return response.workout;
       }
 

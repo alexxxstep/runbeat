@@ -38,6 +38,14 @@ class WorkoutIntent(BaseModel):
     mood: Optional[str] = Field(
         default=None, description="Mood or emotional context of the workout"
     )
+    music_genres: Optional[List[str]] = Field(
+        default=None,
+        description="Requested music genres (e.g., ['rock', 'electronic', 'hip-hop']). Extract from user message if mentioned."
+    )
+    music_prompt: Optional[str] = Field(
+        default=None,
+        description="User's description of desired music style, mood, or characteristics (e.g., 'мотивуюча музика', 'агресивний рок', 'спокійна електроніка'). Extract from user message if mentioned."
+    )
     confidence: float = Field(
         ..., ge=0.0, le=1.0, description="Confidence score for the parsed intent"
     )
@@ -103,6 +111,8 @@ class WorkoutIntent(BaseModel):
                 ],
                 "energy_profile": "wave",
                 "mood": "energetic",
+                "music_genres": ["rock", "electronic"],
+                "music_prompt": "мотивуюча музика",
                 "confidence": 0.85,
                 "needs_clarification": False,
             }

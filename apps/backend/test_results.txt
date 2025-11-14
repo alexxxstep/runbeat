@@ -1,0 +1,333 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-9.0.0, pluggy-1.6.0 -- C:\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: H:\DEV\Projects\RunBeat\_runbeat\apps\backend
+configfile: pyproject.toml
+plugins: anyio-4.10.0, langsmith-0.4.14, asyncio-1.3.0, cov-7.0.0, flask-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 58 items
+
+tests/test_auth.py::test_spotify_auth_initiate PASSED                    [  1%]
+tests/test_auth.py::test_spotify_callback_missing_code FAILED            [  3%]
+tests/test_auth.py::test_spotify_callback_invalid_state FAILED           [  5%]
+tests/test_auth.py::test_spotify_callback_success FAILED                 [  6%]
+tests/test_auth.py::test_spotify_auth_status_authenticated PASSED        [  8%]
+tests/test_auth.py::test_spotify_auth_status_user_not_found PASSED       [ 10%]
+tests/test_chat.py::test_chat_message_success FAILED                     [ 12%]
+tests/test_chat.py::test_chat_message_clarification FAILED               [ 13%]
+tests/test_chat.py::test_chat_message_empty PASSED                       [ 15%]
+tests/test_chat.py::test_chat_message_missing_field PASSED               [ 17%]
+tests/test_conversation_manager.py::test_new_conversation_creation FAILED [ 18%]
+tests/test_conversation_manager.py::test_clarification_needed PASSED     [ 20%]
+tests/test_conversation_manager.py::test_multi_turn_conversation FAILED  [ 22%]
+tests/test_conversation_manager.py::test_is_intent_complete PASSED       [ 24%]
+tests/test_conversation_manager.py::test_generate_follow_up_question PASSED [ 25%]
+tests/test_conversation_manager.py::test_get_conversation PASSED         [ 27%]
+tests/test_conversation_manager.py::test_clear_old_conversations PASSED  [ 29%]
+tests/test_conversation_manager.py::test_format_playlist_message PASSED  [ 31%]
+tests/test_health.py::test_health_check PASSED                           [ 32%]
+tests/test_health.py::test_readiness_check PASSED                        [ 34%]
+tests/test_health.py::test_liveness_check PASSED                         [ 36%]
+tests/test_music_curator.py::test_music_curator_prompt_has_key_sections PASSED [ 37%]
+tests/test_music_curator.py::test_music_curator_examples_exist PASSED    [ 39%]
+tests/test_music_curator.py::test_build_playlist_prompt_basic PASSED     [ 41%]
+tests/test_music_curator.py::test_build_playlist_prompt_with_intervals PASSED [ 43%]
+tests/test_music_curator.py::test_build_playlist_prompt_with_user_preferences PASSED [ 44%]
+tests/test_music_curator.py::test_analyze_previous_playlists PASSED      [ 46%]
+tests/test_music_curator.py::test_analyze_previous_playlists_with_list_genres PASSED [ 48%]
+tests/test_music_curator.py::test_llm_service_generate_playlist_mock PASSED [ 50%]
+tests/test_playlist_endpoints.py::test_generate_playlist_creates_new_workout PASSED [ 51%]
+tests/test_playlist_endpoints.py::test_generate_playlist_reuses_existing_workout PASSED [ 53%]
+tests/test_playlist_endpoints.py::test_generate_playlist_invalid_workout_id_fallback PASSED [ 55%]
+tests/test_playlist_endpoints.py::test_delete_playlist PASSED            [ 56%]
+tests/test_playlist_endpoints.py::test_delete_playlist_not_found FAILED  [ 58%]
+tests/test_playlist_generation.py::test_generate_playlist_with_selected_tracks PASSED [ 60%]
+tests/test_playlist_generation.py::test_generate_playlist_with_workout_id PASSED [ 62%]
+tests/test_playlist_generation.py::test_preview_playlist_variants_with_excluded_tracks PASSED [ 63%]
+tests/test_playlist_generation.py::test_preview_variants_duration_validation PASSED [ 65%]
+tests/test_playlist_generator.py::test_generate_playlist_steady FAILED   [ 67%]
+tests/test_playlist_generator.py::test_calculate_target_bpm PASSED       [ 68%]
+tests/test_playlist_generator.py::test_create_segments_steady PASSED     [ 70%]
+tests/test_playlist_generator.py::test_create_segments_progressive PASSED [ 72%]
+tests/test_playlist_generator.py::test_bpm_match_score PASSED            [ 74%]
+tests/test_playlist_generator.py::test_calculate_affinity PASSED         [ 75%]
+tests/test_playlist_generator.py::test_generate_with_excluded_tracks FAILED [ 77%]
+tests/test_playlist_generator.py::test_generate_playlist_duration_validation FAILED [ 79%]
+tests/test_playlist_history.py::test_get_playlist_history FAILED         [ 81%]
+tests/test_playlist_history.py::test_get_playlist_history_empty PASSED   [ 82%]
+tests/test_users.py::test_get_user_preferences PASSED                    [ 84%]
+tests/test_users.py::test_get_user_preferences_not_found PASSED          [ 86%]
+tests/test_users.py::test_update_user_preferences PASSED                 [ 87%]
+tests/test_users.py::test_update_user_preferences_not_found PASSED       [ 89%]
+tests/test_workouts.py::test_create_workout PASSED                       [ 91%]
+tests/test_workouts.py::test_get_workouts FAILED                         [ 93%]
+tests/test_workouts.py::test_get_workout_by_id FAILED                    [ 94%]
+tests/test_workouts.py::test_get_workout_not_found FAILED                [ 96%]
+tests/test_workouts.py::test_delete_workout PASSED                       [ 98%]
+tests/test_workouts.py::test_complete_workout FAILED                     [100%]
+
+================================== FAILURES ===================================
+E   assert 422 in [302, 307]
+     +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_auth.py:38: assert 422 in [302, 307]
+E   assert 404 in [302, 307]
+     +  where 404 = <Response [404 Not Found]>.status_code
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:52:56.192 | ERROR    | app.api.routes.auth:spotify_callback:109 - Invalid OAuth state: invalid_...
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_auth.py:48: assert 404 in [302, 307]
+E   assert 404 in [302, 307]
+     +  where 404 = <Response [404 Not Found]>.status_code
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:52:56.216 | INFO     | app.api.routes.auth:spotify_callback:256 - Created new user user_uuid with Spotify ID spotify_user_123
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_auth.py:104: assert 404 in [302, 307]
+E   assert 400 == 200
+     +  where 400 = <Response [400 Bad Request]>.status_code
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:52:56.288 | DEBUG    | app.services.spotify_service:__init__:33 - Spotify Client ID: c56683db63... Secret: **********
+2025-11-14 11:52:56.289 | INFO     | app.services.spotify_service:__init__:46 - SpotifyService initialized
+2025-11-14 11:52:56.294 | INFO     | app.services.conversation_manager:__init__:87 - ConversationManager initialized
+2025-11-14 11:52:56.710 | INFO     | app.services.supabase_service:_initialize_client:24 - Supabase client initialized successfully
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_chat.py:54: assert 400 == 200
+E   assert 400 == 200
+     +  where 400 = <Response [400 Bad Request]>.status_code
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:52:56.719 | DEBUG    | app.services.spotify_service:__init__:33 - Spotify Client ID: c56683db63... Secret: **********
+2025-11-14 11:52:56.719 | INFO     | app.services.spotify_service:__init__:46 - SpotifyService initialized
+2025-11-14 11:52:56.720 | INFO     | app.services.conversation_manager:__init__:87 - ConversationManager initialized
+2025-11-14 11:52:57.087 | INFO     | app.services.supabase_service:_initialize_client:24 - Supabase client initialized successfully
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_chat.py:78: assert 400 == 200
+E   AssertionError: assert <Conversation...confirmation'> == <Conversation...E: 'complete'>
+      
+      - complete
+      + ask_workout_confirmation
+---------------------------- Captured stderr setup ----------------------------
+2025-11-14 11:52:58.641 | INFO     | app.services.conversation_manager:__init__:87 - ConversationManager initialized
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:52:58.652 | INFO     | app.services.conversation_manager:process_message:131 - Started new conversation 72bc8f98-f2a7-4d08-a7ab-8266435f9204
+2025-11-14 11:52:58.653 | DEBUG    | app.services.conversation_manager:process_message:144 - Current state: ConversationStateEnum.NEW
+2025-11-14 11:52:58.653 | INFO     | app.services.conversation_manager:_decide_next_action:316 - Intent complete, asking for workout confirmation...
+2025-11-14 11:52:58.653 | INFO     | app.services.conversation_manager:process_message:210 - Conversation 72bc8f98-f2a7-4d08-a7ab-8266435f9204: state=ConversationStateEnum.ASK_WORKOUT_CONFIRMATION, action=ConversationAction.ASK_WORKOUT_CONFIRMATION
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_conversation_manager.py:76: AssertionError: assert <Conversation...confirmation'> == <Conversation...E: 'complete'>
+E   AssertionError: assert <Conversation...confirmation'> == <Conversation...E: 'complete'>
+      
+      - complete
+      + ask_workout_confirmation
+---------------------------- Captured stderr setup ----------------------------
+2025-11-14 11:52:58.668 | INFO     | app.services.conversation_manager:__init__:87 - ConversationManager initialized
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:52:58.671 | INFO     | app.services.conversation_manager:process_message:131 - Started new conversation 9c6837c1-0b50-43df-a93b-9ec3737738bb
+2025-11-14 11:52:58.671 | DEBUG    | app.services.conversation_manager:process_message:144 - Current state: ConversationStateEnum.NEW
+2025-11-14 11:52:58.671 | DEBUG    | app.services.conversation_manager:_is_intent_complete:372 - Intent confidence moderate (0.6), but all fields present - accepting
+2025-11-14 11:52:58.671 | INFO     | app.services.conversation_manager:process_message:210 - Conversation 9c6837c1-0b50-43df-a93b-9ec3737738bb: state=ConversationStateEnum.NEEDS_CLARIFICATION, action=ConversationAction.ASK_CLARIFICATION
+2025-11-14 11:52:59.698 | ERROR    | app.services.conversation_manager:_load_conversation:862 - Error loading conversation: {'message': 'invalid input syntax for type uuid: "test-user-123"', 'code': '22P02', 'hint': None, 'details': None}
+2025-11-14 11:52:59.699 | WARNING  | app.services.conversation_manager:process_message:121 - Conversation 9c6837c1-0b50-43df-a93b-9ec3737738bb not found, creating new one
+2025-11-14 11:52:59.699 | INFO     | app.services.conversation_manager:process_message:131 - Started new conversation c8576dfb-5c92-44da-a7e4-7bf376aeda47
+2025-11-14 11:52:59.699 | DEBUG    | app.services.conversation_manager:process_message:144 - Current state: ConversationStateEnum.NEW
+2025-11-14 11:52:59.700 | INFO     | app.services.conversation_manager:_decide_next_action:316 - Intent complete, asking for workout confirmation...
+2025-11-14 11:52:59.700 | INFO     | app.services.conversation_manager:process_message:210 - Conversation c8576dfb-5c92-44da-a7e4-7bf376aeda47: state=ConversationStateEnum.ASK_WORKOUT_CONFIRMATION, action=ConversationAction.ASK_WORKOUT_CONFIRMATION
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_conversation_manager.py:167: AssertionError: assert <Conversation...confirmation'> == <Conversation...E: 'complete'>
+E   assert 200 == 404
+     +  where 200 = <Response [200 OK]>.status_code
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:53:00.997 | INFO     | app.api.routes.playlists:delete_playlist:604 - Deleting playlist nonexistent for user user_uuid
+2025-11-14 11:53:00.998 | INFO     | app.api.routes.playlists:delete_playlist:634 - Playlist nonexistent deleted successfully
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_playlist_endpoints.py:281: assert 200 == 404
+E   assert 0 > 0
+     +  where 0 = PlaylistData(tracks=[], total_duration=0.0, total_tracks=0).total_tracks
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:53:03.120 | INFO     | app.services.playlist_generator:generate:47 - Generating playlist for steady workout, 30 min
+2025-11-14 11:53:03.121 | DEBUG    | app.services.playlist_generator:generate:53 - Created 3 segments
+2025-11-14 11:53:03.121 | DEBUG    | app.services.playlist_generator:_fetch_for_segment:278 - Fetching tracks for segment warm-up: BPM 105-115, target 110
+2025-11-14 11:53:03.123 | WARNING  | app.services.playlist_generator:_fetch_for_segment:361 - No valid tracks converted for segment warm-up
+2025-11-14 11:53:03.124 | DEBUG    | app.services.playlist_generator:_fetch_for_segment:278 - Fetching tracks for segment main: BPM 120-130, target 125
+2025-11-14 11:53:03.124 | WARNING  | app.services.playlist_generator:_fetch_for_segment:361 - No valid tracks converted for segment main
+2025-11-14 11:53:03.125 | DEBUG    | app.services.playlist_generator:_fetch_for_segment:278 - Fetching tracks for segment cool-down: BPM 100-110, target 105
+2025-11-14 11:53:03.125 | WARNING  | app.services.playlist_generator:_fetch_for_segment:361 - No valid tracks converted for segment cool-down
+2025-11-14 11:53:03.125 | WARNING  | app.services.playlist_generator:_fetch_candidates:252 - No tracks fetched for any segment - this may cause empty playlist
+2025-11-14 11:53:03.125 | DEBUG    | app.services.playlist_generator:generate:59 - Fetched 0 candidate tracks
+2025-11-14 11:53:03.126 | DEBUG    | app.services.playlist_generator:generate:69 - Scored 0 tracks
+2025-11-14 11:53:03.126 | WARNING  | app.services.playlist_generator:_optimize_selection:543 - Playlist duration (0.0s) is less than minimum required (1800s) with strict constraints. Relaxing constraints to ensure minimum duration...
+2025-11-14 11:53:03.126 | WARNING  | app.services.playlist_generator:_optimize_selection:560 - Still insufficient duration (0.0s). Relaxing artist constraint...
+2025-11-14 11:53:03.126 | WARNING  | app.services.playlist_generator:_optimize_selection:573 - Still insufficient duration (0.0s). Removing BPM transition constraint...
+2025-11-14 11:53:03.126 | WARNING  | app.services.playlist_generator:_optimize_selection:586 - Still insufficient duration (0.0s). Using last resort: very relaxed constraints...
+2025-11-14 11:53:03.126 | ERROR    | app.services.playlist_generator:_optimize_selection:599 - CRITICAL: Playlist duration (0.0s) is still less than target (1800s) even with relaxed constraints. Returning 0 tracks.
+2025-11-14 11:53:03.126 | INFO     | app.services.playlist_generator:generate:74 - Selected 0 tracks for playlist
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_playlist_generator.py:72: assert 0 > 0
+E   assert 0 > 0
+     +  where 0 = PlaylistData(tracks=[], total_duration=0.0, total_tracks=0).total_tracks
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:53:03.166 | INFO     | app.services.playlist_generator:generate:47 - Generating playlist for steady workout, 30 min
+2025-11-14 11:53:03.167 | DEBUG    | app.services.playlist_generator:generate:53 - Created 3 segments
+2025-11-14 11:53:03.168 | DEBUG    | app.services.playlist_generator:_fetch_for_segment:278 - Fetching tracks for segment warm-up: BPM 105-115, target 110
+2025-11-14 11:53:03.170 | WARNING  | app.services.playlist_generator:_fetch_for_segment:361 - No valid tracks converted for segment warm-up
+2025-11-14 11:53:03.171 | DEBUG    | app.services.playlist_generator:_fetch_for_segment:278 - Fetching tracks for segment main: BPM 120-130, target 125
+2025-11-14 11:53:03.171 | WARNING  | app.services.playlist_generator:_fetch_for_segment:361 - No valid tracks converted for segment main
+2025-11-14 11:53:03.171 | DEBUG    | app.services.playlist_generator:_fetch_for_segment:278 - Fetching tracks for segment cool-down: BPM 100-110, target 105
+2025-11-14 11:53:03.171 | WARNING  | app.services.playlist_generator:_fetch_for_segment:361 - No valid tracks converted for segment cool-down
+2025-11-14 11:53:03.171 | WARNING  | app.services.playlist_generator:_fetch_candidates:252 - No tracks fetched for any segment - this may cause empty playlist
+2025-11-14 11:53:03.171 | DEBUG    | app.services.playlist_generator:generate:59 - Fetched 0 candidate tracks
+2025-11-14 11:53:03.171 | DEBUG    | app.services.playlist_generator:generate:65 - Filtered out 1 excluded tracks, 0 remaining
+2025-11-14 11:53:03.171 | DEBUG    | app.services.playlist_generator:generate:69 - Scored 0 tracks
+2025-11-14 11:53:03.171 | WARNING  | app.services.playlist_generator:_optimize_selection:543 - Playlist duration (0.0s) is less than minimum required (1800s) with strict constraints. Relaxing constraints to ensure minimum duration...
+2025-11-14 11:53:03.171 | WARNING  | app.services.playlist_generator:_optimize_selection:560 - Still insufficient duration (0.0s). Relaxing artist constraint...
+2025-11-14 11:53:03.171 | WARNING  | app.services.playlist_generator:_optimize_selection:573 - Still insufficient duration (0.0s). Removing BPM transition constraint...
+2025-11-14 11:53:03.171 | WARNING  | app.services.playlist_generator:_optimize_selection:586 - Still insufficient duration (0.0s). Using last resort: very relaxed constraints...
+2025-11-14 11:53:03.171 | ERROR    | app.services.playlist_generator:_optimize_selection:599 - CRITICAL: Playlist duration (0.0s) is still less than target (1800s) even with relaxed constraints. Returning 0 tracks.
+2025-11-14 11:53:03.171 | INFO     | app.services.playlist_generator:generate:74 - Selected 0 tracks for playlist
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_playlist_generator.py:181: assert 0 > 0
+E   assert 0.0 >= 1800
+     +  where 0.0 = PlaylistData(tracks=[], total_duration=0.0, total_tracks=0).total_duration
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:53:03.187 | INFO     | app.services.playlist_generator:generate:47 - Generating playlist for steady workout, 30 min
+2025-11-14 11:53:03.188 | DEBUG    | app.services.playlist_generator:generate:53 - Created 3 segments
+2025-11-14 11:53:03.188 | DEBUG    | app.services.playlist_generator:_fetch_for_segment:278 - Fetching tracks for segment warm-up: BPM 105-115, target 110
+2025-11-14 11:53:03.191 | WARNING  | app.services.playlist_generator:_fetch_for_segment:361 - No valid tracks converted for segment warm-up
+2025-11-14 11:53:03.191 | DEBUG    | app.services.playlist_generator:_fetch_for_segment:278 - Fetching tracks for segment main: BPM 120-130, target 125
+2025-11-14 11:53:03.191 | WARNING  | app.services.playlist_generator:_fetch_for_segment:361 - No valid tracks converted for segment main
+2025-11-14 11:53:03.191 | DEBUG    | app.services.playlist_generator:_fetch_for_segment:278 - Fetching tracks for segment cool-down: BPM 100-110, target 105
+2025-11-14 11:53:03.191 | WARNING  | app.services.playlist_generator:_fetch_for_segment:361 - No valid tracks converted for segment cool-down
+2025-11-14 11:53:03.192 | WARNING  | app.services.playlist_generator:_fetch_candidates:252 - No tracks fetched for any segment - this may cause empty playlist
+2025-11-14 11:53:03.192 | DEBUG    | app.services.playlist_generator:generate:59 - Fetched 0 candidate tracks
+2025-11-14 11:53:03.192 | DEBUG    | app.services.playlist_generator:generate:69 - Scored 0 tracks
+2025-11-14 11:53:03.192 | WARNING  | app.services.playlist_generator:_optimize_selection:543 - Playlist duration (0.0s) is less than minimum required (1800s) with strict constraints. Relaxing constraints to ensure minimum duration...
+2025-11-14 11:53:03.192 | WARNING  | app.services.playlist_generator:_optimize_selection:560 - Still insufficient duration (0.0s). Relaxing artist constraint...
+2025-11-14 11:53:03.192 | WARNING  | app.services.playlist_generator:_optimize_selection:573 - Still insufficient duration (0.0s). Removing BPM transition constraint...
+2025-11-14 11:53:03.192 | WARNING  | app.services.playlist_generator:_optimize_selection:586 - Still insufficient duration (0.0s). Using last resort: very relaxed constraints...
+2025-11-14 11:53:03.192 | ERROR    | app.services.playlist_generator:_optimize_selection:599 - CRITICAL: Playlist duration (0.0s) is still less than target (1800s) even with relaxed constraints. Returning 0 tracks.
+2025-11-14 11:53:03.192 | INFO     | app.services.playlist_generator:generate:74 - Selected 0 tracks for playlist
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_playlist_generator.py:201: assert 0.0 >= 1800
+E   assert 0 == 1
+     +  where 0 = len([])
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:53:03.215 | INFO     | app.api.routes.playlists:get_playlist_history:516 - Fetching playlist history for user user_uuid
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_playlist_history.py:65: assert 0 == 1
+E   assert 0 == 1
+     +  where 0 = len([])
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:53:03.301 | INFO     | app.api.routes.workouts:get_workouts:136 - Fetching workouts for user user_uuid
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_workouts.py:81: assert 0 == 1
+E   assert 500 == 200
+     +  where 500 = <Response [500 Internal Server Error]>.status_code
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:53:03.317 | INFO     | app.api.routes.workouts:get_workout:208 - Fetching workout workout_uuid for user user_uuid
+2025-11-14 11:53:03.320 | ERROR    | app.api.routes.workouts:get_workout:249 - Failed to get workout: fromisoformat: argument must be str
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_workouts.py:100: assert 500 == 200
+E   assert 500 == 404
+     +  where 500 = <Response [500 Internal Server Error]>.status_code
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:53:03.390 | INFO     | app.api.routes.workouts:get_workout:208 - Fetching workout nonexistent for user user_uuid
+2025-11-14 11:53:03.394 | ERROR    | app.api.routes.workouts:get_workout:249 - Failed to get workout: fromisoformat: argument must be str
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_workouts.py:121: assert 500 == 404
+E   assert 500 == 200
+     +  where 500 = <Response [500 Internal Server Error]>.status_code
+---------------------------- Captured stderr call -----------------------------
+2025-11-14 11:53:03.463 | INFO     | app.api.routes.workouts:complete_workout:320 - Marking workout workout_uuid as completed for user user_uuid
+2025-11-14 11:53:03.469 | ERROR    | app.api.routes.workouts:complete_workout:362 - Failed to complete workout: fromisoformat: argument must be str
+H:\DEV\Projects\RunBeat\_runbeat\apps\backend\tests\test_workouts.py:160: assert 500 == 200
+============================== warnings summary ===============================
+C:\Python313\Lib\site-packages\pydantic\_internal\_config.py:323: 18 warnings
+  C:\Python313\Lib\site-packages\pydantic\_internal\_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+app\main.py:82
+  H:\DEV\Projects\RunBeat\_runbeat\apps\backend\app\main.py:82: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+C:\Python313\Lib\site-packages\fastapi\applications.py:4575
+C:\Python313\Lib\site-packages\fastapi\applications.py:4575
+  C:\Python313\Lib\site-packages\fastapi\applications.py:4575: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+app\main.py:90
+  H:\DEV\Projects\RunBeat\_runbeat\apps\backend\app\main.py:90: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_conversation_manager.py::test_new_conversation_creation
+tests/test_conversation_manager.py::test_clarification_needed
+tests/test_conversation_manager.py::test_multi_turn_conversation
+tests/test_conversation_manager.py::test_multi_turn_conversation
+tests/test_conversation_manager.py::test_get_conversation
+tests/test_conversation_manager.py::test_clear_old_conversations
+  H:\DEV\Projects\RunBeat\_runbeat\apps\backend\app\services\conversation_manager.py:793: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.utcnow().isoformat(),
+
+tests/test_conversation_manager.py::test_new_conversation_creation
+tests/test_conversation_manager.py::test_clarification_needed
+tests/test_conversation_manager.py::test_multi_turn_conversation
+tests/test_conversation_manager.py::test_multi_turn_conversation
+tests/test_conversation_manager.py::test_get_conversation
+tests/test_conversation_manager.py::test_clear_old_conversations
+  H:\DEV\Projects\RunBeat\_runbeat\apps\backend\app\services\conversation_manager.py:794: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.utcnow().isoformat(),
+
+tests/test_conversation_manager.py::test_new_conversation_creation
+tests/test_conversation_manager.py::test_clarification_needed
+tests/test_conversation_manager.py::test_multi_turn_conversation
+tests/test_conversation_manager.py::test_multi_turn_conversation
+  H:\DEV\Projects\RunBeat\_runbeat\apps\backend\app\services\conversation_manager.py:138: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat(),
+
+tests/test_conversation_manager.py::test_new_conversation_creation
+tests/test_conversation_manager.py::test_clarification_needed
+tests/test_conversation_manager.py::test_multi_turn_conversation
+tests/test_conversation_manager.py::test_multi_turn_conversation
+  H:\DEV\Projects\RunBeat\_runbeat\apps\backend\app\services\conversation_manager.py:195: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    conversation["updated_at"] = datetime.utcnow().isoformat()
+
+tests/test_conversation_manager.py::test_new_conversation_creation
+tests/test_conversation_manager.py::test_clarification_needed
+tests/test_conversation_manager.py::test_multi_turn_conversation
+tests/test_conversation_manager.py::test_multi_turn_conversation
+  H:\DEV\Projects\RunBeat\_runbeat\apps\backend\app\services\conversation_manager.py:203: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat(),
+
+tests/test_conversation_manager.py::test_multi_turn_conversation
+tests/test_playlist_generation.py::test_preview_playlist_variants_with_excluded_tracks
+tests/test_playlist_generation.py::test_preview_variants_duration_validation
+  C:\Python313\Lib\site-packages\supabase\_sync\client.py:302: DeprecationWarning: The 'timeout' parameter is deprecated. Please configure it in the http client instead.
+    return SyncPostgrestClient(
+
+tests/test_conversation_manager.py::test_multi_turn_conversation
+tests/test_playlist_generation.py::test_preview_playlist_variants_with_excluded_tracks
+tests/test_playlist_generation.py::test_preview_variants_duration_validation
+  C:\Python313\Lib\site-packages\supabase\_sync\client.py:302: DeprecationWarning: The 'verify' parameter is deprecated. Please configure it in the http client instead.
+    return SyncPostgrestClient(
+
+tests/test_conversation_manager.py::test_clear_old_conversations
+  H:\DEV\Projects\RunBeat\_runbeat\apps\backend\app\services\conversation_manager.py:818: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow().timestamp() - (max_age_hours * 3600)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_auth.py::test_spotify_callback_missing_code - assert 422 in...
+FAILED tests/test_auth.py::test_spotify_callback_invalid_state - assert 404 i...
+FAILED tests/test_auth.py::test_spotify_callback_success - assert 404 in [302...
+FAILED tests/test_chat.py::test_chat_message_success - assert 400 == 200
+FAILED tests/test_chat.py::test_chat_message_clarification - assert 400 == 200
+FAILED tests/test_conversation_manager.py::test_new_conversation_creation - A...
+FAILED tests/test_conversation_manager.py::test_multi_turn_conversation - Ass...
+FAILED tests/test_playlist_endpoints.py::test_delete_playlist_not_found - ass...
+FAILED tests/test_playlist_generator.py::test_generate_playlist_steady - asse...
+FAILED tests/test_playlist_generator.py::test_generate_with_excluded_tracks
+FAILED tests/test_playlist_generator.py::test_generate_playlist_duration_validation
+FAILED tests/test_playlist_history.py::test_get_playlist_history - assert 0 == 1
+FAILED tests/test_workouts.py::test_get_workouts - assert 0 == 1
+FAILED tests/test_workouts.py::test_get_workout_by_id - assert 500 == 200
+FAILED tests/test_workouts.py::test_get_workout_not_found - assert 500 == 404
+FAILED tests/test_workouts.py::test_complete_workout - assert 500 == 200
+================= 16 failed, 42 passed, 53 warnings in 7.44s ==================

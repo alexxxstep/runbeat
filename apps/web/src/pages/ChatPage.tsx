@@ -79,15 +79,27 @@ export function ChatPage() {
       return;
     }
 
+    // Check if workout was created (has workout_id) - this happens after user confirms
+    if (workout && workout.id) {
+      // Workout was created in database, now we can generate playlist
+      setActiveWorkout(workout);
+      setActiveWorkoutId(workout.id);
+      setExcludedTrackIds(new Set()); // Reset excluded tracks for new workout
+      // Show question about generating playlist
+      setShowPlaylistQuestion(true);
+      return;
+    }
+
     // If workout is ready and complete, show workout info and ask for confirmation
     // Note: If needs_clarification is true, the conversation continues automatically
     // The AI message with clarification question is already added to messages
     if (workout && !workout.needs_clarification) {
-      // Set active workout and show question
+      // Set active workout and show confirmation question
+      // The AI already asked "Створити воркаут? (Да/Ні)" in the message
       setActiveWorkout(workout);
-      setActiveWorkoutId(null); // New workout from chat, not from history
+      setActiveWorkoutId(null); // Not created yet, waiting for confirmation
       setExcludedTrackIds(new Set()); // Reset excluded tracks for new workout
-      addWorkoutActivationMessage(workout);
+      // Show buttons to confirm workout creation
       setShowPlaylistQuestion(true);
     }
     // If needs_clarification, user can continue the conversation naturally
@@ -456,35 +468,52 @@ export function ChatPage() {
             <MessageBubble key={message.id} message={message} />
           ))}
 
-          {/* Show buttons for workout activation question */}
+          {/* Show buttons for workout confirmation or playlist generation */}
           {activeWorkout && showPlaylistQuestion && (
             <div className='max-w-2xl mx-auto flex justify-start mb-4'>
               <div className='flex gap-3'>
-                <button
-                  onClick={generateVariants}
-                  disabled={loadingVariants}
-                  className='px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
-                >
-                  {loadingVariants ? 'Генерація...' : 'Так'}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowPlaylistQuestion(false);
-                    setActiveWorkout(null);
-                    setActiveWorkoutId(null);
-                    // Add message about clarification needed
-                    const clarificationMessage: Message = {
-                      id: Date.now().toString(),
-                      role: 'assistant',
-                      content: 'Уточніть ваш запит щодо тренування.',
-                      timestamp: new Date(),
-                    };
-                    setMessages((prev) => [...prev, clarificationMessage]);
-                  }}
-                  className='px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium'
-                >
-                  Ні
-                </button>
+                {activeWorkoutId ? (
+                  // Workout already created - show button to generate playlist
+                  <button
+                    onClick={generateVariants}
+                    disabled={loadingVariants}
+                    className='px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+                  >
+                    {loadingVariants ? 'Генерація...' : 'Так, згенерувати плейлист'}
+                  </button>
+                ) : (
+                  // Workout not created yet - show buttons to confirm creation
+                  <>
+                    <button
+                      onClick={async () => {
+                        // Send "Да" to chat to confirm workout creation
+                        const confirmedWorkout = await sendMessage('Да', user?.id);
+                        if (confirmedWorkout && confirmedWorkout.id) {
+                          // Workout created, now show playlist generation option
+                          setActiveWorkoutId(confirmedWorkout.id);
+                          setActiveWorkout(confirmedWorkout);
+                        }
+                      }}
+                      disabled={isLoading}
+                      className='px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+                    >
+                      {isLoading ? 'Створення...' : 'Так'}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        // Send "Ні" to chat to decline workout creation
+                        await sendMessage('Ні', user?.id);
+                        setShowPlaylistQuestion(false);
+                        setActiveWorkout(null);
+                        setActiveWorkoutId(null);
+                      }}
+                      disabled={isLoading}
+                      className='px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed'
+                    >
+                      Ні
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}

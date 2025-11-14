@@ -21,6 +21,7 @@ class ConversationStateEnum(str, Enum):
     NEW = "new"
     PARSING_INTENT = "parsing_intent"
     NEEDS_CLARIFICATION = "needs_clarification"
+    ASK_WORKOUT_CONFIRMATION = "ask_workout_confirmation"  # New: Asking user to confirm workout creation
     READY_TO_GENERATE = "ready_to_generate"
     GENERATING_PLAYLIST = "generating_playlist"
     COMPLETE = "complete"
@@ -32,6 +33,8 @@ class ConversationAction(str, Enum):
 
     PARSE_INTENT = "parse_intent"
     ASK_CLARIFICATION = "ask_clarification"
+    ASK_WORKOUT_CONFIRMATION = "ask_workout_confirmation"  # New: Ask user to confirm workout creation
+    CREATE_WORKOUT = "create_workout"  # New: Create workout in database
     GENERATE_PLAYLIST = "generate_playlist"
     SHOW_PLAYLIST = "show_playlist"
     ERROR_RESPONSE = "error_response"
@@ -139,6 +142,34 @@ class ConversationManager:
             # Determine current state and next action
             current_state = conversation.get("state", ConversationStateEnum.NEW)
             logger.debug(f"Current state: {current_state}")
+
+            # Check if user is responding to workout confirmation question
+            if current_state == ConversationStateEnum.ASK_WORKOUT_CONFIRMATION:
+                # User is responding to "Створити воркаут? Да/Ні"
+                confirmation_response = await self._handle_workout_confirmation(
+                    message=message,
+                    conversation=conversation,
+                    user_id=user_id,
+                )
+                if confirmation_response:
+                    # Update conversation state
+                    conversation["state"] = confirmation_response["state"]
+                    conversation["updated_at"] = datetime.utcnow().isoformat()
+
+                    # Add assistant response to history
+                    if confirmation_response.get("message_to_user"):
+                        conversation["messages"].append(
+                            {
+                                "role": "assistant",
+                                "content": confirmation_response["message_to_user"],
+                                "timestamp": datetime.utcnow().isoformat(),
+                            }
+                        )
+
+                    # Save conversation
+                    await self._save_conversation(conversation)
+
+                    return conversation_id, confirmation_response
 
             # Parse user intent
             workout_intent = await self._parse_user_intent(
@@ -279,52 +310,24 @@ class ConversationManager:
                 "confidence": workout_intent.confidence,
             }
 
-        # Check if intent is complete enough to generate playlist
+        # Check if intent is complete enough to ask for workout confirmation
         if self._is_intent_complete(workout_intent):
-            # Ready to generate playlist
-            logger.info("Intent complete, generating playlist...")
+            # Intent is complete - ask user to confirm workout creation
+            logger.info("Intent complete, asking for workout confirmation...")
 
-            try:
-                playlist = await self.llm_service.generate_playlist(
-                    workout_intent=workout_intent,
-                    user_preferences=user_preferences,
-                )
+            # Format workout summary for user
+            workout_summary = self._format_workout_summary(workout_intent)
+            confirmation_message = (
+                f"Ось що я зрозумів про твоє тренування:\n\n{workout_summary}\n\n"
+                "Створити воркаут? (Да/Ні)"
+            )
 
-                # Try to create playlist in Spotify if user is authenticated
-                playlist_dict = playlist.model_dump()
-                spotify_playlist_info = None
-
-                if conversation.get("user_id"):
-                    try:
-                        spotify_playlist_info = await self._create_spotify_playlist_from_llm(
-                            user_id=conversation["user_id"],
-                            playlist=playlist,
-                            workout_intent=workout_intent,
-                        )
-                        if spotify_playlist_info:
-                            # Add Spotify info to playlist dict
-                            playlist_dict["spotify_playlist_id"] = spotify_playlist_info.get("id")
-                            playlist_dict["spotify_url"] = spotify_playlist_info.get("url")
-                            logger.info(f"Created Spotify playlist: {spotify_playlist_info.get('url')}")
-                    except Exception as spotify_error:
-                        logger.warning(f"Failed to create Spotify playlist: {spotify_error}")
-                        # Continue without Spotify playlist - LLM playlist is still available
-
-                return ConversationAction.SHOW_PLAYLIST, {
-                    "state": ConversationStateEnum.COMPLETE,
-                    "action": ConversationAction.SHOW_PLAYLIST,
+            return ConversationAction.ASK_WORKOUT_CONFIRMATION, {
+                "state": ConversationStateEnum.ASK_WORKOUT_CONFIRMATION,
+                "action": ConversationAction.ASK_WORKOUT_CONFIRMATION,
+                "message_to_user": confirmation_message,
                     "workout_intent": workout_intent.model_dump(),
-                    "playlist": playlist_dict,
-                    "message_to_user": self._format_playlist_message(playlist, spotify_playlist_info),
-                }
-
-            except Exception as e:
-                logger.error(f"Failed to generate playlist: {e}")
-                return ConversationAction.ERROR_RESPONSE, {
-                    "state": ConversationStateEnum.ERROR,
-                    "action": ConversationAction.ERROR_RESPONSE,
-                    "message_to_user": "Не вдалось згенерувати плейлист. Спробуй ще раз.",
-                    "error": str(e),
+                "confidence": workout_intent.confidence,
                 }
         else:
             # Intent not complete - ask follow-up
@@ -416,6 +419,224 @@ class ConversationManager:
 
         # Generic fallback
         return "Опиши тренування трохи детальніше, щоб я зрозумів краще."
+
+    def _format_workout_summary(self, intent: WorkoutIntent) -> str:
+        """
+        Format workout intent into user-friendly summary.
+
+        Args:
+            intent: Workout intent to format
+
+        Returns:
+            Formatted summary string
+        """
+        workout_type_map = {
+            "continuous": "Стабільна пробіжка",
+            "intervals": "Інтервальна пробіжка",
+            "fartlek": "Фартлек",
+            "recovery": "Відновлювальна пробіжка",
+        }
+
+        intensity_map = {
+            "steady": "легка",
+            "building": "помірна",
+            "wave": "помірна",
+        }
+
+        workout_type = workout_type_map.get(intent.workout_type, "Пробіжка")
+        # Map energy_profile to intensity description
+        if intent.target_bpm_min < 120:
+            intensity_desc = "легка"
+        elif intent.target_bpm_min < 150:
+            intensity_desc = "помірна"
+        else:
+            intensity_desc = "висока"
+
+        summary = f"🏃 **{workout_type}**\n"
+        summary += f"⏱️ Тривалість: {intent.duration_minutes} хвилин\n"
+        summary += f"⚡ Інтенсивність: {intensity_desc}\n"
+        summary += f"🎵 BPM: {intent.target_bpm_min}-{intent.target_bpm_max}"
+
+        if intent.intervals:
+            summary += f"\n🔄 Інтервали: {len(intent.intervals)}"
+
+        return summary
+
+    async def _handle_workout_confirmation(
+        self,
+        message: str,
+        conversation: Dict[str, Any],
+        user_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Handle user's response to workout confirmation question.
+
+        Args:
+            message: User's response (Да/Ні/Yes/No)
+            conversation: Current conversation
+            user_id: User ID
+
+        Returns:
+            Response data if handled, None otherwise
+        """
+        # Normalize message for checking
+        message_lower = message.lower().strip()
+
+        # Check for positive confirmation
+        positive_responses = ["да", "так", "yes", "y", "ok", "ок", "створ", "створити", "зроби", "зробити"]
+        negative_responses = ["ні", "no", "n", "не", "не треба", "не потрібно", "скасувати", "відмінити"]
+
+        is_positive = any(response in message_lower for response in positive_responses)
+        is_negative = any(response in message_lower for response in negative_responses)
+
+        if not is_positive and not is_negative:
+            # Unclear response - ask again
+            return {
+                "state": ConversationStateEnum.ASK_WORKOUT_CONFIRMATION,
+                "action": ConversationAction.ASK_WORKOUT_CONFIRMATION,
+                "message_to_user": "Не зовсім зрозумів. Будь ласка, відповідь 'Да' або 'Ні'. Створити воркаут?",
+                "workout_intent": conversation.get("workout_intent"),
+            }
+
+        if is_positive:
+            # User confirmed - create workout
+            try:
+                workout_intent_dict = conversation.get("workout_intent")
+                if not workout_intent_dict:
+                    return {
+                        "state": ConversationStateEnum.ERROR,
+                        "action": ConversationAction.ERROR_RESPONSE,
+                        "message_to_user": "Вибачте, не вдалось знайти дані про тренування. Спробуйте ще раз.",
+                    }
+
+                workout_intent = WorkoutIntent(**workout_intent_dict)
+                workout_id = await self._create_workout_in_db(
+                    user_id=user_id,
+                    workout_intent=workout_intent,
+                )
+
+                if workout_id:
+                    return {
+                        "state": ConversationStateEnum.COMPLETE,
+                        "action": ConversationAction.CREATE_WORKOUT,
+                        "message_to_user": (
+                            f"✅ Воркаут успішно створено!\n\n"
+                            f"Ти можеш почати тренування або згенерувати плейлист для нього. "
+                            f"Якщо будуть якісь побажання - звертайся!"
+                        ),
+                        "workout_intent": workout_intent_dict,
+                        "workout_id": workout_id,
+                    }
+                else:
+                    return {
+                        "state": ConversationStateEnum.ERROR,
+                        "action": ConversationAction.ERROR_RESPONSE,
+                        "message_to_user": "Вибачте, не вдалось створити воркаут. Спробуйте ще раз.",
+                    }
+            except Exception as e:
+                logger.error(f"Failed to create workout: {e}")
+                return {
+                    "state": ConversationStateEnum.ERROR,
+                    "action": ConversationAction.ERROR_RESPONSE,
+                    "message_to_user": "Вибачте, виникла помилка при створенні воркауту. Спробуйте ще раз.",
+                }
+
+        else:  # is_negative
+            # User declined - end conversation politely
+            return {
+                "state": ConversationStateEnum.COMPLETE,
+                "action": ConversationAction.ASK_CLARIFICATION,
+                "message_to_user": (
+                    "Зрозуміло! Якщо будуть якісь побажання або запитань - звертайся. "
+                    "Готовий допомогти з тренуваннями! 💪"
+                ),
+                "workout_intent": None,
+            }
+
+    async def _create_workout_in_db(
+        self,
+        user_id: str,
+        workout_intent: WorkoutIntent,
+    ) -> Optional[str]:
+        """
+        Create workout in database.
+
+        Args:
+            user_id: User ID
+            workout_intent: Parsed workout intent
+
+        Returns:
+            Workout ID if created successfully, None otherwise
+        """
+        try:
+            client = supabase_service.get_client()
+
+            # Map energy_profile to intensity
+            # energy_profile: "steady", "building", "wave"
+            # intensity: "low", "moderate", "high"
+            if workout_intent.target_bpm_min < 120:
+                intensity = "low"
+            elif workout_intent.target_bpm_min < 150:
+                intensity = "moderate"
+            else:
+                intensity = "high"
+
+            # Map workout_type from WorkoutIntent to database type
+            # WorkoutIntent: "continuous", "intervals", "fartlek", "recovery"
+            # Database: "steady", "progressive", "intervals", "fartlek"
+            type_mapping = {
+                "continuous": "steady",
+                "intervals": "intervals",
+                "fartlek": "fartlek",
+                "recovery": "steady",
+            }
+            db_workout_type = type_mapping.get(workout_intent.workout_type, "steady")
+
+            # Convert WorkoutIntent to workout data
+            workout_data = {
+                "user_id": user_id,
+                "type": db_workout_type,
+                "duration_minutes": workout_intent.duration_minutes,
+                "intensity": intensity,
+                "hr_zones": [workout_intent.target_bpm_min, workout_intent.target_bpm_max],
+            }
+
+            # Add optional fields
+            if workout_intent.intervals:
+                interval_stages = []
+                for interval in workout_intent.intervals:
+                    interval_stages.append({
+                        "name": getattr(interval, 'name', 'work'),
+                        "duration_minutes": interval.duration_minutes,
+                        "hr_zone": [workout_intent.target_bpm_min, workout_intent.target_bpm_max],
+                        "bpm_range": [interval.target_bpm, interval.target_bpm],
+                    })
+                workout_data["interval_stages"] = interval_stages
+
+            # Add music preferences if provided
+            if workout_intent.music_genres:
+                workout_data["genres"] = workout_intent.music_genres
+            if workout_intent.music_prompt:
+                workout_data["prompt"] = workout_intent.music_prompt
+
+            # Insert workout
+            result = (
+                client.table("workouts")
+                .insert(workout_data)
+                .execute()
+            )
+
+            if result.data and len(result.data) > 0:
+                workout_id = result.data[0]["id"]
+                logger.info(f"Created workout {workout_id} for user {user_id}")
+                return workout_id
+            else:
+                logger.error("Failed to create workout - no data returned")
+                return None
+
+        except Exception as e:
+            logger.error(f"Error creating workout in database: {e}")
+            return None
 
     def _format_playlist_message(
         self,

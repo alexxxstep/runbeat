@@ -12,6 +12,7 @@ export interface Message {
 }
 
 export interface Workout {
+  id?: string; // Workout ID from database (if saved)
   type: 'steady' | 'progressive' | 'intervals' | 'fartlek';
   duration_minutes: number;
   intensity: 'low' | 'moderate' | 'high';
