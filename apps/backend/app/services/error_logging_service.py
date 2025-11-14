@@ -18,6 +18,7 @@ class ErrorLoggingService:
         """Initialize error logging service."""
         self.supabase = supabase_service.get_client()
         self.environment = settings.ENVIRONMENT if hasattr(settings, "ENVIRONMENT") else "production"
+        logger.info(f"ErrorLoggingService initialized (environment: {self.environment})")
 
     def log_error(
         self,

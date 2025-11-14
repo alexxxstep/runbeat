@@ -28,6 +28,7 @@ class DatabaseLogHandler:
             "ERROR": 40,
             "CRITICAL": 50,
         }
+        logger.info(f"DatabaseLogHandler initialized (min_level: {min_level})")
 
     def __call__(self, message: Dict[str, Any]) -> None:
         """

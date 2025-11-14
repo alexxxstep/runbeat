@@ -20,13 +20,17 @@ logger.add(
 )
 
 # Add database log handler for errors
-from app.utils.database_log_handler import DatabaseLogHandler
-logger.add(
-    DatabaseLogHandler(min_level="ERROR"),
-    level="ERROR",
-    format="{time} | {level} | {message}",
-    filter=lambda record: record["level"].name in ["ERROR", "CRITICAL", "WARNING"],
-)
+try:
+    from app.utils.database_log_handler import DatabaseLogHandler
+    logger.add(
+        DatabaseLogHandler(min_level="ERROR"),
+        level="ERROR",
+        format="{time} | {level} | {message}",
+        filter=lambda record: record["level"].name in ["ERROR", "CRITICAL", "WARNING"],
+    )
+    logger.info("Database log handler added successfully")
+except Exception as e:
+    logger.warning(f"Failed to add database log handler: {e}. Errors will only be logged to file.")
 
 # Create FastAPI app
 app = FastAPI(
@@ -95,6 +99,13 @@ async def startup_event():
     logger.info(f"RunBeat API starting in {settings.ENVIRONMENT} mode")
     logger.info(f"Log level: {settings.LOG_LEVEL}")
     logger.info(f"CORS allowed origins: {settings.CORS_ORIGINS}")
+
+    # Test error logging service
+    try:
+        from app.services.error_logging_service import error_logging_service
+        logger.info("Error logging service is ready")
+    except Exception as e:
+        logger.error(f"Error logging service initialization failed: {e}")
 
 
 @app.on_event("shutdown")
