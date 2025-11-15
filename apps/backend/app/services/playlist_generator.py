@@ -90,7 +90,7 @@ class PlaylistGenerator:
         )
 
         total_duration = sum(t.duration_ms for t in playlist) / 1000
-                    logger.info(
+        logger.info(
             f"Generated a dynamic playlist with {len(playlist)} tracks. "
             f"Total duration: {total_duration:.1f}s"
         )
@@ -149,16 +149,16 @@ class PlaylistGenerator:
         limit = int(num_tracks_needed * 3) + 10 # Fetch plenty of candidates
 
         try:
-                spotify_tracks = await self.spotify.get_recommendations(
-                seed_genres=segment.genres[:2],
-                seed_artists=[], # Add missing seed_artists
-                target_tempo=int((segment.min_bpm + segment.max_bpm) / 2),
-                min_tempo=segment.min_bpm,
-                max_tempo=segment.max_bpm,
-                target_energy=segment.target_energy,
-                limit=limit,
-                user_token=user_token,
-                )
+            spotify_tracks = await self.spotify.get_recommendations(
+            seed_genres=segment.genres[:2],
+            seed_artists=[], # Add missing seed_artists
+            target_tempo=int((segment.min_bpm + segment.max_bpm) / 2),
+            min_tempo=segment.min_bpm,
+            max_tempo=segment.max_bpm,
+            target_energy=segment.target_energy,
+            limit=limit,
+            user_token=user_token,
+            )
 
             if not spotify_tracks:
                 logger.warning(f"No tracks returned from Spotify for segment '{segment.name}'")
