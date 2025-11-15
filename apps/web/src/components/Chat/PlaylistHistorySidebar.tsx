@@ -118,7 +118,7 @@ export function PlaylistHistorySidebar({
       className={`bg-app-surface border-r border-app-border flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass} min-w-0`}
     >
       {/* Header */}
-      <div className='p-4 border-b border-app-border flex justify-between items-center flex-shrink-0'>
+      <div className={`${collapsed ? 'p-2' : 'p-4'} border-b border-app-border flex ${collapsed ? 'justify-center' : 'justify-between'} items-center flex-shrink-0`}>
         <h2
           className={`text-title-2 font-display font-bold text-app-text transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
         >
@@ -126,12 +126,12 @@ export function PlaylistHistorySidebar({
         </h2>
         <button
           onClick={onToggleCollapse}
-          className='p-2 hover:bg-app-surface-light rounded-full transition-transform duration-300 ease-in-out'
+          className={`${collapsed ? 'p-2 w-full' : 'p-2'} hover:bg-app-surface-light rounded-full transition-all duration-300 ease-in-out flex-shrink-0`}
           title={collapsed ? 'Розгорнути' : 'Згорнути'}
         >
           <svg
-            className={`w-5 h-5 text-app-text-secondary transform transition-transform duration-300 ${
-              collapsed ? 'rotate-180' : ''
+            className={`${collapsed ? 'w-6 h-6' : 'w-5 h-5'} text-app-text-secondary transform transition-transform duration-300 ${
+              collapsed ? 'rotate-180' : 'rotate-0'
             }`}
             fill='none'
             stroke='currentColor'
@@ -141,7 +141,7 @@ export function PlaylistHistorySidebar({
               strokeLinecap='round'
               strokeLinejoin='round'
               strokeWidth={2}
-              d='M15 19l-7-7 7-7'
+              d='M9 5l7 7-7 7'
             />
           </svg>
         </button>

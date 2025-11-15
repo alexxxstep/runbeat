@@ -202,12 +202,12 @@ export function SettingsSidebar({
         </h2>
         <button
           onClick={onToggleCollapse}
-          className='p-2 hover:bg-app-surface-light rounded-full transition-transform duration-300 ease-in-out flex-shrink-0'
+          className={`${collapsed ? 'p-2 w-full' : 'p-2'} hover:bg-app-surface-light rounded-full transition-all duration-300 ease-in-out flex-shrink-0`}
           title={collapsed ? 'Розгорнути' : 'Згорнути'}
         >
           <svg
-            className={`w-5 h-5 text-app-text-secondary transform transition-transform duration-300 ${
-              collapsed ? '' : 'rotate-180'
+            className={`${collapsed ? 'w-6 h-6' : 'w-5 h-5'} text-app-text-secondary transform transition-transform duration-300 ${
+              collapsed ? 'rotate-0' : 'rotate-180'
             }`}
             fill='none'
             stroke='currentColor'
