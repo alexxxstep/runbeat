@@ -47,10 +47,77 @@ class SupervisorAgent:
         self.states[user_id] = update.new_state
 
         response_message = update.response_message
+        state = update.new_state
+
+        # Check if user confirmed workout creation (from fallback or agent)
+        message_lower = message.lower().strip()
+        is_confirmation = any(
+            word in message_lower
+            for word in ["так", "yes", "да", "ок", "ok", "створ", "create"]
+        )
+        is_decline = any(
+            word in message_lower
+            for word in ["ні", "no", "не треба", "не потрібно", "скасу", "cancel"]
+        )
+
+        # If user confirmed and we have all parameters, try to create workout
+        if (
+            is_confirmation
+            and state.last_question == "final_confirmation"
+            and state.collected_parameters.get("duration_minutes")
+            and state.collected_parameters.get("intensity")
+        ):
+            # Check if workout was already created by agent
+            success_indicators = (
+                "✅" in response_message
+                and ("створено" in response_message.lower()
+                     or "created" in response_message.lower())
+            )
+
+            if not success_indicators:
+                # Agent didn't create workout (maybe reached limit), create it here
+                try:
+                    from app.agents.tools.workout_tools import create_workout_from_params
+
+                    collected = state.collected_parameters
+                    workout_type = collected.get("type", "steady")
+                    duration = collected.get("duration_minutes")
+                    intensity = collected.get("intensity")
+                    genres_list = collected.get("genres", [])
+                    genres_str = None
+                    if genres_list:
+                        if isinstance(genres_list, list):
+                            genres_str = ",".join(genres_list)
+                        else:
+                            genres_str = str(genres_list)
+
+                    result = create_workout_from_params(
+                        user_id=user_id,
+                        workout_type=workout_type,
+                        duration_minutes=duration,
+                        intensity=intensity,
+                        genres=genres_str,
+                        prompt=None,
+                    )
+
+                    if "error" not in result.lower():
+                        response_message = "✅ Воркаут успішно створено! Тепер ви можете згенерувати плейлист."
+                        logger.info(
+                            f"Workout created via supervisor fallback for user {user_id}"
+                        )
+                    else:
+                        response_message = f"Вибачте, не вдалося створити воркаут: {result}"
+                        logger.error(
+                            f"Failed to create workout via supervisor fallback: {result}"
+                        )
+                except Exception as e:
+                    logger.error(
+                        f"Error creating workout via supervisor fallback: {e}",
+                        exc_info=True,
+                    )
+                    response_message = "Вибачте, виникла помилка при створенні воркауту. Спробуйте ще раз."
 
         # Check if workout was successfully created
-        # (agent indicates this in response)
-        # The agent uses create_workout_from_params tool and responds
         success_indicators = (
             "✅" in response_message
             and ("створено" in response_message.lower()
@@ -66,7 +133,7 @@ class SupervisorAgent:
         if success_indicators:
             # Check if response contains error before clearing state
             if "error" not in response_message.lower():
-                # Workout was successfully created by the agent - clear state
+                # Workout was successfully created - clear state
                 logger.info(
                     f"Workout created successfully for user {user_id}, "
                     f"clearing state"
@@ -77,8 +144,10 @@ class SupervisorAgent:
                     f"Workout creation reported success but contains error "
                     f"for user {user_id}, keeping state"
                 )
-        elif any(word in response_message.lower()
-                 for word in ["скасовано", "canceled", "cancelled"]):
+        elif is_decline or any(
+            word in response_message.lower()
+            for word in ["скасовано", "canceled", "cancelled", "зрозуміло"]
+        ):
             # User declined - clear state
             logger.info(
                 f"Workout creation declined by user {user_id}, "

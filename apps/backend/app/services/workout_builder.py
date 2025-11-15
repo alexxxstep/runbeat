@@ -331,6 +331,24 @@ class WorkoutBuilder(BaseAgent):
         collected = state.collected_parameters.copy()  # Work with copy
         message_lower = user_message.lower().strip()
 
+        # Check if we're waiting for confirmation and user responded
+        if state.last_question == "final_confirmation":
+            # Check for confirmation (yes/да/так)
+            if any(
+                word in message_lower
+                for word in ["так", "yes", "да", "ок", "ok", "створ", "create"]
+            ):
+                # User confirmed - supervisor will create workout
+                # Return message that indicates confirmation
+                return "Добре! Створюю воркаут..."
+            # Check for decline (no/ні)
+            elif any(
+                word in message_lower
+                for word in ["ні", "no", "не треба", "не потрібно", "скасу", "cancel"]
+            ):
+                # User declined
+                return "Зрозуміло! Якщо потрібна допомога ще - звертайся. Успішного тренування! 🏃‍♂️"
+
         # Try to extract parameters from user message first
         parsed_params = self._extract_parameters_from_user_message(user_message)
         if parsed_params:

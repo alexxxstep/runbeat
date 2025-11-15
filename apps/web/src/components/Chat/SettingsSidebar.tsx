@@ -194,7 +194,7 @@ export function SettingsSidebar({
       className={`bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass}`}
     >
       {/* Header */}
-      <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0'>
+      <div className={`${collapsed ? 'p-2' : 'p-4'} border-b border-gray-200 dark:border-gray-700 flex ${collapsed ? 'justify-center' : 'justify-between'} items-center flex-shrink-0`}>
         <h2
           className={`text-lg font-semibold text-gray-900 dark:text-white transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
         >
@@ -202,7 +202,7 @@ export function SettingsSidebar({
         </h2>
         <button
           onClick={onToggleCollapse}
-          className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-transform duration-300 ease-in-out'
+          className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-transform duration-300 ease-in-out flex-shrink-0'
           title={collapsed ? 'Розгорнути' : 'Згорнути'}
         >
           <svg
