@@ -36,37 +36,48 @@ class SupervisorAgent:
         """
         state = self._get_or_create_state(user_id)
 
-        # Check if the last step was final confirmation and user confirms
-        if state.last_question == "final_confirmation" and "так" in message.lower():
-            # Create a Workout object from collected parameters
-            workout_to_save = Workout(**state.collected_parameters)
-
-            # Call the manager agent to save the workout
-            try:
-                result = await self.manager_agent.create_and_activate_workout(
-                    user_id=user_id,
-                    workout_intent=workout_to_save
-                )
-                logger.info(
-                    f"Workout created for user {user_id}. Result: {result}")
-
-                # Clear state after successful creation
-                self.clear_state(user_id)
-
-                return f"✅ Воркаут успішно створено! ID: {result}. Тепер ви можете згенерувати для нього плейлист."
-
-            except Exception as e:
-                logger.error(f"Error creating workout for user {user_id}: {e}")
-                return "На жаль, сталася помилка при збереженні воркаута. Спробуйте ще раз."
-
-        # Otherwise, continue the conversation with the builder agent
+        # Delegate the conversation to the WorkoutBuilderAgent
         update = await self.builder_agent.process_message(state, message)
+
+        # Update the state with the new state from the builder agent
         self.states[user_id] = update.new_state
 
-        logger.debug(
-            f"New state for user {user_id}: {update.new_state.model_dump_json(indent=2)}")
+        response_message = update.response_message
 
-        return update.response_message
+        # Check if the workout is ready for final confirmation and user confirmed
+        if (
+            state.last_question == "final_confirmation"
+            and "так" in message.lower()
+            and state.collected_parameters
+        ):
+            try:
+                # Create a Workout object from collected parameters
+                workout_data = Workout(
+                    user_id=user_id,
+                    type=state.collected_parameters.get("type", "steady"),
+                    duration_minutes=state.collected_parameters.get(
+                        "duration_minutes", 30),
+                    intensity=state.collected_parameters.get(
+                        "intensity", "moderate"),
+                    hr_zones=[120, 150],  # Default HR zones for now
+                    genres=state.collected_parameters.get("genres", []),
+                    prompt=state.collected_parameters.get("prompt", None),
+                )
+                created_workout = await self.manager_agent.create_workout(workout_data)
+                response_message = f"✅ Воркаут '{created_workout.type}' успішно створено! Тривалість: {created_workout.duration_minutes} хв. Тепер ви можете згенерувати плейлист."
+                # Clear state after successful creation
+                self.clear_state(user_id)
+            except Exception as e:
+                logger.error(f"Failed to create workout: {e}")
+                response_message = "Виникла помилка при збереженні воркауту. Спробуйте ще раз."
+        elif state.last_question == "final_confirmation" and "ні" in message.lower():
+            response_message = "Створення воркауту скасовано. Чим ще можу допомогти?"
+            self.clear_state(user_id)  # Clear state if user declines
+
+        logger.debug(
+            f"New state for user {user_id}: {self.states[user_id].model_dump_json(indent=2)}")
+
+        return response_message
 
     def clear_state(self, user_id: str):
         """Clears the conversation state for a user."""
