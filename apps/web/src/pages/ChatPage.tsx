@@ -383,6 +383,7 @@ export function ChatPage() {
             };
             setActiveWorkout(workoutData);
             setActiveWorkoutId(workoutId); // Set workout ID to prevent duplicate creation
+            setVariants(null); // Clear previous variants to allow re-generation
             setExcludedTrackIds(new Set()); // Reset excluded tracks when selecting workout from history
 
             // Update workout settings with saved genres and interval_stages

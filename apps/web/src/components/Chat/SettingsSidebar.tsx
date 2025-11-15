@@ -185,16 +185,30 @@ export function SettingsSidebar({
     }
   }, [durationHours, durationMinutes]);
 
-  if (collapsed) {
-    return (
-      <div className='w-12 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full items-center py-4 transition-all duration-500 ease-in-out'>
+  const sidebarWidthClass = collapsed ? 'w-12' : 'w-80'; // Increased width for better layout
+  const contentOpacityClass = collapsed ? 'opacity-0' : 'opacity-100';
+  const contentVisibilityClass = collapsed ? 'invisible' : 'visible';
+
+  return (
+    <div
+      className={`bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass}`}
+    >
+      {/* Header */}
+      <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0'>
+        <h2
+          className={`text-lg font-semibold text-gray-900 dark:text-white transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
+        >
+          Воркаут
+        </h2>
         <button
           onClick={onToggleCollapse}
-          className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-all duration-200 ease-in-out hover:scale-110'
-          title='Розгорнути налаштування'
+          className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-transform duration-300 ease-in-out'
+          title={collapsed ? 'Розгорнути' : 'Згорнути'}
         >
           <svg
-            className='w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-300 ease-in-out'
+            className={`w-5 h-5 text-gray-600 dark:text-gray-400 transform transition-transform duration-300 ${
+              !collapsed ? '' : 'rotate-180'
+            }`}
             fill='none'
             stroke='currentColor'
             viewBox='0 0 24 24'
@@ -203,52 +217,16 @@ export function SettingsSidebar({
               strokeLinecap='round'
               strokeLinejoin='round'
               strokeWidth={2}
-              d='M15 19l-7-7 7-7'
+              d='M9 5l7 7-7 7' // Arrow always points right, rotate for collapse
             />
           </svg>
         </button>
       </div>
-    );
-  }
 
-  return (
-    <>
-      {/* Mobile overlay */}
-      {!collapsed && (
-        <div
-          className='md:hidden fixed inset-0 bg-black/50 z-30'
-          onClick={onToggleCollapse}
-        />
-      )}
-      <div className={`flex-[1.5] bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-y-auto transition-all duration-500 ease-in-out min-w-0 fixed md:relative inset-y-0 right-0 z-40 w-72 md:w-auto transform ${collapsed ? 'translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
-      <div className='p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center transition-all duration-300 ease-in-out'>
-        <h2 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white transition-all duration-300 ease-in-out'>
-          Воркаут
-        </h2>
-        {onToggleCollapse && (
-          <button
-            onClick={onToggleCollapse}
-            className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-all duration-200 ease-in-out hover:scale-110 active:scale-95'
-            title='Згорнути налаштування'
-          >
-            <svg
-              className='w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-300 ease-in-out'
-              fill='none'
-              stroke='currentColor'
-              viewBox='0 0 24 24'
-            >
-              <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                strokeWidth={2}
-                d='M9 5l7 7-7 7'
-              />
-            </svg>
-          </button>
-        )}
-      </div>
-
-      <div className='flex-1 p-3 md:p-4 space-y-4 md:space-y-6 transition-all duration-300 ease-in-out'>
+      {/* Main Content */}
+      <div
+        className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
+      >
         {/* Workout Type */}
         <div>
           <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
@@ -582,7 +560,9 @@ export function SettingsSidebar({
       </div>
 
       {/* Save Button */}
-      <div className='p-3 md:p-4 border-t border-gray-200 dark:border-gray-700'>
+      <div
+        className={`p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
+      >
         <button
           onClick={handleSave}
           disabled={saving || !userId}
@@ -592,6 +572,5 @@ export function SettingsSidebar({
         </button>
       </div>
     </div>
-    </>
   );
 }
