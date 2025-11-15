@@ -13,20 +13,20 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 px-2 md:px-0`}>
       <div
-        className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-3 md:px-4 py-2 rounded-lg ${
+        className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-3 md:px-4 py-2 rounded-lg font-mono ${
           isUser
-            ? 'bg-blue-600 text-white'
+            ? 'bg-track-accent text-track-dark glow-border'
             : needsClarification
-            ? 'bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-400 dark:border-yellow-600 text-gray-900 dark:text-gray-100'
-            : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+            ? 'bg-track-darker border-2 border-track-accent-dim glow-border-dim text-track-accent'
+            : 'bg-track-darker border border-track-line glow-border-dim text-track-accent'
         }`}
       >
         {/* Clarification indicator */}
         {needsClarification && (
-          <div className='mb-2 pb-2 border-b border-yellow-400 dark:border-yellow-600'>
+          <div className='mb-2 pb-2 border-b border-track-accent-dim'>
             <div className='flex items-start gap-2'>
               <svg
-                className='w-4 h-4 mt-0.5 flex-shrink-0'
+                className='w-4 h-4 mt-0.5 flex-shrink-0 text-track-accent'
                 fill='currentColor'
                 viewBox='0 0 20 20'
               >
@@ -36,12 +36,12 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                   clipRule='evenodd'
                 />
               </svg>
-              <div className='flex-1 min-w-0'>
-                <p className='text-xs font-semibold text-yellow-800 dark:text-yellow-300 mb-1'>
-                  Потрібне уточнення
+              <div className='flex-1'>
+                <p className='text-xs font-semibold led-text mb-1'>
+                  ПОТРІБНЕ УТОЧНЕННЯ
                 </p>
                 {message.workout?.clarification_question && (
-                  <p className='text-xs text-yellow-700 dark:text-yellow-400 italic break-words'>
+                  <p className='text-xs led-text-dim italic'>
                     {message.workout.clarification_question}
                   </p>
                 )}
@@ -51,38 +51,37 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         )}
         {/* Render workout info if available */}
         {message.workout && (
-          <div className='mb-3 pb-3 border-b border-gray-300 dark:border-gray-600'>
-            <div className='text-sm space-y-1'>
+          <div className='mb-3 pb-3 border-b border-track-line'>
+            <div className='text-sm space-y-1 led-text-dim'>
               <p>
-                <strong>Тип тренування:</strong>{' '}
+                <strong className='led-text'>ТИП:</strong>{' '}
                 {message.workout.type === 'steady'
-                  ? 'Стабільна'
+                  ? 'СТАБІЛЬНА'
                   : message.workout.type === 'progressive'
-                  ? 'Прогресивна'
+                  ? 'ПРОГРЕСИВНА'
                   : message.workout.type === 'intervals'
-                  ? 'Інтервальна'
-                  : 'Фартлек'}
+                  ? 'ІНТЕРВАЛЬНА'
+                  : 'ФАРТЛЕК'}
               </p>
               <p>
-                <strong>Тривалість:</strong> {message.workout.duration_minutes}{' '}
-                хвилин
+                <strong className='led-text'>ТРИВАЛІСТЬ:</strong> {message.workout.duration_minutes} ХВ
               </p>
               <p>
-                <strong>Інтенсивність:</strong>{' '}
+                <strong className='led-text'>ІНТЕНСИВНІСТЬ:</strong>{' '}
                 {message.workout.intensity === 'low'
-                  ? 'Легка'
+                  ? 'ЛЕГКА'
                   : message.workout.intensity === 'moderate'
-                  ? 'Середня'
-                  : 'Висока'}
+                  ? 'СЕРЕДНЯ'
+                  : 'ВИСОКА'}
               </p>
               <p>
-                <strong>ЧСС:</strong> {message.workout.hr_zones[0]} -{' '}
-                {message.workout.hr_zones[1]} уд/хв
+                <strong className='led-text'>ЧСС:</strong> {message.workout.hr_zones[0]} -{' '}
+                {message.workout.hr_zones[1]} УД/ХВ
               </p>
             </div>
           </div>
         )}
-        <p className='text-sm whitespace-pre-line'>{message.content}</p>
+        <p className='text-sm whitespace-pre-line led-text-dim'>{message.content}</p>
 
         {/* Display playlist info if available */}
         {message.playlist && (
@@ -212,8 +211,8 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         )}
 
         <p
-          className={`text-xs mt-1 ${
-            isUser ? 'text-blue-100' : 'text-gray-500'
+          className={`text-xs mt-1 font-mono ${
+            isUser ? 'text-track-dark' : 'led-text-dim'
           }`}
         >
           {message.timestamp.toLocaleTimeString('uk-UA', {

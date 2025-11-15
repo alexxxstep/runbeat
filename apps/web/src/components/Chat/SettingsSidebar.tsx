@@ -185,28 +185,28 @@ export function SettingsSidebar({
     }
   }, [durationHours, durationMinutes]);
 
-  const sidebarWidthClass = collapsed ? 'w-12' : 'w-80';
+  const sidebarWidthClass = collapsed ? 'w-12' : 'w-full';
   const contentOpacityClass = collapsed ? 'opacity-0' : 'opacity-100';
   const contentVisibilityClass = collapsed ? 'invisible' : 'visible';
 
   return (
     <div
-      className={`bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass} min-w-0 w-full`}
+      className={`bg-track-dark border-l border-track-line flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass}`}
     >
       {/* Header */}
-      <div className={`${collapsed ? 'p-2' : 'p-4'} border-b border-gray-200 dark:border-gray-700 flex ${collapsed ? 'justify-center' : 'justify-between'} items-center flex-shrink-0`}>
+      <div className={`${collapsed ? 'p-2' : 'p-4'} border-b border-track-line flex ${collapsed ? 'justify-center' : 'justify-between'} items-center flex-shrink-0 glow-border-dim`}>
         <h2
-          className={`text-lg font-semibold text-gray-900 dark:text-white transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
+          className={`text-lg font-display font-semibold led-text transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
         >
-          Воркаут
+          ВОРКАУТ
         </h2>
         <button
           onClick={onToggleCollapse}
-          className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-transform duration-300 ease-in-out flex-shrink-0'
+          className='p-2 hover:bg-track-line rounded-full transition-transform duration-300 ease-in-out flex-shrink-0'
           title={collapsed ? 'Розгорнути' : 'Згорнути'}
         >
           <svg
-            className={`w-5 h-5 text-gray-600 dark:text-gray-400 transform transition-transform duration-300 ${
+            className={`w-5 h-5 text-track-accent transform transition-transform duration-300 ${
               collapsed ? '' : 'rotate-180'
             }`}
             fill='none'
@@ -217,7 +217,7 @@ export function SettingsSidebar({
               strokeLinecap='round'
               strokeLinejoin='round'
               strokeWidth={2}
-              d='M15 19l-7-7 7-7' // Left-pointing arrow when expanded (to collapse), right-pointing when collapsed (to expand)
+              d='M15 19l-7-7 7-7'
             />
           </svg>
         </button>
@@ -225,25 +225,25 @@ export function SettingsSidebar({
 
       {/* Main Content */}
       <div
-        className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass} min-w-0`}
+        className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
       >
         {/* Workout Type */}
         <div>
-          <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-            Тип тренування
+          <label className='block text-xs md:text-sm font-mono font-medium led-text mb-2'>
+            ТИП ТРЕНУВАННЯ
           </label>
           <div className='grid grid-cols-2 gap-2'>
             {WORKOUT_TYPES.map((type) => (
               <button
                 key={type.value}
                 onClick={() => updateSettings({ type: type.value })}
-                className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm rounded-lg border transition-colors ${
+                className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm font-mono rounded-lg border transition-colors ${
                   localSettings.type === type.value
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                    ? 'bg-track-accent text-track-dark border-track-accent glow-border'
+                    : 'bg-track-darker text-track-accent border-track-line hover:bg-track-line glow-border-dim'
                 }`}
               >
-                {type.label}
+                {type.label.toUpperCase()}
               </button>
             ))}
           </div>
@@ -251,13 +251,13 @@ export function SettingsSidebar({
 
         {/* Duration */}
         <div>
-          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-            Тривалість
+          <label className='block text-sm font-mono font-medium led-text mb-2'>
+            ТРИВАЛІСТЬ
           </label>
           <div className='space-y-3'>
             <div>
-              <label className='text-xs text-gray-500 dark:text-gray-400 mb-1 block'>
-                Години: {durationHours}
+              <label className='text-xs led-text-dim mb-1 block font-mono'>
+                ГОДИНИ: {durationHours}
               </label>
               <input
                 type='range'
@@ -265,12 +265,12 @@ export function SettingsSidebar({
                 max='3'
                 value={durationHours}
                 onChange={(e) => setDurationHours(parseInt(e.target.value))}
-                className='w-full'
+                className='w-full accent-track-accent'
               />
             </div>
             <div>
-              <label className='text-xs text-gray-500 dark:text-gray-400 mb-1 block'>
-                Хвилини: {durationMinutes}
+              <label className='text-xs led-text-dim mb-1 block font-mono'>
+                ХВИЛИНИ: {durationMinutes}
               </label>
               <input
                 type='range'
@@ -278,33 +278,32 @@ export function SettingsSidebar({
                 max='59'
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
-                className='w-full'
+                className='w-full accent-track-accent'
               />
             </div>
-            <p className='text-xs text-gray-500 dark:text-gray-400'>
-              Всього: {convertDurationToMinutes(durationHours, durationMinutes)}{' '}
-              хв
+            <p className='text-xs led-text-dim font-mono'>
+              ВСЬОГО: {convertDurationToMinutes(durationHours, durationMinutes)} ХВ
             </p>
           </div>
         </div>
 
         {/* Intensity */}
         <div>
-          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-            Інтенсивність
+          <label className='block text-sm font-mono font-medium led-text mb-2'>
+            ІНТЕНСИВНІСТЬ
           </label>
           <div className='flex gap-2'>
             {INTENSITIES.map((intensity) => (
               <button
                 key={intensity.value}
                 onClick={() => updateSettings({ intensity: intensity.value })}
-                className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                className={`flex-1 px-3 py-2 text-sm font-mono rounded-lg border transition-colors ${
                   localSettings.intensity === intensity.value
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                    ? 'bg-track-accent text-track-dark border-track-accent glow-border'
+                    : 'bg-track-darker text-track-accent border-track-line hover:bg-track-line glow-border-dim'
                 }`}
               >
-                {intensity.label}
+                {intensity.label.toUpperCase()}
               </button>
             ))}
           </div>
@@ -312,13 +311,13 @@ export function SettingsSidebar({
 
         {/* Heart Rate Zones */}
         <div>
-          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-            Частота серцебиття
+          <label className='block text-sm font-mono font-medium led-text mb-2'>
+            ЧАСТОТА СЕРЦЕБИТТЯ
           </label>
           <div className='space-y-2'>
             <div>
-              <label className='text-xs text-gray-500 dark:text-gray-400 mb-1 block'>
-                Мінімум: {localSettings.hrZones[0]} уд/хв
+              <label className='text-xs led-text-dim mb-1 block font-mono'>
+                МІНІМУМ: {localSettings.hrZones[0]} УД/ХВ
               </label>
               <input
                 type='range'
@@ -333,12 +332,12 @@ export function SettingsSidebar({
                     ],
                   })
                 }
-                className='w-full'
+                className='w-full accent-track-accent'
               />
             </div>
             <div>
-              <label className='text-xs text-gray-500 dark:text-gray-400 mb-1 block'>
-                Максимум: {localSettings.hrZones[1]} уд/хв
+              <label className='text-xs led-text-dim mb-1 block font-mono'>
+                МАКСИМУМ: {localSettings.hrZones[1]} УД/ХВ
               </label>
               <input
                 type='range'
@@ -353,12 +352,11 @@ export function SettingsSidebar({
                     ],
                   })
                 }
-                className='w-full'
+                className='w-full accent-track-accent'
               />
             </div>
-            <p className='text-xs text-gray-500 dark:text-gray-400'>
-              Діапазон: {localSettings.hrZones[0]} - {localSettings.hrZones[1]}{' '}
-              уд/хв
+            <p className='text-xs led-text-dim font-mono'>
+              ДІАПАЗОН: {localSettings.hrZones[0]} - {localSettings.hrZones[1]} УД/ХВ
             </p>
           </div>
         </div>
@@ -521,21 +519,21 @@ export function SettingsSidebar({
 
         {/* Music Genres */}
         <div>
-          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-            Жанри музики
+          <label className='block text-sm font-mono font-medium led-text mb-2'>
+            ЖАНРИ МУЗИКИ
           </label>
           <div className='flex flex-wrap gap-2'>
             {MUSIC_GENRES.map((genre) => (
               <button
                 key={genre}
                 onClick={() => toggleGenre(genre)}
-                className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                className={`px-3 py-1 text-xs font-mono rounded-full border transition-colors ${
                   localSettings.genres.includes(genre)
-                    ? 'bg-green-600 text-white border-green-600'
-                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                    ? 'bg-track-accent text-track-dark border-track-accent glow-border'
+                    : 'bg-track-darker text-track-accent border-track-line hover:bg-track-line glow-border-dim'
                 }`}
               >
-                {genre}
+                {genre.toUpperCase()}
               </button>
             ))}
           </div>
@@ -543,17 +541,17 @@ export function SettingsSidebar({
 
         {/* Prompt Field */}
         <div>
-          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-            Промпт (опціонально)
+          <label className='block text-sm font-mono font-medium led-text mb-2'>
+            ПРОМПТ (ОПЦІОНАЛЬНО)
           </label>
           <textarea
             value={localSettings.prompt || ''}
             onChange={(e) => updateSettings({ prompt: e.target.value })}
             placeholder='Опиши додаткові побажання до музики, наприклад: "енергійна музика для ранкового бігу", "релаксуючі мелодії", "улюблені треки 2024 року" тощо...'
-            className='w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none'
+            className='w-full px-3 py-2 text-sm font-mono border border-track-line rounded-lg bg-track-darker text-track-accent placeholder-track-accent-dim focus:outline-none focus:ring-2 focus:ring-track-accent focus:border-transparent resize-none glow-border-dim'
             rows={4}
           />
-          <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+          <p className='text-xs led-text-dim mt-1 font-mono'>
             Цей промпт допоможе уточнити пошук та генерацію варіантів плейлистів
           </p>
         </div>
@@ -561,14 +559,14 @@ export function SettingsSidebar({
 
       {/* Save Button */}
       <div
-        className={`p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
+        className={`p-4 border-t border-track-line flex-shrink-0 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass} glow-border-dim`}
       >
         <button
           onClick={handleSave}
           disabled={saving || !userId}
-          className='w-full px-3 md:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium text-sm md:text-base'
+          className='w-full px-3 md:px-4 py-2 bg-track-accent text-track-dark rounded-lg hover:bg-track-accent-bright disabled:bg-track-line disabled:text-track-accent-dim disabled:cursor-not-allowed transition-colors font-mono font-bold text-sm md:text-base glow-border'
         >
-          {saving ? 'Збереження...' : 'Зберегти'}
+          {saving ? 'ЗБЕРЕЖЕННЯ...' : 'ЗБЕРЕГТИ'}
         </button>
       </div>
     </div>

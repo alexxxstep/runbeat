@@ -358,9 +358,13 @@ export function ChatPage() {
   }
 
   return (
-    <div className='flex flex-col md:flex-row h-screen bg-gray-50 dark:bg-gray-900 relative overflow-hidden'>
+    <div className='flex flex-col md:flex-row h-screen bg-track-dark track-background relative scan-line'>
       {/* History Sidebar - Left - 1.5 units */}
-      <div className={`${historyCollapsed ? 'hidden md:flex' : 'flex'} md:flex-[1.5] min-w-0`}>
+      <div
+        className={`${historyCollapsed ? 'hidden md:flex' : 'flex'} ${
+          historyCollapsed ? 'md:flex-none' : 'md:flex-[1.5]'
+        } min-w-0 overflow-hidden`}
+      >
         <PlaylistHistorySidebar
           userId={user?.id}
           refreshTrigger={refreshTrigger}
@@ -455,18 +459,18 @@ export function ChatPage() {
       </button>
 
       {/* Main Chat Area - Center - 3 units */}
-      <div className='flex-1 md:flex-[3] flex flex-col bg-white dark:bg-gray-900 min-w-0'>
+      <div className='flex-1 md:flex-[3] flex flex-col bg-track-dark min-w-0'>
         {/* Header with Clear Chat button */}
         {messages.length > 0 && (
-          <div className='flex justify-between items-center p-2 md:p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'>
-            <h1 className='text-lg md:text-xl font-bold text-gray-900 dark:text-white'>
-              RunBeat AI
+          <div className='flex justify-between items-center p-2 md:p-4 border-b border-track-line bg-track-darker glow-border-dim'>
+            <h1 className='text-lg md:text-xl font-display font-bold led-text'>
+              RUNBEAT AI
             </h1>
             <button
               onClick={handleClearChat}
-              className='px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
+              className='px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-mono text-track-accent hover:text-track-accent-bright border border-track-accent-dim rounded-lg hover:bg-track-line transition-colors glow-border-dim'
             >
-              Очистити
+              ОЧИСТИТИ
             </button>
           </div>
         )}
@@ -475,40 +479,40 @@ export function ChatPage() {
           {messages.length === 0 && (
             <div className='max-w-3xl mx-auto px-2 md:px-4 py-4 md:py-8'>
               <div className='text-center mb-6 md:mb-8'>
-                <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2'>
-                  Привіт! Я RunBeat AI 🎵
+                <h1 className='text-2xl md:text-3xl font-display font-bold led-text mb-2 animate-glow'>
+                  ПРИВІТ! Я RUNBEAT AI
                 </h1>
-                <p className='text-base md:text-lg text-gray-600 dark:text-gray-400'>
-                  Створю ідеальний плейлист для твого тренування
+                <p className='text-base md:text-lg font-mono led-text-dim'>
+                  СТВОРЮ ІДЕАЛЬНИЙ ПЛЕЙЛИСТ ДЛЯ ТВОГО ТРЕНУВАННЯ
                 </p>
               </div>
 
-              <div className='bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg shadow-lg p-4 md:p-6 mb-4 md:mb-6 border border-blue-200 dark:border-blue-800'>
-                <h2 className='text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-4 md:mb-6 text-center'>
-                  📋 Як це працює
+              <div className='bg-track-darker rounded-lg p-4 md:p-6 mb-4 md:mb-6 glow-border'>
+                <h2 className='text-xl md:text-2xl font-display font-bold led-text mb-4 md:mb-6 text-center'>
+                  ЯК ЦЕ ПРАЦЮЄ
                 </h2>
 
                 <div className='space-y-4 md:space-y-6'>
                   {/* Step 1 */}
-                  <div className='bg-white dark:bg-gray-800 rounded-lg p-3 md:p-5 border-l-4 border-blue-500'>
+                  <div className='bg-track-dark rounded-lg p-3 md:p-5 border-l-4 border-track-accent glow-border-dim'>
                     <div className='flex items-start gap-2 md:gap-4'>
-                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm md:text-lg'>
+                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-track-accent text-track-dark rounded-full flex items-center justify-center font-mono font-bold text-sm md:text-lg led-text'>
                         1
                       </div>
                       <div className='flex-1 min-w-0'>
-                        <h3 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-2'>
-                          Опиши своє тренування
+                        <h3 className='text-base md:text-lg font-mono font-semibold led-text mb-2'>
+                          ОПИШИ СВОЄ ТРЕНУВАННЯ
                         </h3>
-                        <p className='text-gray-700 dark:text-gray-300 mb-3'>
+                        <p className='led-text-dim mb-3 font-mono text-sm'>
                           Просто напиши мені, що ти хочеш зробити. Я розумію природну мову! Наприклад:
                         </p>
-                        <ul className='list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400 ml-4 mb-3'>
+                        <ul className='list-disc list-inside space-y-1 text-sm led-text-dim ml-4 mb-3 font-mono'>
                           <li>"хочу легку пробіжку 30 хвилин"</li>
                           <li>"інтервали 40 хв, рок-музика"</li>
                           <li>"фартлек 55 хв під електронну музику"</li>
                           <li>"темповий біг 45 хв, енергійна музика для ранкового бігу"</li>
                         </ul>
-                        <p className='text-gray-700 dark:text-gray-300'>
+                        <p className='led-text-dim font-mono text-sm'>
                           Я можу розпізнати: тип тренування (стабільна, інтервальна, фартлек),
                           тривалість, інтенсивність (легка, середня, висока),
                           та музичні побажання (жанри, опис).
@@ -518,16 +522,16 @@ export function ChatPage() {
                   </div>
 
                   {/* Step 2 */}
-                  <div className='bg-white dark:bg-gray-800 rounded-lg p-3 md:p-5 border-l-4 border-yellow-500'>
+                  <div className='bg-track-dark rounded-lg p-3 md:p-5 border-l-4 border-track-accent glow-border-dim'>
                     <div className='flex items-start gap-2 md:gap-4'>
-                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-yellow-500 text-white rounded-full flex items-center justify-center font-bold text-sm md:text-lg'>
+                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-track-accent text-track-dark rounded-full flex items-center justify-center font-mono font-bold text-sm md:text-lg led-text'>
                         2
                       </div>
                       <div className='flex-1 min-w-0'>
-                        <h3 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-2'>
-                          Я задам уточнюючі питання (якщо потрібно)
+                        <h3 className='text-base md:text-lg font-mono font-semibold led-text mb-2'>
+                          Я ЗАДАМ УТОЧНЮЮЧІ ПИТАННЯ (ЯКЩО ПОТРІБНО)
                         </h3>
-                        <p className='text-gray-700 dark:text-gray-300'>
+                        <p className='led-text-dim font-mono text-sm'>
                           Якщо мені потрібна додаткова інформація, я запитаю. Наприклад: "Який інтервал роботи/відпочинку?" або "Яка інтенсивність?". Просто відповідай на мої питання.
                         </p>
                       </div>
@@ -567,9 +571,9 @@ export function ChatPage() {
                   <button
                     onClick={generateVariants}
                     disabled={loadingVariants}
-                    className='px-4 sm:px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base'
+                    className='px-4 sm:px-6 py-2 bg-track-accent text-track-dark rounded-lg hover:bg-track-accent-bright transition-colors font-mono font-bold disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base glow-border'
                   >
-                    {loadingVariants ? 'Генерація...' : 'Так, згенерувати плейлист'}
+                    {loadingVariants ? 'ГЕНЕРАЦІЯ...' : 'ТАК, ЗГЕНЕРУВАТИ ПЛЕЙЛИСТ'}
                   </button>
                 ) : (
                   // Workout not created yet - show buttons to confirm creation
@@ -585,9 +589,9 @@ export function ChatPage() {
                         }
                       }}
                     disabled={isLoading}
-                    className='px-4 sm:px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base'
+                    className='px-4 sm:px-6 py-2 bg-track-accent text-track-dark rounded-lg hover:bg-track-accent-bright transition-colors font-mono font-bold disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base glow-border'
                   >
-                    {isLoading ? 'Створення...' : 'Так'}
+                    {isLoading ? 'СТВОРЕННЯ...' : 'ТАК'}
                   </button>
                   <button
                     onClick={async () => {
@@ -598,9 +602,9 @@ export function ChatPage() {
                       setActiveWorkoutId(null);
                     }}
                     disabled={isLoading}
-                    className='px-4 sm:px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base'
+                    className='px-4 sm:px-6 py-2 bg-track-line text-track-accent rounded-lg hover:bg-track-line hover:text-track-accent-bright transition-colors font-mono font-bold disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base glow-border-dim'
                   >
-                    Ні
+                    НІ
                   </button>
                   </>
                 )}
@@ -923,7 +927,11 @@ export function ChatPage() {
       </button>
 
       {/* Settings Sidebar - Right - 1.5 units */}
-      <div className={`${settingsCollapsed ? 'hidden md:flex' : 'flex'} ${settingsCollapsed ? 'md:flex-none' : 'md:flex-[1.5]'} min-w-0 overflow-hidden justify-end`}>
+      <div
+        className={`${settingsCollapsed ? 'hidden md:flex' : 'flex'} ${
+          settingsCollapsed ? 'md:flex-none' : 'md:flex-[1.5]'
+        } min-w-0 overflow-hidden justify-end`}
+      >
         <SettingsSidebar
           settings={workoutSettings}
           onSettingsChange={setWorkoutSettings}

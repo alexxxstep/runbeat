@@ -19,23 +19,23 @@ export function InputBar({ onSend, disabled }: InputBarProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="border-t border-gray-200 dark:border-gray-700 p-2 md:p-4 bg-white dark:bg-gray-800"
+      className="border-t border-track-line p-2 md:p-4 bg-track-darker glow-border-dim"
     >
-      <div className="flex gap-2 max-w-4xl mx-auto min-w-0">
+      <div className="flex gap-2 max-w-4xl mx-auto">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Наприклад: 'хочу легку пробіжку 30 хв під електронну музику' або 'інтервали 40 хв, рок-музика'..."
           disabled={disabled}
-          className="flex-1 min-w-0 px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          className="flex-1 px-3 md:px-4 py-2 text-sm md:text-base font-mono border border-track-line rounded-lg focus:outline-none focus:ring-2 focus:ring-track-accent bg-track-dark text-track-accent placeholder-track-accent-dim glow-border-dim"
         />
         <button
           type="submit"
           disabled={disabled || !input.trim()}
-          className="px-4 md:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base whitespace-nowrap"
+          className="px-4 md:px-6 py-2 bg-track-accent text-track-dark rounded-lg hover:bg-track-accent-bright disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base whitespace-nowrap font-mono font-bold glow-border"
         >
-          Відправити
+          ВІДПРАВИТИ
         </button>
       </div>
     </form>
