@@ -35,6 +35,8 @@ async def send_message(request: ChatRequest) -> ChatResponse:
             is_complete=False,  # The agent manages the flow
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))

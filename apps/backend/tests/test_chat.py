@@ -1,92 +1,49 @@
 """
 Tests for chat endpoints.
 """
-import pytest
 from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 from app.main import app
-from app.schemas.llm_responses import WorkoutIntent
 
 client = TestClient(app)
 
 
-@pytest.fixture
-def mock_llm_response():
-    """Mock LLM response for testing."""
-    return WorkoutIntent(
-        workout_type="recovery",
-        duration_minutes=30,
-        target_bpm_min=110,
-        target_bpm_max=130,
-        confidence=0.95,
-        needs_clarification=False,
-    )
+@patch("app.api.routes.chat.supervisor_agent")
+def test_chat_message_success(mock_supervisor):
+    """Test successful chat message processing via supervisor agent."""
+    mock_supervisor.handle_message = AsyncMock(return_value="Асистент: все зрозуміло.")
 
-
-@pytest.fixture
-def mock_llm_response_clarification():
-    """Mock LLM response requiring clarification."""
-    return WorkoutIntent(
-        workout_type="intervals",
-        duration_minutes=40,
-        target_bpm_min=130,
-        target_bpm_max=180,
-        confidence=0.8,
-        needs_clarification=True,
-        clarification_question="Який буде інтервал роботи/відпочинку?",
-    )
-
-
-@patch("app.api.routes.chat.LLMService")
-def test_chat_message_success(mock_llm_service, mock_llm_response):
-    """Test successful chat message parsing."""
-    # Mock LLMService
-    mock_service = AsyncMock()
-    mock_service.parse_workout = AsyncMock(return_value=mock_llm_response)
-    mock_llm_service.return_value = mock_service
-
-    # Make request
     response = client.post(
         "/chat/message",
-        json={"message": "Легке відновлення 30 хвилин"},
+        json={"message": "Легке відновлення 30 хвилин", "user_id": "user_123"},
     )
 
     assert response.status_code == 200
     data = response.json()
-    assert data["message"] == "Зрозумів! Генерую плейлист на 30 хв..."
+    assert data["message"] == "Асистент: все зрозуміло."
     assert data["needs_clarification"] is False
-    assert data["workout"] is not None
-    assert data["workout"]["type"] == "steady"
-    assert data["workout"]["duration_minutes"] == 30
+    assert data["workout"] is None
+    mock_supervisor.handle_message.assert_awaited_once()
 
 
-@patch("app.api.routes.chat.LLMService")
-def test_chat_message_clarification(mock_llm_service, mock_llm_response_clarification):
-    """Test chat message requiring clarification."""
-    # Mock LLMService
-    mock_service = AsyncMock()
-    mock_service.parse_workout = AsyncMock(
-        return_value=mock_llm_response_clarification)
-    mock_llm_service.return_value = mock_service
+@patch("app.api.routes.chat.supervisor_agent")
+def test_chat_message_error_handling(mock_supervisor):
+    """Ensure server error propagates when supervisor fails."""
+    mock_supervisor.handle_message = AsyncMock(side_effect=RuntimeError("boom"))
 
-    # Make request
     response = client.post(
         "/chat/message",
-        json={"message": "Хочу пробігти 40 хв з інтервалами"},
+        json={"message": "Помилка?", "user_id": "user_123"},
     )
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["needs_clarification"] is True
-    assert "Який буде інтервал" in data["message"]
-    assert data["workout"] is None
+    assert response.status_code == 500
 
 
 def test_chat_message_empty():
     """Test chat message with empty message."""
     response = client.post(
         "/chat/message",
-        json={"message": ""},
+        json={"message": "", "user_id": "user_123"},
     )
 
     assert response.status_code == 422  # Validation error
@@ -96,7 +53,17 @@ def test_chat_message_missing_field():
     """Test chat message with missing message field."""
     response = client.post(
         "/chat/message",
-        json={},
+        json={"user_id": "user_123"},
     )
 
     assert response.status_code == 422  # Validation error
+
+
+def test_chat_message_missing_user_id():
+    """Request without user_id should fail with 400."""
+    response = client.post(
+        "/chat/message",
+        json={"message": "Привіт"},
+    )
+
+    assert response.status_code == 400

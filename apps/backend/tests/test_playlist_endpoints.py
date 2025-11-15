@@ -268,6 +268,11 @@ def test_delete_playlist_not_found(mock_supabase_service):
     """Test deleting a non-existent playlist."""
     # Mock Supabase
     mock_supabase = MagicMock()
+    table_mock = mock_supabase.get_client.return_value.table.return_value
+    select_mock = table_mock.select.return_value
+    first_eq = select_mock.eq.return_value
+    second_eq = first_eq.eq.return_value
+    second_eq.execute.return_value.data = []
     mock_supabase.get_client.return_value.table.return_value.delete.return_value.eq.return_value.execute.return_value.data = (
         []
     )

@@ -34,14 +34,15 @@ def test_spotify_callback_missing_code():
     """Test Spotify callback without code."""
     response = client.get("/auth/spotify/callback")
 
-    # Should redirect to error page
-    assert response.status_code in [302, 307]  # Redirect
+    # FastAPI returns 422 because required query params are missing
+    assert response.status_code == 422
 
 
 def test_spotify_callback_invalid_state():
     """Test Spotify callback with invalid state."""
     response = client.get(
-        "/auth/spotify/callback?code=test_code&state=invalid_state"
+        "/auth/spotify/callback?code=test_code&state=invalid_state",
+        follow_redirects=False,
     )
 
     # Should redirect to error page
@@ -98,7 +99,10 @@ def test_spotify_callback_success(
     }
 
     # Make request
-    response = client.get(f"/auth/spotify/callback?code=test_code&state={state}")
+    response = client.get(
+        f"/auth/spotify/callback?code=test_code&state={state}",
+        follow_redirects=False,
+    )
 
     # Should redirect to success page
     assert response.status_code in [302, 307]  # Redirect

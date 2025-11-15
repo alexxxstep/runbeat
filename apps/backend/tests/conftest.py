@@ -1,6 +1,8 @@
 """
 Pytest configuration and fixtures.
 """
+from app.main import app
+from fastapi.testclient import TestClient
 import os
 import pytest
 
@@ -13,12 +15,21 @@ os.environ["SPOTIFY_CLIENT_SECRET"] = "test_spotify_secret"
 os.environ["OPENAI_API_KEY"] = "test_openai_key"
 os.environ["SPOTIFY_REDIRECT_URI"] = "http://localhost/callback"
 
-from fastapi.testclient import TestClient
-from app.main import app
+
+@pytest.fixture(autouse=True)
+def reset_supabase_singletons():
+    """Ensure Supabase singletons are reset between tests for proper mocking."""
+    from app.api.routes import playlists as playlists_routes
+    from app.api.routes import workouts as workouts_routes
+
+    playlists_routes._supabase_service_instance = None
+    workouts_routes._supabase_service_instance = None
+    yield
+    playlists_routes._supabase_service_instance = None
+    workouts_routes._supabase_service_instance = None
 
 
 @pytest.fixture
 def client():
     """Create test client."""
     return TestClient(app)
-

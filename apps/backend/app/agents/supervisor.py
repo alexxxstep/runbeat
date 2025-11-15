@@ -6,7 +6,7 @@ from loguru import logger
 
 from app.schemas.conversation import ConversationState
 from app.schemas.workout import Workout
-from app.agents.workout_builder_agent import WorkoutBuilderAgent
+from app.services.workout_builder import WorkoutBuilder
 from app.agents.manager import WorkoutManagerAgent
 
 
@@ -17,7 +17,7 @@ class SupervisorAgent:
     """
 
     def __init__(self):
-        self.builder_agent = WorkoutBuilderAgent()
+        self.builder_service = WorkoutBuilder()
         self.manager_agent = WorkoutManagerAgent()
         self.states: Dict[str, ConversationState] = {}
         logger.info("SupervisorAgent initialized with Builder and Manager.")
@@ -36,8 +36,8 @@ class SupervisorAgent:
         """
         state = self._get_or_create_state(user_id)
 
-        # Delegate the conversation to the WorkoutBuilderAgent
-        update = await self.builder_agent.process_message(state, message)
+        # Delegate the conversation to the WorkoutBuilder
+        update = await self.builder_service.process_message(state, message)
 
         # Update the state with the new state from the builder agent
         self.states[user_id] = update.new_state

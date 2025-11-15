@@ -1,9 +1,10 @@
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 from app.main import app
 from app.services.spotify_service import SpotifyService
+from app.models.playlist import PlaylistData, Track
 
 client = TestClient(app)
 
@@ -60,32 +61,43 @@ def test_variants_are_generated_successfully(mock_workout_request):
     app.dependency_overrides.clear()
 
 
-def test_fallback_logic_when_alternative_fails(mock_workout_request):
+@patch("app.services.playlist_generator.PlaylistGenerator.generate")
+def test_fallback_logic_when_alternative_fails(mock_generate, mock_workout_request):
     """
     Tests the fallback logic using dependency override when the alternative variant is empty.
     """
-    mock_service = AsyncMock(spec=SpotifyService)
+    primary_tracks = [
+        Track(
+            id=f"track_{i}",
+            name=f"Track {i}",
+            artist=f"Artist {i}",
+            artist_id=f"artist_{i}",
+            album="Test",
+            duration_ms=200000,
+            spotify_url=f"https://open.spotify.com/track/{i}",
+            spotify_uri=f"spotify:track:{i}",
+            tempo=140.0,
+            bpm=140.0,
+            energy=0.8,
+            danceability=0.7,
+            valence=0.6,
+            genres=["pop"],
+        )
+        for i in range(1, 3)
+    ]
+    playlist_primary = PlaylistData(
+        tracks=primary_tracks,
+        total_duration=sum(t.duration_ms for t in primary_tracks) / 1000,
+        total_tracks=len(primary_tracks),
+    )
+    playlist_empty = PlaylistData(tracks=[], total_duration=0, total_tracks=0)
 
-    async def get_recs_side_effect(*args, **kwargs):
-        # The first call to generate (primary) uses "pop", second (alternative) uses "rock"
-        # Let's simulate the second call returning nothing to test the fallback.
-        variant_strategy = kwargs.get("variant_strategy")
+    async def generate_side_effect(*args, **kwargs):
+        if kwargs.get("variant_strategy") == "primary":
+            return playlist_primary
+        return playlist_empty
 
-        # In the real code, the strategy is passed down. For the mock, we can infer it
-        # based on the genre, since we know the order of operations.
-        # This is a bit brittle but works for this test case.
-        seed_genres = kwargs.get("seed_genres", [])
-
-        if "pop" in seed_genres: # First call
-            return [create_mock_track(i) for i in range(1, 11)]
-        elif "rock" in seed_genres: # Second call
-            return [] # Return empty list to trigger fallback
-        return [] # Default empty
-
-    mock_service.get_recommendations.side_effect = get_recs_side_effect
-
-    from app.api.routes.playlists import get_spotify_service
-    app.dependency_overrides[get_spotify_service] = lambda: mock_service
+    mock_generate.side_effect = generate_side_effect
 
     response = client.post("/playlists/preview-variants", json=mock_workout_request)
     assert response.status_code == 200

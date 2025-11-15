@@ -87,9 +87,11 @@ def test_get_workout_by_id(mock_supabase_service, mock_workout_data):
     """Test getting a specific workout."""
     # Mock Supabase
     mock_supabase = MagicMock()
-    mock_supabase.get_client.return_value.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [
-        mock_workout_data
-    ]
+    table_mock = mock_supabase.get_client.return_value.table.return_value
+    select_mock = table_mock.select.return_value
+    first_eq = select_mock.eq.return_value
+    second_eq = first_eq.eq.return_value
+    second_eq.execute.return_value.data = [mock_workout_data]
     mock_supabase_service.return_value = mock_supabase
 
     # Make request
@@ -108,9 +110,11 @@ def test_get_workout_not_found(mock_supabase_service):
     """Test getting a non-existent workout."""
     # Mock Supabase
     mock_supabase = MagicMock()
-    mock_supabase.get_client.return_value.table.return_value.select.return_value.eq.return_value.execute.return_value.data = (
-        []
-    )
+    table_mock = mock_supabase.get_client.return_value.table.return_value
+    select_mock = table_mock.select.return_value
+    first_eq = select_mock.eq.return_value
+    second_eq = first_eq.eq.return_value
+    second_eq.execute.return_value.data = []
     mock_supabase_service.return_value = mock_supabase
 
     # Make request
@@ -126,9 +130,11 @@ def test_delete_workout(mock_supabase_service, mock_workout_data):
     """Test deleting a workout."""
     # Mock Supabase
     mock_supabase = MagicMock()
-    mock_supabase.get_client.return_value.table.return_value.delete.return_value.eq.return_value.execute.return_value.data = [
-        mock_workout_data
-    ]
+    table_mock = mock_supabase.get_client.return_value.table.return_value
+    delete_mock = table_mock.delete.return_value
+    first_eq = delete_mock.eq.return_value
+    second_eq = first_eq.eq.return_value
+    second_eq.execute.return_value.data = [mock_workout_data]
     mock_supabase_service.return_value = mock_supabase
 
     # Make request
@@ -147,9 +153,11 @@ def test_complete_workout(mock_supabase_service, mock_workout_data):
     completed_workout["completed_at"] = "2025-11-12T11:00:00Z"
 
     mock_supabase = MagicMock()
-    mock_supabase.get_client.return_value.table.return_value.update.return_value.eq.return_value.execute.return_value.data = [
-        completed_workout
-    ]
+    table_mock = mock_supabase.get_client.return_value.table.return_value
+    update_mock = table_mock.update.return_value
+    first_eq = update_mock.eq.return_value
+    second_eq = first_eq.eq.return_value
+    second_eq.execute.return_value.data = [completed_workout]
     mock_supabase_service.return_value = mock_supabase
 
     # Make request
