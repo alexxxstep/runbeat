@@ -131,7 +131,7 @@ export function PlaylistHistorySidebar({
         >
           <svg
             className={`w-5 h-5 text-gray-600 dark:text-gray-400 transform transition-transform duration-300 ${
-              collapsed ? '' : 'rotate-180'
+              collapsed ? 'rotate-180' : ''
             }`}
             fill='none'
             stroke='currentColor'
@@ -141,7 +141,7 @@ export function PlaylistHistorySidebar({
               strokeLinecap='round'
               strokeLinejoin='round'
               strokeWidth={2}
-              d='M15 19l-7-7 7-7' // Arrow always points left, rotate for collapse
+              d='M15 19l-7-7 7-7' // Corrected: Arrow points left, rotates to point right when collapsed
             />
           </svg>
         </button>

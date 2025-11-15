@@ -207,7 +207,7 @@ export function SettingsSidebar({
         >
           <svg
             className={`w-5 h-5 text-gray-600 dark:text-gray-400 transform transition-transform duration-300 ${
-              !collapsed ? '' : 'rotate-180'
+              collapsed ? 'rotate-180' : ''
             }`}
             fill='none'
             stroke='currentColor'
@@ -217,7 +217,7 @@ export function SettingsSidebar({
               strokeLinecap='round'
               strokeLinejoin='round'
               strokeWidth={2}
-              d='M9 5l7 7-7 7' // Arrow always points right, rotate for collapse
+              d='M15 19l-7-7 7-7' // Changed to a left-pointing arrow, which will rotate right when collapsed
             />
           </svg>
         </button>
