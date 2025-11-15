@@ -115,22 +115,22 @@ export function PlaylistHistorySidebar({
 
     return (
     <div
-      className={`bg-track-dark border-r border-track-line flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass} min-w-0`}
+      className={`bg-app-surface border-r border-app-border flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass} min-w-0`}
     >
       {/* Header */}
-      <div className='p-4 border-b border-track-line flex justify-between items-center flex-shrink-0 glow-border-dim'>
+      <div className='p-4 border-b border-app-border flex justify-between items-center flex-shrink-0'>
         <h2
-          className={`text-lg font-display font-semibold led-text transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
+          className={`text-title-2 font-display font-bold text-app-text transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
         >
-          ІСТОРІЯ
+          Історія
         </h2>
         <button
           onClick={onToggleCollapse}
-          className='p-2 hover:bg-track-line rounded-full transition-transform duration-300 ease-in-out'
+          className='p-2 hover:bg-app-surface-light rounded-full transition-transform duration-300 ease-in-out'
           title={collapsed ? 'Розгорнути' : 'Згорнути'}
         >
           <svg
-            className={`w-5 h-5 text-track-accent transform transition-transform duration-300 ${
+            className={`w-5 h-5 text-app-text-secondary transform transition-transform duration-300 ${
               collapsed ? 'rotate-180' : ''
             }`}
             fill='none'
@@ -152,9 +152,9 @@ export function PlaylistHistorySidebar({
         className={`flex-1 overflow-y-auto overflow-x-hidden flex flex-col transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
       >
         {/* Workouts Section - Top Half */}
-        <div className='flex-1 overflow-y-auto p-4 border-b border-track-line'>
-          <h3 className='text-sm font-mono font-semibold led-text mb-3'>
-            ВОРКАУТИ
+        <div className='flex-1 overflow-y-auto p-4 border-b border-app-border'>
+          <h3 className='text-headline font-semibold text-app-text mb-4'>
+            Воркаути
           </h3>
           {workoutsLoading && (
             <div className='flex justify-center py-4'>
@@ -163,19 +163,19 @@ export function PlaylistHistorySidebar({
           )}
 
           {workoutsError && (
-            <div className='text-red-500 text-xs py-2 font-mono'>
-              ПОМИЛКА ЗАВАНТАЖЕННЯ
+            <div className='text-red-500 text-subhead py-2'>
+              Помилка завантаження
             </div>
           )}
 
           {!workoutsLoading && !workoutsError && workouts.length === 0 && (
-            <div className='text-center led-text-dim text-xs py-4 font-mono'>
-              <p>НЕМАЄ ЗБЕРЕЖЕНИХ ВОРКАУТІВ</p>
+            <div className='text-center text-app-text-tertiary text-body py-4'>
+              <p>Немає збережених воркаутів</p>
             </div>
           )}
 
           {!workoutsLoading && !workoutsError && workouts.length > 0 && (
-            <div className='space-y-2'>
+            <div className='space-y-3'>
               {workouts.map((workout) => {
                 const workoutTypeLabels: Record<string, string> = {
                   steady: 'Стабільна',
@@ -220,36 +220,36 @@ export function PlaylistHistorySidebar({
                 return (
                   <div
                     key={workout.id}
-                    className={`rounded-lg p-3 cursor-pointer transition-all group border-2 font-mono ${
+                    className={`rounded-xl p-4 cursor-pointer transition-all group border ${
                       isActive
-                        ? 'bg-track-accent border-track-accent-bright shadow-xl transform scale-[1.02] glow-border'
-                        : 'bg-track-darker border-track-line hover:bg-track-line hover:border-track-accent-dim glow-border-dim'
+                        ? 'bg-app-accent border-app-accent shadow-lg transform scale-[1.01]'
+                        : 'bg-app-surface-light border-app-border hover:bg-app-surface hover:border-app-border-light'
                     }`}
                     onClick={() => handleWorkoutClick(workout.id)}
                   >
                     <div className='flex justify-between items-start mb-2'>
                       <div className='flex-1 min-w-0'>
-                        <div className='flex items-center gap-2 mb-1'>
+                        <div className='flex items-center gap-2 mb-2'>
                           <p
-                            className={`text-sm font-bold truncate ${
+                            className={`text-headline font-bold truncate ${
                               isActive
-                                ? 'text-track-dark'
-                                : 'led-text'
+                                ? 'text-white'
+                                : 'text-app-text'
                             }`}
                           >
-                            {workoutTypeFullName.toUpperCase()}
+                            {workoutTypeFullName}
                           </p>
                           {isActive && (
-                            <span className='flex-shrink-0 px-2 py-0.5 text-xs font-bold bg-track-dark/30 text-track-dark rounded-full border border-track-dark/50'>
-                              ✓ АКТИВНИЙ
+                            <span className='flex-shrink-0 px-2 py-1 text-caption font-semibold bg-white/20 text-white rounded-full'>
+                              ✓ Активний
                             </span>
                           )}
                         </div>
                         <p
-                          className={`text-xs mb-2 ${
+                          className={`text-caption mb-3 ${
                             isActive
-                              ? 'text-track-dark'
-                              : 'led-text-dim'
+                              ? 'text-white/80'
+                              : 'text-app-text-secondary'
                           }`}
                         >
                           {new Date(workout.created_at).toLocaleDateString(
@@ -289,10 +289,10 @@ export function PlaylistHistorySidebar({
                       </button>
                     </div>
                     <div
-                      className={`text-xs space-y-1.5 ${
+                      className={`text-subhead space-y-2 ${
                         isActive
-                          ? 'text-track-dark'
-                          : 'led-text-dim'
+                          ? 'text-white/90'
+                          : 'text-app-text-secondary'
                       }`}
                     >
                       <div className='flex items-center gap-2 flex-wrap'>
@@ -337,8 +337,8 @@ export function PlaylistHistorySidebar({
 
         {/* Playlists Section - Bottom Half */}
         <div className='flex-1 overflow-y-auto p-4'>
-          <h3 className='text-sm font-mono font-semibold led-text mb-3'>
-            ПЛЕЙЛИСТИ
+          <h3 className='text-headline font-semibold text-app-text mb-4'>
+            Плейлисти
           </h3>
           {playlistsLoading && (
             <div className='flex justify-center py-4'>
@@ -347,30 +347,30 @@ export function PlaylistHistorySidebar({
           )}
 
           {playlistsError && (
-            <div className='text-red-500 text-xs py-2 font-mono'>
-              ПОМИЛКА ЗАВАНТАЖЕННЯ
+            <div className='text-red-500 text-subhead py-2'>
+              Помилка завантаження
             </div>
           )}
 
           {!playlistsLoading && !playlistsError && playlists.length === 0 && (
-            <div className='text-center led-text-dim text-xs py-4 font-mono'>
-              <p>НЕМАЄ ЗГЕНЕРОВАНИХ ПЛЕЙЛИСТІВ</p>
+            <div className='text-center text-app-text-tertiary text-body py-4'>
+              <p>Немає згенерованих плейлистів</p>
             </div>
           )}
 
           {!playlistsLoading && !playlistsError && playlists.length > 0 && (
-            <div className='space-y-2'>
+            <div className='space-y-3'>
               {playlists.map((playlist) => (
                 <div
                   key={playlist.id}
-                  className='bg-track-darker rounded-lg p-3 cursor-pointer hover:bg-track-line transition-colors group glow-border-dim font-mono'
+                  className='bg-app-surface-light rounded-xl p-4 cursor-pointer hover:bg-app-surface transition-colors group border border-app-border'
                   onClick={() =>
                     handlePlaylistClick(playlist.id, playlist.spotify_url)
                   }
                 >
                   <div className='flex justify-between items-start mb-2'>
                     <div className='flex-1 min-w-0'>
-                      <p className='text-xs led-text-dim truncate'>
+                      <p className='text-caption text-app-text-tertiary truncate'>
                         {new Date(playlist.created_at).toLocaleDateString(
                           'uk-UA',
                           {
@@ -402,7 +402,7 @@ export function PlaylistHistorySidebar({
                       </svg>
                     </button>
                   </div>
-                  <div className='text-xs led-text-dim'>
+                  <div className='text-subhead text-app-text-secondary'>
                     {playlist.workout ? (
                       <>
                         <p className='font-medium truncate'>
@@ -437,7 +437,7 @@ export function PlaylistHistorySidebar({
                     )}
                   </div>
                   {playlist.spotify_url && (
-                    <div className='mt-2 flex items-center gap-1 text-xs text-track-accent'>
+                    <div className='mt-2 flex items-center gap-1 text-caption text-app-accent'>
                       <svg
                         className='w-3 h-3'
                         fill='currentColor'

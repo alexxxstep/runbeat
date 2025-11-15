@@ -13,20 +13,20 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 px-2 md:px-0`}>
       <div
-        className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-3 md:px-4 py-2 rounded-lg font-mono ${
+        className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
           isUser
-            ? 'bg-track-accent text-track-dark glow-border'
+            ? 'bg-app-accent text-white'
             : needsClarification
-            ? 'bg-track-darker border-2 border-track-accent-dim glow-border-dim text-track-accent'
-            : 'bg-track-darker border border-track-line glow-border-dim text-track-accent'
+            ? 'bg-app-surface border-2 border-app-accent text-app-text'
+            : 'bg-app-surface border border-app-border text-app-text'
         }`}
       >
         {/* Clarification indicator */}
         {needsClarification && (
-          <div className='mb-2 pb-2 border-b border-track-accent-dim'>
+          <div className='mb-3 pb-3 border-b border-app-border'>
             <div className='flex items-start gap-2'>
               <svg
-                className='w-4 h-4 mt-0.5 flex-shrink-0 text-track-accent'
+                className='w-5 h-5 mt-0.5 flex-shrink-0 text-app-accent'
                 fill='currentColor'
                 viewBox='0 0 20 20'
               >
@@ -37,11 +37,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                 />
               </svg>
               <div className='flex-1'>
-                <p className='text-xs font-semibold led-text mb-1'>
-                  ПОТРІБНЕ УТОЧНЕННЯ
+                <p className='text-subhead font-semibold text-app-text mb-1'>
+                  Потрібне уточнення
                 </p>
                 {message.workout?.clarification_question && (
-                  <p className='text-xs led-text-dim italic'>
+                  <p className='text-body text-app-text-secondary italic'>
                     {message.workout.clarification_question}
                   </p>
                 )}
@@ -51,47 +51,47 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         )}
         {/* Render workout info if available */}
         {message.workout && (
-          <div className='mb-3 pb-3 border-b border-track-line'>
-            <div className='text-sm space-y-1 led-text-dim'>
+          <div className='mb-3 pb-3 border-b border-app-border'>
+            <div className='text-body space-y-2 text-app-text-secondary'>
               <p>
-                <strong className='led-text'>ТИП:</strong>{' '}
+                <strong className='text-app-text'>Тип тренування:</strong>{' '}
                 {message.workout.type === 'steady'
-                  ? 'СТАБІЛЬНА'
+                  ? 'Стабільна'
                   : message.workout.type === 'progressive'
-                  ? 'ПРОГРЕСИВНА'
+                  ? 'Прогресивна'
                   : message.workout.type === 'intervals'
-                  ? 'ІНТЕРВАЛЬНА'
-                  : 'ФАРТЛЕК'}
+                  ? 'Інтервальна'
+                  : 'Фартлек'}
               </p>
               <p>
-                <strong className='led-text'>ТРИВАЛІСТЬ:</strong> {message.workout.duration_minutes} ХВ
+                <strong className='text-app-text'>Тривалість:</strong> {message.workout.duration_minutes} хв
               </p>
               <p>
-                <strong className='led-text'>ІНТЕНСИВНІСТЬ:</strong>{' '}
+                <strong className='text-app-text'>Інтенсивність:</strong>{' '}
                 {message.workout.intensity === 'low'
-                  ? 'ЛЕГКА'
+                  ? 'Легка'
                   : message.workout.intensity === 'moderate'
-                  ? 'СЕРЕДНЯ'
-                  : 'ВИСОКА'}
+                  ? 'Середня'
+                  : 'Висока'}
               </p>
               <p>
-                <strong className='led-text'>ЧСС:</strong> {message.workout.hr_zones[0]} -{' '}
-                {message.workout.hr_zones[1]} УД/ХВ
+                <strong className='text-app-text'>ЧСС:</strong> {message.workout.hr_zones[0]} -{' '}
+                {message.workout.hr_zones[1]} уд/хв
               </p>
             </div>
           </div>
         )}
-        <p className='text-sm whitespace-pre-line led-text-dim'>{message.content}</p>
+        <p className='text-body whitespace-pre-line text-app-text-secondary'>{message.content}</p>
 
         {/* Display playlist info if available */}
         {message.playlist && (
-          <div className='mt-3 pt-3 border-t border-gray-300 dark:border-gray-600'>
-            <div className='mb-2'>
-              <p className='text-sm font-semibold mb-1'>
+          <div className='mt-3 pt-3 border-t border-app-border'>
+            <div className='mb-3'>
+              <p className='text-headline font-semibold mb-1 text-app-text'>
                 🎵 Плейлист готовий!
               </p>
               {message.playlist.total_tracks && (
-                <p className='text-xs opacity-75'>
+                <p className='text-subhead text-app-text-secondary'>
                   {message.playlist.total_tracks} треків •{' '}
                   {Math.round(message.playlist.total_duration / 60)} хв
                 </p>
@@ -100,8 +100,8 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
             {/* Show tracks list if available */}
             {message.playlist.tracks && message.playlist.tracks.length > 0 && (
-              <div className='mb-2'>
-                <div className='max-h-64 overflow-y-auto space-y-1 mb-2'>
+              <div className='mb-3'>
+                <div className='max-h-64 overflow-y-auto space-y-2 mb-3'>
                   {(showAllTracks
                     ? message.playlist.tracks
                     : message.playlist.tracks.slice(0, 5)
@@ -109,9 +109,9 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                     // Get phase indicator from track metadata if available
                     const phase = (track as any).phase || 'main';
                     const phaseColors: Record<string, string> = {
-                      'warm-up': 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700',
-                      'main': 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700',
-                      'cool-down': 'bg-purple-100 dark:bg-purple-900/30 border-purple-300 dark:border-purple-700',
+                      'warm-up': 'bg-app-surface-light border-app-accent/50',
+                      'main': 'bg-app-surface-light border-app-accent',
+                      'cool-down': 'bg-app-surface-light border-app-accent/30',
                     };
                     const phaseLabels: Record<string, string> = {
                       'warm-up': '🔥 Розминка',
@@ -122,30 +122,30 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                     return (
                       <div
                         key={track.id || idx}
-                        className={`text-xs py-1.5 px-2 rounded border-l-2 ${
-                          phaseColors[phase] || 'bg-gray-100 dark:bg-gray-800'
+                        className={`text-subhead py-2 px-3 rounded-lg border-l-4 ${
+                          phaseColors[phase] || 'bg-app-surface-light border-app-border'
                         }`}
                       >
                         <div className='flex items-center justify-between'>
                           <div className='flex-1 min-w-0'>
-                            <div className='flex items-center gap-1 mb-0.5'>
-                              <span className='font-medium truncate'>{track.name}</span>
-                              <span className='text-[10px] opacity-60'>
+                            <div className='flex items-center gap-2 mb-1'>
+                              <span className='font-medium truncate text-app-text'>{track.name}</span>
+                              <span className='text-caption text-app-text-tertiary'>
                                 {phaseLabels[phase] || phase}
                               </span>
                             </div>
-                            <span className='opacity-75 text-[11px] truncate block'>
+                            <span className='text-subhead text-app-text-secondary truncate block'>
                               {track.artist}
                             </span>
                           </div>
                           <div className='flex items-center gap-2 ml-2'>
                             {track.bpm && (
-                              <span className='text-[10px] opacity-60 whitespace-nowrap'>
+                              <span className='text-caption text-app-text-tertiary whitespace-nowrap'>
                                 {Math.round(track.bpm)} BPM
                               </span>
                             )}
                             {track.duration_ms && (
-                              <span className='text-[10px] opacity-50 whitespace-nowrap'>
+                              <span className='text-caption text-app-text-tertiary whitespace-nowrap'>
                                 {Math.floor(track.duration_ms / 60000)}:
                                 {String(
                                   Math.floor((track.duration_ms % 60000) / 1000)
@@ -161,7 +161,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                 {message.playlist.tracks.length > 5 && (
                   <button
                     onClick={() => setShowAllTracks(!showAllTracks)}
-                    className='text-xs text-blue-600 dark:text-blue-400 hover:underline w-full text-center py-1'
+                    className='text-subhead text-app-accent hover:text-app-accent-hover hover:underline w-full text-center py-2'
                   >
                     {showAllTracks
                       ? '▲ Показати менше'
@@ -176,14 +176,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                 href={message.playlist.spotify_url}
                 target='_blank'
                 rel='noopener noreferrer'
-                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-body font-semibold transition-colors ${
                   isUser
-                    ? 'bg-blue-500 hover:bg-blue-400 text-white'
+                    ? 'bg-app-accent hover:bg-app-accent-hover text-white'
                     : 'bg-[#1DB954] hover:bg-[#1ed760] text-white'
                 }`}
               >
                 <svg
-                  className='w-4 h-4'
+                  className='w-5 h-5'
                   fill='currentColor'
                   viewBox='0 0 24 24'
                 >
@@ -194,16 +194,16 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             ) : message.playlist.playlist_id ? (
               <a
                 href={`/player/${message.playlist.playlist_id}`}
-                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-body font-semibold transition-colors ${
                   isUser
-                    ? 'bg-blue-500 hover:bg-blue-400 text-white'
-                    : 'bg-gray-600 hover:bg-gray-500 text-white'
+                    ? 'bg-app-accent hover:bg-app-accent-hover text-white'
+                    : 'bg-app-surface hover:bg-app-surface-light text-app-text border border-app-border'
                 }`}
               >
                 Переглянути плейлист
               </a>
             ) : (
-              <p className='text-xs opacity-60 italic'>
+              <p className='text-subhead text-app-text-tertiary italic'>
                 Плейлист згенеровано. Потрібно створити в Spotify для відкриття.
               </p>
             )}
@@ -211,8 +211,8 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         )}
 
         <p
-          className={`text-xs mt-1 font-mono ${
-            isUser ? 'text-track-dark' : 'led-text-dim'
+          className={`text-caption mt-2 ${
+            isUser ? 'text-white/70' : 'text-app-text-tertiary'
           }`}
         >
           {message.timestamp.toLocaleTimeString('uk-UA', {

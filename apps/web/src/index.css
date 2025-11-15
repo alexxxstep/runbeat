@@ -2,16 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
-
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: dark;
-  color: #00ff41;
-  background-color: #0a0a0a;
+  color: #ffffff;
+  background-color: #1a1a1a;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -24,95 +22,18 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;
-  background-color: #0a0a0a;
-  color: #00ff41;
+  background-color: #1a1a1a;
+  color: #ffffff;
 }
 
 #root {
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
-  background-color: #0a0a0a;
+  background-color: #1a1a1a;
 }
 
-/* Track lines background pattern */
-.track-background {
-  background-color: #0a0a0a;
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 48px,
-      #1a1a1a 48px,
-      #1a1a1a 50px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent,
-      transparent 48px,
-      #1a1a1a 48px,
-      #1a1a1a 50px
-    );
-  background-size: 100% 50px, 50px 100%;
-}
-
-/* LED display effect */
-.led-text {
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  color: #00ff41;
-  text-shadow:
-    0 0 5px #00ff41,
-    0 0 10px #00ff41,
-    0 0 15px #00ff41;
-}
-
-.led-text-dim {
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  color: #00cc33;
-  text-shadow:
-    0 0 3px #00cc33,
-    0 0 6px #00cc33;
-}
-
-/* Glowing borders */
-.glow-border {
-  border: 1px solid #00ff41;
-  box-shadow:
-    0 0 5px #00ff41,
-    inset 0 0 5px #00ff41;
-}
-
-.glow-border-dim {
-  border: 1px solid #00cc33;
-  box-shadow:
-    0 0 3px #00cc33,
-    inset 0 0 3px #00cc33;
-}
-
-/* Scan line effect */
-.scan-line {
-  position: relative;
-  overflow: hidden;
-}
-
-.scan-line::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(0, 255, 65, 0.5),
-    transparent
-  );
-  animation: scan 3s linear infinite;
-  pointer-events: none;
-}
-
-/* Range input styling for track theme */
+/* Range input styling */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -121,7 +42,7 @@ input[type="range"] {
 }
 
 input[type="range"]::-webkit-slider-track {
-  background: #1a1a1a;
+  background: #333333;
   height: 4px;
   border-radius: 2px;
 }
@@ -129,28 +50,39 @@ input[type="range"]::-webkit-slider-track {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  background: #00ff41;
-  height: 16px;
-  width: 16px;
+  background: #ff6b35;
+  height: 18px;
+  width: 18px;
   border-radius: 50%;
-  box-shadow: 0 0 5px #00ff41, 0 0 10px #00ff41;
   cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid #1a1a1a;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: #ff8555;
+  transform: scale(1.15);
 }
 
 input[type="range"]::-moz-range-track {
-  background: #1a1a1a;
+  background: #333333;
   height: 4px;
   border-radius: 2px;
 }
 
 input[type="range"]::-moz-range-thumb {
-  background: #00ff41;
-  height: 16px;
-  width: 16px;
+  background: #ff6b35;
+  height: 18px;
+  width: 18px;
   border-radius: 50%;
-  border: none;
-  box-shadow: 0 0 5px #00ff41, 0 0 10px #00ff41;
+  border: 2px solid #1a1a1a;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  background: #ff8555;
+  transform: scale(1.15);
 }
 
 /* Scrollbar styling */
@@ -160,17 +92,16 @@ input[type="range"]::-moz-range-thumb {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: #1a1a1a;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1a1a1a;
+  background: #333333;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #00ff41;
-  box-shadow: 0 0 5px #00ff41;
+  background: #404040;
 }
 
 /* Mobile optimizations */

@@ -358,7 +358,7 @@ export function ChatPage() {
   }
 
   return (
-    <div className='flex flex-col md:flex-row h-screen bg-track-dark track-background relative scan-line'>
+    <div className='flex flex-col md:flex-row h-screen bg-app-dark relative'>
       {/* History Sidebar - Left - 1.5 units */}
       <div
         className={`${historyCollapsed ? 'hidden md:flex' : 'flex'} ${
@@ -440,11 +440,11 @@ export function ChatPage() {
       {/* Mobile menu button */}
       <button
         onClick={() => setHistoryCollapsed(!historyCollapsed)}
-        className='md:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700'
+        className='md:hidden fixed top-4 left-4 z-50 p-2 bg-app-surface rounded-xl shadow-lg border border-app-border'
         aria-label='Toggle history'
       >
         <svg
-          className='w-6 h-6 text-gray-600 dark:text-gray-400'
+          className='w-6 h-6 text-app-text-secondary'
           fill='none'
           stroke='currentColor'
           viewBox='0 0 24 24'
@@ -459,60 +459,60 @@ export function ChatPage() {
       </button>
 
       {/* Main Chat Area - Center - 3 units */}
-      <div className='flex-1 md:flex-[3] flex flex-col bg-track-dark min-w-0'>
+      <div className='flex-1 md:flex-[3] flex flex-col bg-app-dark min-w-0'>
         {/* Header with Clear Chat button */}
         {messages.length > 0 && (
-          <div className='flex justify-between items-center p-2 md:p-4 border-b border-track-line bg-track-darker glow-border-dim'>
-            <h1 className='text-lg md:text-xl font-display font-bold led-text'>
-              RUNBEAT AI
+          <div className='flex justify-between items-center p-4 md:p-6 border-b border-app-border bg-app-surface'>
+            <h1 className='text-title-2 font-display font-bold text-app-text'>
+              RunBeat AI
             </h1>
             <button
               onClick={handleClearChat}
-              className='px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-mono text-track-accent hover:text-track-accent-bright border border-track-accent-dim rounded-lg hover:bg-track-line transition-colors glow-border-dim'
+              className='px-4 py-2 text-subhead text-app-text-secondary hover:text-app-text border border-app-border rounded-lg hover:bg-app-surface-light transition-colors'
             >
-              ОЧИСТИТИ
+              Очистити
             </button>
           </div>
         )}
 
         <div ref={chatContainerRef} className='flex-1 overflow-y-auto p-2 md:p-4 space-y-4'>
           {messages.length === 0 && (
-            <div className='max-w-3xl mx-auto px-2 md:px-4 py-4 md:py-8'>
-              <div className='text-center mb-6 md:mb-8'>
-                <h1 className='text-2xl md:text-3xl font-display font-bold led-text mb-2 animate-glow'>
-                  ПРИВІТ! Я RUNBEAT AI
+            <div className='max-w-3xl mx-auto px-4 md:px-6 py-8 md:py-12'>
+              <div className='text-center mb-8 md:mb-12'>
+                <h1 className='text-large-title font-display font-bold text-app-text mb-3'>
+                  Привіт! Я RunBeat AI
                 </h1>
-                <p className='text-base md:text-lg font-mono led-text-dim'>
-                  СТВОРЮ ІДЕАЛЬНИЙ ПЛЕЙЛИСТ ДЛЯ ТВОГО ТРЕНУВАННЯ
+                <p className='text-body text-app-text-secondary'>
+                  Створю ідеальний плейлист для твого тренування
                 </p>
               </div>
 
-              <div className='bg-track-darker rounded-lg p-4 md:p-6 mb-4 md:mb-6 glow-border'>
-                <h2 className='text-xl md:text-2xl font-display font-bold led-text mb-4 md:mb-6 text-center'>
-                  ЯК ЦЕ ПРАЦЮЄ
+              <div className='bg-app-surface rounded-2xl p-6 md:p-8 mb-6 md:mb-8 border border-app-border'>
+                <h2 className='text-title-1 font-display font-bold text-app-text mb-6 text-center'>
+                  Як це працює
                 </h2>
 
                 <div className='space-y-4 md:space-y-6'>
                   {/* Step 1 */}
-                  <div className='bg-track-dark rounded-lg p-3 md:p-5 border-l-4 border-track-accent glow-border-dim'>
-                    <div className='flex items-start gap-2 md:gap-4'>
-                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-track-accent text-track-dark rounded-full flex items-center justify-center font-mono font-bold text-sm md:text-lg led-text'>
+                  <div className='bg-app-surface-light rounded-xl p-4 md:p-6 border-l-4 border-app-accent'>
+                    <div className='flex items-start gap-4'>
+                      <div className='flex-shrink-0 w-10 h-10 bg-app-accent text-white rounded-full flex items-center justify-center font-bold text-lg'>
                         1
                       </div>
                       <div className='flex-1 min-w-0'>
-                        <h3 className='text-base md:text-lg font-mono font-semibold led-text mb-2'>
-                          ОПИШИ СВОЄ ТРЕНУВАННЯ
+                        <h3 className='text-headline font-semibold text-app-text mb-2'>
+                          Опиши своє тренування
                         </h3>
-                        <p className='led-text-dim mb-3 font-mono text-sm'>
+                        <p className='text-body text-app-text-secondary mb-3'>
                           Просто напиши мені, що ти хочеш зробити. Я розумію природну мову! Наприклад:
                         </p>
-                        <ul className='list-disc list-inside space-y-1 text-sm led-text-dim ml-4 mb-3 font-mono'>
+                        <ul className='list-disc list-inside space-y-1 text-body text-app-text-secondary ml-4 mb-3'>
                           <li>"хочу легку пробіжку 30 хвилин"</li>
                           <li>"інтервали 40 хв, рок-музика"</li>
                           <li>"фартлек 55 хв під електронну музику"</li>
                           <li>"темповий біг 45 хв, енергійна музика для ранкового бігу"</li>
                         </ul>
-                        <p className='led-text-dim font-mono text-sm'>
+                        <p className='text-body text-app-text-secondary'>
                           Я можу розпізнати: тип тренування (стабільна, інтервальна, фартлек),
                           тривалість, інтенсивність (легка, середня, висока),
                           та музичні побажання (жанри, опис).
@@ -522,16 +522,16 @@ export function ChatPage() {
                   </div>
 
                   {/* Step 2 */}
-                  <div className='bg-track-dark rounded-lg p-3 md:p-5 border-l-4 border-track-accent glow-border-dim'>
-                    <div className='flex items-start gap-2 md:gap-4'>
-                      <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-track-accent text-track-dark rounded-full flex items-center justify-center font-mono font-bold text-sm md:text-lg led-text'>
+                  <div className='bg-app-surface-light rounded-xl p-4 md:p-6 border-l-4 border-app-accent'>
+                    <div className='flex items-start gap-4'>
+                      <div className='flex-shrink-0 w-10 h-10 bg-app-accent text-white rounded-full flex items-center justify-center font-bold text-lg'>
                         2
                       </div>
                       <div className='flex-1 min-w-0'>
-                        <h3 className='text-base md:text-lg font-mono font-semibold led-text mb-2'>
-                          Я ЗАДАМ УТОЧНЮЮЧІ ПИТАННЯ (ЯКЩО ПОТРІБНО)
+                        <h3 className='text-headline font-semibold text-app-text mb-2'>
+                          Я задам уточнюючі питання (якщо потрібно)
                         </h3>
-                        <p className='led-text-dim font-mono text-sm'>
+                        <p className='text-body text-app-text-secondary'>
                           Якщо мені потрібна додаткова інформація, я запитаю. Наприклад: "Який інтервал роботи/відпочинку?" або "Яка інтенсивність?". Просто відповідай на мої питання.
                         </p>
                       </div>
@@ -541,7 +541,7 @@ export function ChatPage() {
               </div>
 
               {import.meta.env.DEV && (
-                <p className='text-xs mt-4 text-center text-gray-400'>
+                <p className='text-caption mt-4 text-center text-app-text-tertiary'>
                   API URL:{' '}
                   {import.meta.env.VITE_API_URL || 'http://localhost:8000'}
                 </p>
@@ -571,9 +571,9 @@ export function ChatPage() {
                   <button
                     onClick={generateVariants}
                     disabled={loadingVariants}
-                    className='px-4 sm:px-6 py-2 bg-track-accent text-track-dark rounded-lg hover:bg-track-accent-bright transition-colors font-mono font-bold disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base glow-border'
+                    className='px-6 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
                   >
-                    {loadingVariants ? 'ГЕНЕРАЦІЯ...' : 'ТАК, ЗГЕНЕРУВАТИ ПЛЕЙЛИСТ'}
+                    {loadingVariants ? 'Генерація...' : 'Так, згенерувати плейлист'}
                   </button>
                 ) : (
                   // Workout not created yet - show buttons to confirm creation
@@ -589,9 +589,9 @@ export function ChatPage() {
                         }
                       }}
                     disabled={isLoading}
-                    className='px-4 sm:px-6 py-2 bg-track-accent text-track-dark rounded-lg hover:bg-track-accent-bright transition-colors font-mono font-bold disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base glow-border'
+                    className='px-6 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
                   >
-                    {isLoading ? 'СТВОРЕННЯ...' : 'ТАК'}
+                    {isLoading ? 'Створення...' : 'Так'}
                   </button>
                   <button
                     onClick={async () => {
@@ -602,9 +602,9 @@ export function ChatPage() {
                       setActiveWorkoutId(null);
                     }}
                     disabled={isLoading}
-                    className='px-4 sm:px-6 py-2 bg-track-line text-track-accent rounded-lg hover:bg-track-line hover:text-track-accent-bright transition-colors font-mono font-bold disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base glow-border-dim'
+                    className='px-6 py-3 bg-app-surface text-app-text border border-app-border rounded-xl hover:bg-app-surface-light transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
                   >
-                    НІ
+                    Ні
                   </button>
                   </>
                 )}
@@ -618,44 +618,44 @@ export function ChatPage() {
               {/* Check if both variants are empty */}
               {(!variants.variant1?.tracks || variants.variant1.tracks.length === 0) &&
                (!variants.variant2?.tracks || variants.variant2.tracks.length === 0) ? (
-                <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 md:p-4'>
-                  <p className='text-red-800 dark:text-red-200 font-medium'>
+                <div className='bg-red-900/20 border border-red-800 rounded-xl p-4'>
+                  <p className='text-red-400 font-semibold text-body'>
                     ❌ Помилка: Не вдалося згенерувати варіанти плейлистів
                   </p>
-                  <p className='text-red-600 dark:text-red-300 text-sm mt-2'>
+                  <p className='text-red-300 text-subhead mt-2'>
                     Можливі причини:
                   </p>
-                  <ul className='list-disc list-inside text-red-600 dark:text-red-300 text-sm mt-1 space-y-1'>
+                  <ul className='list-disc list-inside text-red-300 text-subhead mt-1 space-y-1'>
                     <li>Некоректні параметри воркауту</li>
                     <li>Проблеми з підключенням до Spotify API</li>
                     <li>Відсутність жанрів музики</li>
                     <li>Занадто вузький діапазон BPM</li>
                   </ul>
-                  <p className='text-red-600 dark:text-red-300 text-sm mt-2'>
+                  <p className='text-red-300 text-subhead mt-2'>
                     Спробуйте змінити параметри воркауту або додати жанри музики.
                   </p>
                 </div>
               ) : (
                 <>
-              <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-4'>
-                <h3 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white'>
+              <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6'>
+                <h3 className='text-headline font-semibold text-app-text'>
                   Оберіть варіант плейлисту:
                 </h3>
                 <button
                   onClick={generateVariants}
                   disabled={loadingVariants}
-                  className='px-3 md:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs md:text-sm disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto'
+                  className='px-4 py-2.5 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold text-subhead disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto'
                 >
                   {loadingVariants ? 'Генерація...' : 'Згенерувати ще'}
                 </button>
               </div>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4'>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 {/* Variant 1 */}
-                <div className='bg-white dark:bg-gray-800 rounded-lg p-3 md:p-4 border-2 border-blue-300 dark:border-blue-700'>
-                  <h4 className='text-sm md:text-md font-semibold text-gray-900 dark:text-white mb-2 md:mb-3'>
+                <div className='bg-app-surface rounded-xl p-4 border-2 border-app-accent'>
+                  <h4 className='text-headline font-semibold text-app-text mb-3'>
                     Варіант 1
                   </h4>
-                  <div className='text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-2 md:mb-3'>
+                  <div className='text-subhead text-app-text-secondary mb-4'>
                     <p>{variants.variant1.total_tracks} треків</p>
                     <p>
                       {Math.round(variants.variant1.total_duration / 60)} хв
@@ -719,7 +719,7 @@ export function ChatPage() {
                           </div>
                         ))
                       ) : (
-                        <div className='p-4 text-center text-gray-500 dark:text-gray-400 text-xs'>
+                        <div className='p-4 text-center text-app-text-tertiary text-subhead'>
                           Немає треків у цьому варіанті
                         </div>
                       )}
@@ -753,37 +753,37 @@ export function ChatPage() {
                         console.error('Failed to generate playlist:', error);
                       }
                     }}
-                    className='w-full px-3 md:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm md:text-base'
+                    className='w-full px-4 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold text-body'
                   >
                     Обрати цей варіант
                   </button>
                   ) : (
-                    <div className='w-full px-3 md:px-4 py-2 bg-gray-400 text-white rounded-lg text-center font-medium cursor-not-allowed text-sm md:text-base'>
+                    <div className='w-full px-4 py-3 bg-app-surface text-app-text-tertiary rounded-xl text-center font-semibold cursor-not-allowed text-body border border-app-border'>
                       Варіант недоступний
                     </div>
                   )}
                 </div>
 
                 {/* Variant 2 */}
-                <div className='bg-white dark:bg-gray-800 rounded-lg p-3 md:p-4 border-2 border-green-300 dark:border-green-700'>
-                  <h4 className='text-sm md:text-md font-semibold text-gray-900 dark:text-white mb-2 md:mb-3'>
+                <div className='bg-app-surface rounded-xl p-4 border-2 border-app-accent'>
+                  <h4 className='text-headline font-semibold text-app-text mb-3'>
                     Варіант 2
                   </h4>
-                  <div className='text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-2 md:mb-3'>
+                  <div className='text-subhead text-app-text-secondary mb-4'>
                     <p>{variants.variant2.total_tracks} треків</p>
                     <p>
                       {Math.round(variants.variant2.total_duration / 60)} хв
                     </p>
                   </div>
-                  <div className='max-h-48 md:max-h-64 overflow-y-auto mb-2 md:mb-3'>
+                  <div className='max-h-48 md:max-h-64 overflow-y-auto mb-4'>
                     <div className='hidden md:block'>
-                      <table className='w-full text-xs'>
-                        <thead className='bg-gray-100 dark:bg-gray-700'>
+                      <table className='w-full text-subhead'>
+                        <thead className='bg-app-surface-light'>
                           <tr>
-                            <th className='p-2 text-left'>№</th>
-                            <th className='p-2 text-left'>Назва</th>
-                            <th className='p-2 text-left'>Виконавець</th>
-                            <th className='p-2 text-left'>Тривалість</th>
+                            <th className='p-2 text-left text-app-text-secondary'>№</th>
+                            <th className='p-2 text-left text-app-text-secondary'>Назва</th>
+                            <th className='p-2 text-left text-app-text-secondary'>Виконавець</th>
+                            <th className='p-2 text-left text-app-text-secondary'>Тривалість</th>
                           </tr>
                         </thead>
                       <tbody>
@@ -792,12 +792,12 @@ export function ChatPage() {
                             (track: Track, index: number) => (
                             <tr
                               key={track.id}
-                              className='border-b border-gray-200 dark:border-gray-700'
+                              className='border-b border-app-border'
                             >
-                              <td className='p-2'>{index + 1}</td>
-                              <td className='p-2'>{track.name}</td>
-                              <td className='p-2'>{track.artist}</td>
-                              <td className='p-2'>
+                              <td className='p-2 text-app-text-secondary'>{index + 1}</td>
+                              <td className='p-2 text-app-text'>{track.name}</td>
+                              <td className='p-2 text-app-text-secondary'>{track.artist}</td>
+                              <td className='p-2 text-app-text-secondary'>
                                 {Math.floor(track.duration_ms / 60000)}:
                                 {String(
                                   Math.floor((track.duration_ms % 60000) / 1000)
@@ -808,7 +808,7 @@ export function ChatPage() {
                         )
                         ) : (
                           <tr>
-                            <td colSpan={4} className='p-4 text-center text-gray-500 dark:text-gray-400'>
+                            <td colSpan={4} className='p-4 text-center text-app-text-tertiary'>
                               Немає треків у цьому варіанті
                             </td>
                           </tr>
@@ -822,18 +822,18 @@ export function ChatPage() {
                         variants.variant2.tracks.map((track: Track, index: number) => (
                           <div
                             key={track.id}
-                            className='p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs'
+                            className='p-3 bg-app-surface-light rounded-lg border border-app-border'
                           >
-                            <div className='font-medium truncate'>{index + 1}. {track.name}</div>
-                            <div className='text-gray-600 dark:text-gray-400 truncate'>{track.artist}</div>
-                            <div className='text-gray-500 dark:text-gray-500 text-[10px]'>
+                            <div className='font-medium truncate text-app-text'>{index + 1}. {track.name}</div>
+                            <div className='text-app-text-secondary truncate text-subhead'>{track.artist}</div>
+                            <div className='text-app-text-tertiary text-caption'>
                               {Math.floor(track.duration_ms / 60000)}:
                               {String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}
                             </div>
                           </div>
                         ))
                       ) : (
-                        <div className='p-4 text-center text-gray-500 dark:text-gray-400 text-xs'>
+                        <div className='p-4 text-center text-app-text-tertiary text-subhead'>
                           Немає треків у цьому варіанті
                         </div>
                       )}
@@ -867,12 +867,12 @@ export function ChatPage() {
                         console.error('Failed to generate playlist:', error);
                       }
                     }}
-                    className='w-full px-3 md:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm md:text-base'
+                    className='w-full px-4 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold text-body'
                   >
                     Обрати цей варіант
                   </button>
                   ) : (
-                    <div className='w-full px-3 md:px-4 py-2 bg-gray-400 text-white rounded-lg text-center font-medium cursor-not-allowed text-sm md:text-base'>
+                    <div className='w-full px-4 py-3 bg-app-surface text-app-text-tertiary rounded-xl text-center font-semibold cursor-not-allowed text-body border border-app-border'>
                       Варіант недоступний
                     </div>
                   )}
@@ -902,11 +902,11 @@ export function ChatPage() {
       {/* Mobile settings button */}
       <button
         onClick={() => setSettingsCollapsed(!settingsCollapsed)}
-        className='md:hidden fixed top-4 right-4 z-50 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700'
+        className='md:hidden fixed top-4 right-4 z-50 p-2 bg-app-surface rounded-xl shadow-lg border border-app-border'
         aria-label='Toggle settings'
       >
         <svg
-          className='w-6 h-6 text-gray-600 dark:text-gray-400'
+          className='w-6 h-6 text-app-text-secondary'
           fill='none'
           stroke='currentColor'
           viewBox='0 0 24 24'

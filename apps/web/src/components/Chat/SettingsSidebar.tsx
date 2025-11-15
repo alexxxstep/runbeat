@@ -191,22 +191,22 @@ export function SettingsSidebar({
 
   return (
     <div
-      className={`bg-track-dark border-l border-track-line flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass}`}
+      className={`bg-app-surface border-l border-app-border flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass}`}
     >
       {/* Header */}
-      <div className={`${collapsed ? 'p-2' : 'p-4'} border-b border-track-line flex ${collapsed ? 'justify-center' : 'justify-between'} items-center flex-shrink-0 glow-border-dim`}>
+      <div className={`${collapsed ? 'p-2' : 'p-4'} border-b border-app-border flex ${collapsed ? 'justify-center' : 'justify-between'} items-center flex-shrink-0`}>
         <h2
-          className={`text-lg font-display font-semibold led-text transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
+          className={`text-title-2 font-display font-bold text-app-text transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
         >
-          ВОРКАУТ
+          Воркаут
         </h2>
         <button
           onClick={onToggleCollapse}
-          className='p-2 hover:bg-track-line rounded-full transition-transform duration-300 ease-in-out flex-shrink-0'
+          className='p-2 hover:bg-app-surface-light rounded-full transition-transform duration-300 ease-in-out flex-shrink-0'
           title={collapsed ? 'Розгорнути' : 'Згорнути'}
         >
           <svg
-            className={`w-5 h-5 text-track-accent transform transition-transform duration-300 ${
+            className={`w-5 h-5 text-app-text-secondary transform transition-transform duration-300 ${
               collapsed ? '' : 'rotate-180'
             }`}
             fill='none'
@@ -229,21 +229,21 @@ export function SettingsSidebar({
       >
         {/* Workout Type */}
         <div>
-          <label className='block text-xs md:text-sm font-mono font-medium led-text mb-2'>
-            ТИП ТРЕНУВАННЯ
+          <label className='block text-subhead font-semibold text-app-text mb-3'>
+            Тип тренування
           </label>
           <div className='grid grid-cols-2 gap-2'>
             {WORKOUT_TYPES.map((type) => (
               <button
                 key={type.value}
                 onClick={() => updateSettings({ type: type.value })}
-                className={`px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm font-mono rounded-lg border transition-colors ${
+                className={`px-3 py-2.5 text-subhead rounded-xl border transition-colors ${
                   localSettings.type === type.value
-                    ? 'bg-track-accent text-track-dark border-track-accent glow-border'
-                    : 'bg-track-darker text-track-accent border-track-line hover:bg-track-line glow-border-dim'
+                    ? 'bg-app-accent text-white border-app-accent'
+                    : 'bg-app-surface-light text-app-text border-app-border hover:bg-app-surface'
                 }`}
               >
-                {type.label.toUpperCase()}
+                {type.label}
               </button>
             ))}
           </div>
@@ -251,13 +251,13 @@ export function SettingsSidebar({
 
         {/* Duration */}
         <div>
-          <label className='block text-sm font-mono font-medium led-text mb-2'>
-            ТРИВАЛІСТЬ
+          <label className='block text-subhead font-semibold text-app-text mb-3'>
+            Тривалість
           </label>
-          <div className='space-y-3'>
+          <div className='space-y-4'>
             <div>
-              <label className='text-xs led-text-dim mb-1 block font-mono'>
-                ГОДИНИ: {durationHours}
+              <label className='text-caption text-app-text-secondary mb-2 block'>
+                Години: {durationHours}
               </label>
               <input
                 type='range'
@@ -265,12 +265,12 @@ export function SettingsSidebar({
                 max='3'
                 value={durationHours}
                 onChange={(e) => setDurationHours(parseInt(e.target.value))}
-                className='w-full accent-track-accent'
+                className='w-full'
               />
             </div>
             <div>
-              <label className='text-xs led-text-dim mb-1 block font-mono'>
-                ХВИЛИНИ: {durationMinutes}
+              <label className='text-caption text-app-text-secondary mb-2 block'>
+                Хвилини: {durationMinutes}
               </label>
               <input
                 type='range'
@@ -278,32 +278,32 @@ export function SettingsSidebar({
                 max='59'
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
-                className='w-full accent-track-accent'
+                className='w-full'
               />
             </div>
-            <p className='text-xs led-text-dim font-mono'>
-              ВСЬОГО: {convertDurationToMinutes(durationHours, durationMinutes)} ХВ
+            <p className='text-subhead text-app-text-secondary'>
+              Всього: {convertDurationToMinutes(durationHours, durationMinutes)} хв
             </p>
           </div>
         </div>
 
         {/* Intensity */}
         <div>
-          <label className='block text-sm font-mono font-medium led-text mb-2'>
-            ІНТЕНСИВНІСТЬ
+          <label className='block text-subhead font-semibold text-app-text mb-3'>
+            Інтенсивність
           </label>
           <div className='flex gap-2'>
             {INTENSITIES.map((intensity) => (
               <button
                 key={intensity.value}
                 onClick={() => updateSettings({ intensity: intensity.value })}
-                className={`flex-1 px-3 py-2 text-sm font-mono rounded-lg border transition-colors ${
+                className={`flex-1 px-3 py-2.5 text-subhead rounded-xl border transition-colors ${
                   localSettings.intensity === intensity.value
-                    ? 'bg-track-accent text-track-dark border-track-accent glow-border'
-                    : 'bg-track-darker text-track-accent border-track-line hover:bg-track-line glow-border-dim'
+                    ? 'bg-app-accent text-white border-app-accent'
+                    : 'bg-app-surface-light text-app-text border-app-border hover:bg-app-surface'
                 }`}
               >
-                {intensity.label.toUpperCase()}
+                {intensity.label}
               </button>
             ))}
           </div>
@@ -311,13 +311,13 @@ export function SettingsSidebar({
 
         {/* Heart Rate Zones */}
         <div>
-          <label className='block text-sm font-mono font-medium led-text mb-2'>
-            ЧАСТОТА СЕРЦЕБИТТЯ
+          <label className='block text-subhead font-semibold text-app-text mb-3'>
+            Частота серцебиття
           </label>
-          <div className='space-y-2'>
+          <div className='space-y-4'>
             <div>
-              <label className='text-xs led-text-dim mb-1 block font-mono'>
-                МІНІМУМ: {localSettings.hrZones[0]} УД/ХВ
+              <label className='text-caption text-app-text-secondary mb-2 block'>
+                Мінімум: {localSettings.hrZones[0]} уд/хв
               </label>
               <input
                 type='range'
@@ -332,12 +332,12 @@ export function SettingsSidebar({
                     ],
                   })
                 }
-                className='w-full accent-track-accent'
+                className='w-full'
               />
             </div>
             <div>
-              <label className='text-xs led-text-dim mb-1 block font-mono'>
-                МАКСИМУМ: {localSettings.hrZones[1]} УД/ХВ
+              <label className='text-caption text-app-text-secondary mb-2 block'>
+                Максимум: {localSettings.hrZones[1]} уд/хв
               </label>
               <input
                 type='range'
@@ -352,11 +352,11 @@ export function SettingsSidebar({
                     ],
                   })
                 }
-                className='w-full accent-track-accent'
+                className='w-full'
               />
             </div>
-            <p className='text-xs led-text-dim font-mono'>
-              ДІАПАЗОН: {localSettings.hrZones[0]} - {localSettings.hrZones[1]} УД/ХВ
+            <p className='text-subhead text-app-text-secondary'>
+              Діапазон: {localSettings.hrZones[0]} - {localSettings.hrZones[1]} уд/хв
             </p>
           </div>
         </div>
@@ -364,13 +364,13 @@ export function SettingsSidebar({
         {/* Interval Stages (only for intervals type) */}
         {localSettings.type === 'intervals' && (
           <div>
-            <div className='flex justify-between items-center mb-2'>
-              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300'>
+            <div className='flex justify-between items-center mb-3'>
+              <label className='block text-subhead font-semibold text-app-text'>
                 Етапи тренування
               </label>
               <button
                 onClick={addIntervalStage}
-                className='text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700'
+                className='text-caption px-3 py-1.5 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors'
               >
                 + Додати етап
               </button>
@@ -379,9 +379,9 @@ export function SettingsSidebar({
               {localSettings.intervalStages?.map((stage) => (
                 <div
                   key={stage.id}
-                  className='p-3 bg-gray-50 dark:bg-gray-700 rounded-lg'
+                  className='p-4 bg-app-surface-light rounded-xl border border-app-border'
                 >
-                  <div className='flex justify-between items-start mb-2'>
+                  <div className='flex justify-between items-start mb-3'>
                     <input
                       type='text'
                       value={stage.name}
@@ -390,15 +390,15 @@ export function SettingsSidebar({
                           name: e.target.value,
                         })
                       }
-                      className='flex-1 text-sm font-medium bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500'
+                      className='flex-1 text-body font-medium bg-transparent border-b border-app-border focus:outline-none focus:border-app-accent text-app-text placeholder-app-text-tertiary'
                       placeholder='Назва етапу'
                     />
                     <button
                       onClick={() => removeIntervalStage(stage.id)}
-                      className='ml-2 text-red-500 hover:text-red-700'
+                      className='ml-3 text-red-500 hover:text-red-400 transition-colors'
                     >
                       <svg
-                        className='w-4 h-4'
+                        className='w-5 h-5'
                         fill='none'
                         stroke='currentColor'
                         viewBox='0 0 24 24'
@@ -412,9 +412,9 @@ export function SettingsSidebar({
                       </svg>
                     </button>
                   </div>
-                  <div className='space-y-2 text-xs'>
+                  <div className='space-y-4 text-subhead'>
                     <div>
-                      <label className='text-gray-500 dark:text-gray-400'>
+                      <label className='text-caption text-app-text-secondary mb-2 block'>
                         Тривалість: {stage.durationMinutes} хв
                       </label>
                       <input
@@ -431,7 +431,7 @@ export function SettingsSidebar({
                       />
                     </div>
                     <div>
-                      <label className='text-gray-500 dark:text-gray-400'>
+                      <label className='text-caption text-app-text-secondary mb-2 block'>
                         ЧСС: {stage.hrZone[0]} - {stage.hrZone[1]} уд/хв
                       </label>
                       <div className='flex gap-2'>
@@ -468,7 +468,7 @@ export function SettingsSidebar({
                       </div>
                     </div>
                     <div>
-                      <label className='text-gray-500 dark:text-gray-400'>
+                      <label className='text-caption text-app-text-secondary mb-2 block'>
                         BPM: {stage.bpmRange[0]} - {stage.bpmRange[1]}
                       </label>
                       <div className='flex gap-2'>
@@ -509,7 +509,7 @@ export function SettingsSidebar({
               ))}
               {(!localSettings.intervalStages ||
                 localSettings.intervalStages.length === 0) && (
-                <p className='text-xs text-gray-500 dark:text-gray-400 text-center py-4'>
+                <p className='text-body text-app-text-tertiary text-center py-4'>
                   Немає етапів. Додайте етап для інтервального тренування.
                 </p>
               )}
@@ -519,21 +519,21 @@ export function SettingsSidebar({
 
         {/* Music Genres */}
         <div>
-          <label className='block text-sm font-mono font-medium led-text mb-2'>
-            ЖАНРИ МУЗИКИ
+          <label className='block text-subhead font-semibold text-app-text mb-3'>
+            Жанри музики
           </label>
           <div className='flex flex-wrap gap-2'>
             {MUSIC_GENRES.map((genre) => (
               <button
                 key={genre}
                 onClick={() => toggleGenre(genre)}
-                className={`px-3 py-1 text-xs font-mono rounded-full border transition-colors ${
+                className={`px-3 py-1.5 text-caption rounded-full border transition-colors ${
                   localSettings.genres.includes(genre)
-                    ? 'bg-track-accent text-track-dark border-track-accent glow-border'
-                    : 'bg-track-darker text-track-accent border-track-line hover:bg-track-line glow-border-dim'
+                    ? 'bg-app-accent text-white border-app-accent'
+                    : 'bg-app-surface-light text-app-text border-app-border hover:bg-app-surface'
                 }`}
               >
-                {genre.toUpperCase()}
+                {genre}
               </button>
             ))}
           </div>
@@ -541,17 +541,17 @@ export function SettingsSidebar({
 
         {/* Prompt Field */}
         <div>
-          <label className='block text-sm font-mono font-medium led-text mb-2'>
-            ПРОМПТ (ОПЦІОНАЛЬНО)
+          <label className='block text-subhead font-semibold text-app-text mb-3'>
+            Промпт (опціонально)
           </label>
           <textarea
             value={localSettings.prompt || ''}
             onChange={(e) => updateSettings({ prompt: e.target.value })}
             placeholder='Опиши додаткові побажання до музики, наприклад: "енергійна музика для ранкового бігу", "релаксуючі мелодії", "улюблені треки 2024 року" тощо...'
-            className='w-full px-3 py-2 text-sm font-mono border border-track-line rounded-lg bg-track-darker text-track-accent placeholder-track-accent-dim focus:outline-none focus:ring-2 focus:ring-track-accent focus:border-transparent resize-none glow-border-dim'
+            className='w-full px-4 py-3 text-body border border-app-border rounded-xl bg-app-surface-light text-app-text placeholder-app-text-tertiary focus:outline-none focus:ring-2 focus:ring-app-accent focus:border-transparent resize-none'
             rows={4}
           />
-          <p className='text-xs led-text-dim mt-1 font-mono'>
+          <p className='text-caption text-app-text-tertiary mt-2'>
             Цей промпт допоможе уточнити пошук та генерацію варіантів плейлистів
           </p>
         </div>
@@ -559,14 +559,14 @@ export function SettingsSidebar({
 
       {/* Save Button */}
       <div
-        className={`p-4 border-t border-track-line flex-shrink-0 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass} glow-border-dim`}
+        className={`p-4 border-t border-app-border flex-shrink-0 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
       >
         <button
           onClick={handleSave}
           disabled={saving || !userId}
-          className='w-full px-3 md:px-4 py-2 bg-track-accent text-track-dark rounded-lg hover:bg-track-accent-bright disabled:bg-track-line disabled:text-track-accent-dim disabled:cursor-not-allowed transition-colors font-mono font-bold text-sm md:text-base glow-border'
+          className='w-full px-4 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover disabled:bg-app-surface disabled:text-app-text-tertiary disabled:cursor-not-allowed transition-colors font-semibold text-body'
         >
-          {saving ? 'ЗБЕРЕЖЕННЯ...' : 'ЗБЕРЕГТИ'}
+          {saving ? 'Збереження...' : 'Зберегти'}
         </button>
       </div>
     </div>
