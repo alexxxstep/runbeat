@@ -51,19 +51,9 @@ export function useAuth() {
 
   const signInWithSpotify = async () => {
     try {
-      if (import.meta.env.DEV) {
-        const devUserId = 'dev_user_id_persistent';
-        localStorage.setItem('spotify_user_id', devUserId);
-        const devUser = { id: devUserId, spotify_user_id: 'dev_spotify_id' };
-        setUser(devUser);
-        setSpotifyAuthenticated(true);
-        setLoading(false);
-        // No longer reloading the page
-      } else {
-        setLoading(true);
-        const { auth_url } = await api.initiateSpotifyAuth();
-        window.location.href = auth_url;
-      }
+      setLoading(true);
+      const { auth_url } = await api.initiateSpotifyAuth();
+      window.location.href = auth_url;
     } catch (error) {
       console.error('Failed to initiate Spotify auth:', error);
       setLoading(false);
