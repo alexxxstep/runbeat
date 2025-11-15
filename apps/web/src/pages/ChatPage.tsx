@@ -615,10 +615,10 @@ export function ChatPage() {
                       </div>
                       <div className='flex-1 min-w-0'>
                         <h3 className='text-headline font-semibold text-app-text mb-1'>
-                          Використовуй праву панель історії
+                          Використовуй ліву панель історії
                         </h3>
                         <p className='text-body text-app-text-secondary'>
-                          У правій панелі зберігаються всі твої воркаути і
+                          У лівій панелі зберігаються всі твої воркаути і
                           плейлисти. Натисни на workout - він стане активним.
                           Натисни на playlist - відкриється в Spotify або покаже
                           деталі.
