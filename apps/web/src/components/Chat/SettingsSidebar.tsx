@@ -185,16 +185,18 @@ export function SettingsSidebar({
     }
   }, [durationHours, durationMinutes]);
 
+  const sidebarWidthClass = collapsed ? 'w-12' : 'w-80';
+  const contentOpacityClass = collapsed ? 'opacity-0' : 'opacity-100';
+  const contentVisibilityClass = collapsed ? 'invisible' : 'visible';
+
   return (
     <div
-      className={`bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full w-80 transition-all duration-300 ease-in-out`}
+      className={`bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass}`}
     >
       {/* Header */}
       <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0'>
         <h2
-          className={`text-lg font-semibold text-gray-900 dark:text-white transition-opacity duration-300 ${
-            collapsed ? 'opacity-0' : 'opacity-100'
-          }`}
+          className={`text-lg font-semibold text-gray-900 dark:text-white transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
         >
           Воркаут
         </h2>
@@ -205,7 +207,7 @@ export function SettingsSidebar({
         >
           <svg
             className={`w-5 h-5 text-gray-600 dark:text-gray-400 transform transition-transform duration-300 ${
-              collapsed ? '' : 'rotate-180'
+              collapsed ? 'rotate-180' : ''
             }`}
             fill='none'
             stroke='currentColor'
@@ -215,7 +217,7 @@ export function SettingsSidebar({
               strokeLinecap='round'
               strokeLinejoin='round'
               strokeWidth={2}
-              d='M9 5l7 7-7 7' // Right-pointing arrow
+              d='M9 5l7 7-7 7' // Right-pointing arrow, rotates to point left when collapsed
             />
           </svg>
         </button>
@@ -223,9 +225,7 @@ export function SettingsSidebar({
 
       {/* Main Content */}
       <div
-        className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 transition-opacity duration-300 ${
-          collapsed ? 'opacity-0 invisible' : 'opacity-100 visible'
-        }`}
+        className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
       >
         {/* Workout Type */}
         <div>
@@ -561,9 +561,7 @@ export function SettingsSidebar({
 
       {/* Save Button */}
       <div
-        className={`p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 transition-opacity duration-300 ${
-          collapsed ? 'opacity-0 invisible' : 'opacity-100 visible'
-        }`}
+        className={`p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
       >
         <button
           onClick={handleSave}

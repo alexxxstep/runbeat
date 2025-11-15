@@ -58,6 +58,7 @@ out/
 # OS
 .DS_Store
 Thumbs.db
+nul
 
 # Testing
 .pytest_cache/

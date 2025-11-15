@@ -922,12 +922,8 @@ export function ChatPage() {
         </svg>
       </button>
 
-      {/* Settings Sidebar - Right - Absolutely Positioned */}
-      <div
-        className={`absolute top-0 right-0 h-full z-30 transition-transform duration-300 ease-in-out ${
-          settingsCollapsed ? 'translate-x-full' : 'translate-x-0'
-        }`}
-      >
+      {/* Settings Sidebar - Right - 1.5 units */}
+      <div className={`${settingsCollapsed ? 'hidden md:flex' : 'flex'} md:flex-[1.5]`}>
         <SettingsSidebar
           settings={workoutSettings}
           onSettingsChange={setWorkoutSettings}

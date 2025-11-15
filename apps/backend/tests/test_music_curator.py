@@ -178,60 +178,6 @@ def test_analyze_previous_playlists_with_list_genres():
     assert "techno" in stats
 
 
-@pytest.mark.asyncio
-async def test_llm_service_generate_playlist_mock():
-    """Test LLMService playlist generation (mocked)."""
-    from unittest.mock import AsyncMock, MagicMock
-    from app.services.llm_service import LLMService
-    from app.schemas.llm_responses import PlaylistResponse, PlaylistTrack
-
-    service = LLMService()
-
-    workout_intent = WorkoutIntent(
-        workout_type="continuous",
-        duration_minutes=30,
-        target_bpm_min=145,
-        target_bpm_max=160,
-        energy_profile="steady",
-        confidence=0.95,
-    )
-
-    # Mock the OpenAI response
-    mock_response = MagicMock()
-    mock_choice = MagicMock()
-    mock_message = MagicMock()
-    mock_parsed = PlaylistResponse(
-        playlist_name="Test Playlist",
-        total_tracks=10,
-        total_duration_minutes=30.0,
-        bpm_range=[145, 160],
-        progression_type="steady",
-        primary_genres=["house", "techno"],
-        tracks=[
-            PlaylistTrack(
-                title="Test Track",
-                artist="Test Artist",
-                bpm=150.0,
-                duration_seconds=180.0,
-                energy_level=0.8,
-                genre="house",
-                phase="main",
-            )
-        ],
-        curation_notes="Test notes",
-    )
-    mock_message.parsed = mock_parsed
-    mock_choice.message = mock_message
-    mock_response.choices = [mock_choice]
-
-    service.client.beta.chat.completions.parse = AsyncMock(
-        return_value=mock_response
-    )
-
-    playlist = await service.generate_playlist(workout_intent)
-
-    assert playlist is not None
-    assert playlist.total_tracks > 0
-    assert playlist.total_duration_minutes >= 28  # Allow small variance
-    assert playlist.playlist_name == "Test Playlist"
+# Note: LLMService test removed - service was deprecated in favor of LangChain agents
+# MusicCuratorAgent now handles playlist generation via LangChain
 

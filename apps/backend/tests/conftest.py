@@ -1,10 +1,12 @@
 """
 Pytest configuration and fixtures.
 """
-from app.main import app
-from fastapi.testclient import TestClient
 import os
+
 import pytest
+from fastapi.testclient import TestClient
+
+from app.main import app
 
 # Set mock environment variables BEFORE any app imports
 os.environ["SUPABASE_URL"] = "http://test.supabase.co"
@@ -18,7 +20,9 @@ os.environ["SPOTIFY_REDIRECT_URI"] = "http://localhost/callback"
 
 @pytest.fixture(autouse=True)
 def reset_supabase_singletons():
-    """Ensure Supabase singletons are reset between tests for proper mocking."""
+    """
+    Ensure Supabase singletons are reset between tests for proper mocking.
+    """
     from app.api.routes import playlists as playlists_routes
     from app.api.routes import workouts as workouts_routes
 
