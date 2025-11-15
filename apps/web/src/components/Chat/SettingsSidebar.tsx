@@ -189,7 +189,7 @@ export function SettingsSidebar({
   const contentOpacityClass = collapsed ? 'opacity-0' : 'opacity-100';
   const contentVisibilityClass = collapsed ? 'invisible' : 'visible';
 
-  return (
+    return (
     <div
       className={`bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass}`}
     >

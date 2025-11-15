@@ -11,10 +11,10 @@ export function LoginPage() {
 
   useEffect(() => {
     // If user is authenticated with Spotify, redirect to home
-    if (user && spotifyAuthenticated) {
-      navigate('/');
+    if (!loading && user && spotifyAuthenticated) {
+      navigate('/', { replace: true });
     }
-  }, [user, spotifyAuthenticated, navigate]);
+  }, [user, spotifyAuthenticated, navigate, loading]);
 
   const handleSpotifyLogin = async () => {
     try {

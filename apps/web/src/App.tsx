@@ -20,34 +20,34 @@ function App() {
   return (
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900'>
       <Suspense fallback={<LoadingFallback />}>
-        <Routes>
-          <Route
-            path='/'
-            element={
-              <ProtectedRoute requireSpotify={true}>
-                <ChatPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route path='/login' element={<LoginPage />} />
-          <Route path='/auth/callback' element={<AuthCallbackPage />} />
-          <Route
-            path='/player/:playlistId?'
-            element={
-              <ProtectedRoute requireSpotify={true}>
-                <PlayerPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path='/history'
-            element={
-              <ProtectedRoute requireSpotify={true}>
-                <HistoryPage />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+      <Routes>
+        <Route
+          path='/'
+          element={
+            <ProtectedRoute requireSpotify={true}>
+              <ChatPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path='/login' element={<LoginPage />} />
+        <Route path='/auth/callback' element={<AuthCallbackPage />} />
+        <Route
+          path='/player/:playlistId?'
+          element={
+            <ProtectedRoute requireSpotify={true}>
+              <PlayerPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path='/history'
+          element={
+            <ProtectedRoute requireSpotify={true}>
+              <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
       </Suspense>
     </div>
   );

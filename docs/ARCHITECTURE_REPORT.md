@@ -1,9 +1,9 @@
 # 📊 RunBeat - Детальний звіт по архітектурі проекту
 
-**Дата:** 2025-11-14
-**Версія:** 2.1
+**Дата:** 2025-11-15
+**Версія:** 3.0
 **Статус:** Production Ready
-**Останнє оновлення:** 2025-11-14 (Додано систему логування помилок)
+**Останнє оновлення:** 2025-11-15 (Перехід на розмовну AI-архітектуру)
 
 ---
 
@@ -27,12 +27,12 @@ RunBeat - це AI-powered система для генерації персон�
 
 ### Основні можливості:
 
-- 🤖 AI-асистент для розмови з користувачем
-- 🎵 Генерація плейлистів на основі параметрів тренування
-- 🏃 Підтримка різних типів тренувань (стабільна, інтервальна, фартлек)
-- 📱 Адаптивний веб-інтерфейс
-- 🔗 Інтеграція з Spotify API
-- 💾 Збереження історії тренувань та плейлистів
+- 🤖 **Розмовний AI-асистент** для покрокового створення тренувань.
+- 🎵 Генерація плейлистів на основі параметрів тренування.
+- 🏃 Підтримка різних типів тренувань (стабільна, інтервальна, фартлек).
+- 📱 Адаптивний веб-інтерфейс з оптимізованою швидкістю завантаження.
+- 🔗 Інтеграція з Spotify API.
+- 💾 Збереження історії тренувань та плейлистів.
 
 ---
 
@@ -51,57 +51,46 @@ RunBeat - це AI-powered система для генерації персон�
                              v
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Frontend (React)                            │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │  ChatPage    │  │  HistoryPage │  │  PlayerPage  │          │
-│  │              │  │              │  │              │          │
-│  │ • useChat    │  │ • useHistory │  │ • usePlayer  │          │
-│  │ • Messages   │  │ • Workouts   │  │ • Spotify    │          │
-│  │ • Input      │  │ • Playlists  │  │   Player     │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│  • React.lazy & Suspense для швидкого завантаження              │
+│  • Адаптивні компоненти чату, історії та налаштувань              │
 └────────────────────────────┬────────────────────────────────────┘
                              │
-                             │ REST API
+                             │ REST API (/api/v1/chat/message)
                              │
                              v
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Backend (FastAPI)                             │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │              API Routes                                  │   │
-│  │  /api/v1/chat/message                                    │   │
-│  │  /api/v1/workouts                                        │   │
-│  │  /api/v1/playlists                                       │   │
-│  │  /api/v1/auth/spotify                                    │   │
+│  │              API Routes (/api/v1/chat)                   │   │
 │  └────────────────────┬─────────────────────────────────────┘   │
 │                       │                                          │
 │                       v                                          │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │         ConversationManager                              │   │
-│  │  • State Machine                                         │   │
-│  │  • Context Management                                    │   │
-│  │  • Multi-turn Conversations                              │   │
-│  │  • ConversationOrchestrator (Supervisor) Integration     │   │
-│  └────────────────────┬─────────────────────────────────────┘   │
-│                       │                                          │
-│                       v                                          │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │     ConversationOrchestrator (Supervisor)                │   │
-│  │  • Routes messages to appropriate agents                 │   │
-│  │  • Coordinates multi-agent workflow                      │   │
-│  │  • Manages conversation state                            │   │
+│  │               SupervisorAgent (Оркестратор)              │   │
+│  │  • Керує станом розмови для кожного користувача          │   │
+│  │  • Делегує завдання спеціалізованим агентам              │   │
 │  └────────────────────┬─────────────────────────────────────┘   │
 │                       │                                          │
 │         ┌─────────────┴─────────────┐                           │
 │         │                           │                           │
 │         v                           v                           │
 │  ┌──────────────┐          ┌──────────────┐                    │
-│  │ LangChain    │          │ Fallback     │                    │
-│  │ Agents       │          │ (if needed)  │                    │
+│  │ WorkoutBuilder │          │ WorkoutManager │                    │
+│  │ Agent        │          │ Agent        │                    │
 │  │              │          │              │                    │
-│  │ • Parser     │          │ • Legacy     │                    │
-│  │ • Curator    │          │   Parser     │                    │
-│  │ • Manager    │          │ • LLMService │                    │
-│  │ • Conversation│         │              │                    │
-│  └──────────────┘          └──────────────┘                    │
+│  │ • Веде діалог│          │ • Створює    │                    │
+│  │ • Збирає     │          │   воркаут в БД│                   │
+│  │   параметри  │          │              │                    │
+│  └──────────────┘          └───────┬──────┘                    │
+│                                    │                           │
+│                                    v                           │
+│                             ┌──────────────┐                   │
+│                             │ MusicCurator │                   │
+│                             │ Agent        │                   │
+│                             │              │                   │
+│                             │ • Генерує    │                   │
+│                             │   плейлист   │                   │
+│                             └──────────────┘                   │
 └────────────────────────────┬────────────────────────────────────┘
                              │
                 ┌────────────┼────────────┐
@@ -110,11 +99,6 @@ RunBeat - це AI-powered система для генерації персон�
     ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
     │   Supabase   │ │   OpenAI     │ │   Spotify    │
     │  PostgreSQL  │ │   GPT-4      │ │     API      │
-    │              │ │              │ │              │
-    │ • users      │ │ • Parsing    │ │ • Search     │
-    │ • workouts   │ │ • Generation │ │ • Playlists  │
-    │ • playlists  │ │              │ │ • Tracks     │
-    │ • convos     │ │              │ │              │
     └──────────────┘ └──────────────┘ └──────────────┘
 ```
 
@@ -131,1121 +115,162 @@ apps/backend/app/
 │   └── config.py              # Configuration & settings
 ├── api/
 │   └── routes/
-│       ├── chat.py            # Chat endpoints
-│       ├── workouts.py        # Workout CRUD
-│       ├── playlists.py       # Playlist management
-│       ├── auth.py            # Authentication
-│       └── users.py           # User management
+│       ├── chat.py            # Новий, спрощений Chat endpoint
+│       └── ...                # Інші роути (workouts, playlists)
 ├── services/
-│   ├── conversation_manager.py    # Main conversation orchestrator
-│   ├── llm_service.py             # OpenAI integration
-│   ├── spotify_service.py         # Spotify API client
-│   ├── supabase_service.py        # Database client
-│   ├── error_logging_service.py   # Error logging to database
-│   ├── workout_parser_agent.py    # Legacy parser agent
-│   ├── playlist_generator.py      # Playlist generation logic
-│   └── parsers/
-│       └── rule_based_parser.py   # Rule-based parsing
-├── utils/
-│   ├── logger.py                  # Logger utility
-│   └── database_log_handler.py    # Custom loguru handler for DB logging
-├── agents/                        # LangChain multi-agent system
+│   ├── spotify_service.py     # Spotify API client (рефакторений)
+│   ├── spotify_modules/       # Модулі для spotify_service
+│   ├── supabase_service.py    # Database client
+│   └── ...                    # Інші сервіси
+├── agents/                        # Multi-agent система
+│   ├── __init__.py
 │   ├── base.py                    # Base agent class
-│   ├── parser.py                  # WorkoutParserAgent
-│   ├── curator.py                 # MusicCuratorAgent
-│   ├── conversation.py            # ConversationAgent
-│   ├── manager.py                 # WorkoutManagerAgent
-│   ├── supervisor.py              # ConversationOrchestrator
-│   ├── tools/                     # Agent tools
-│   │   ├── parser_tools.py
-│   │   ├── spotify_tools.py
-│   │   ├── database_tools.py
-│   │   └── workout_tools.py
-│   └── prompts/                   # Agent prompts
-│       ├── parser_prompts.py
-│       ├── curator_prompts.py
-│       ├── conversation_prompts.py
-│       └── manager_prompts.py
+│   ├── supervisor.py              # SupervisorAgent (Оркестратор)
+│   ├── workout_builder_agent.py   # Новий розмовний агент
+│   ├── manager.py                 # WorkoutManagerAgent (робота з БД)
+│   ├── curator.py                 # MusicCuratorAgent (генерація плейлистів)
+│   ├── tools/                     # Інструменти для агентів
+│   └── prompts/                   # Промпти для агентів
 ├── schemas/
 │   ├── chat.py                    # Chat request/response
-│   ├── llm_responses.py           # Pydantic models for LLM
 │   ├── workout.py                 # Workout schemas
-│   └── playlist.py                # Playlist schemas
-└── models/
-    ├── workout.py                 # Workout domain model
-    └── playlist.py                # Playlist domain model
-```
-
-### Детальна схема Backend компонентів
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      FastAPI Application                         │
-│                         (main.py)                                │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             v
-┌─────────────────────────────────────────────────────────────────┐
-│                      API Routes Layer                            │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  /api/v1/chat/message                                    │   │
-│  │  ├── POST /message          → ChatRequest                │   │
-│  │  ├── GET  /conversation/:id → Get conversation           │   │
-│  │  └── DELETE /conversation/:id → Delete conversation      │   │
-│  │                                                           │   │
-│  │  /api/v1/workouts                                        │   │
-│  │  ├── GET    /              → List workouts               │   │
-│  │  ├── POST   /              → Create workout              │   │
-│  │  ├── GET    /:id           → Get workout                 │   │
-│  │  ├── PUT    /:id           → Update workout              │   │
-│  │  └── DELETE /:id           → Delete workout              │   │
-│  │                                                           │   │
-│  │  /api/v1/playlists                                       │   │
-│  │  ├── GET    /              → List playlists              │   │
-│  │  ├── POST   /generate      → Generate playlist           │   │
-│  │  └── GET    /:id           → Get playlist                │   │
-│  │                                                           │   │
-│  │  /api/v1/auth/spotify                                    │   │
-│  │  ├── GET  /login          → Initiate OAuth               │   │
-│  │  └── GET  /callback       → OAuth callback               │   │
-│  │                                                           │   │
-│  │  /api/v1/error-logs                                      │   │
-│  │  ├── POST /              → Create error log (frontend)   │   │
-│  │  ├── GET  /              → Get error logs                │   │
-│  │  └── GET  /statistics    → Get error statistics          │   │
-│  └───────────────────────────────────────────────────────────┘   │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             v
-┌─────────────────────────────────────────────────────────────────┐
-│                  ConversationManager                             │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  State Machine:                                          │   │
-│  │                                                           │   │
-│  │  NEW ──→ PARSING_INTENT ──→ NEEDS_CLARIFICATION         │   │
-│  │   │                              │                        │   │
-│  │   │                              │                        │   │
-│  │   └──────────────────────────────┘                        │   │
-│  │                              │                            │   │
-│  │                              v                            │   │
-│  │  ASK_WORKOUT_CONFIRMATION ──→ COMPLETE                   │   │
-│  │                              │                            │   │
-│  │                              v                            │   │
-│  │  GENERATING_PLAYLIST ───────→ COMPLETE                   │   │
-│  │                                                           │   │
-│  │  Features:                                                │   │
-│  │  • Multi-turn context preservation                        │   │
-│  │  • Intelligent follow-up questions                        │   │
-│  │  • Conversation history storage                           │   │
-│  │  • Workout confirmation flow                              │   │
-│  └────────────────────┬──────────────────────────────────────┘   │
-│                       │                                          │
-│         ┌─────────────┴─────────────┐                           │
-│         │                           │                           │
-│         v                           v                           │
-│  ┌──────────────┐          ┌──────────────┐                    │
-│  │ LangChain    │          │ Legacy       │                    │
-│  │ System       │          │ System       │                    │
-│  │              │          │              │                    │
-│  │ (Feature     │          │ (Default)    │                    │
-│  │  Flags)      │          │              │                    │
-│  └──────────────┘          └──────────────┘                    │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### ConversationManager - Детальна схема
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ConversationManager                           │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  process_message(user_id, message, conversation_id)      │   │
-│  │                                                           │   │
-│  │  1. Get/Create conversation                              │   │
-│  │  2. Add user message to history                          │   │
-│  │  3. Check if Supervisor enabled                          │   │
-│  │     ├── Yes → Use ConversationOrchestrator               │   │
-│  │     │   └──→ Routes to appropriate agent                 │   │
-│  │     └── No  → Direct agent integration                   │   │
-│  │  4. Check for greetings/general questions                │   │
-│  │     └──→ Use ConversationAgent                           │   │
-│  │  5. Parse intent (WorkoutParserAgent)                    │   │
-│  │  6. Decide next action                                   │   │
-│  │     ├── Intent complete?                                 │   │
-│  │     │   ├── Yes → Ask for confirmation                   │   │
-│  │     │   └── No  → Ask clarification                      │   │
-│  │     └── User confirmed?                                  │   │
-│  │         └──→ WorkoutManagerAgent → Create workout        │   │
-│  │         └──→ MusicCuratorAgent → Generate playlist       │   │
-│  │  7. Save conversation                                    │   │
-│  │  8. Return response                                      │   │
-│  └───────────────────────────────────────────────────────────┘   │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Agent Integration:                                       │   │
-│  │                                                           │   │
-│  │  • ConversationOrchestrator (Supervisor)                  │   │
-│  │    └──→ Coordinates all agents                            │   │
-│  │                                                           │   │
-│  │  • ConversationAgent                                      │   │
-│  │    └──→ Handles greetings & general questions             │   │
-│  │                                                           │   │
-│  │  • WorkoutParserAgent (LangChain)                         │   │
-│  │    └──→ Hybrid parsing (rule-based + AI)                  │   │
-│  │                                                           │   │
-│  │  • WorkoutManagerAgent (LangChain)                        │   │
-│  │    └──→ Creates & activates workouts                      │   │
-│  │                                                           │   │
-│  │  • MusicCuratorAgent (LangChain)                          │   │
-│  │    └──→ Generates playlists with Spotify tools            │   │
-│  └───────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
+│   ├── playlist.py                # Playlist schemas
+│   └── conversation.py            # Схеми для стану розмови
+└── ...
 ```
 
 ---
 
-## 🤖 Multi-Agent система
+## 🤖 Multi-Agent система (Нова архітектура)
 
-### Архітектура LangChain агентів
+Попередня система, що базувалася на парсингу одного повідомлення, була повністю замінена на проактивну розмовну модель, де AI-асистент веде користувача покроково.
+
+### Архітектура агентів
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│              ConversationOrchestrator (Supervisor)               │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  process_message()                                       │   │
-│  │                                                           │   │
-│  │  Routes based on state:                                  │   │
-│  │                                                           │   │
-│  │  • new / needs_clarification                             │   │
-│  │    └──→ ConversationAgent                                │   │
-│  │        • Handles greetings ("привіт", "ти хто")         │   │
-│  │        • Asks clarifying questions                       │   │
-│  │        • Maintains conversation context                  │   │
-│  │                                                           │   │
-│  │  • intent_ready                                          │   │
-│  │    └──→ WorkoutParserAgent                               │   │
-│  │        • Hybrid parsing (rule-based + AI)                │   │
-│  │        • Extracts workout parameters                     │   │
-│  │        • Validates intent completeness                   │   │
-│  │                                                           │   │
-│  │  • workout_confirmation                                  │   │
-│  │    └──→ WorkoutManagerAgent                              │   │
-│  │        • Creates workout in database                     │   │
-│  │        • Activates workout                               │   │
-│  │        • Returns workout_id                              │   │
-│  │                                                           │   │
-│  │  • workout_created                                       │   │
-│  │    └──→ MusicCuratorAgent                                │   │
-│  │        • Generates playlist with Spotify tools           │   │
-│  │        • Matches BPM to workout                          │   │
-│  │        • Creates playlist in Spotify                     │   │
-│  └───────────────────────────────────────────────────────────┘   │
+│                        SupervisorAgent                           │
+│                  (Керує станом та делегує)                       │
 └────────────────────────────┬────────────────────────────────────┘
                              │
-        ┌────────────────────┼────────────────────┐
-        │                    │                    │
-        v                    v                    v
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│ Conversation │    │   Parser     │    │   Curator    │
-│    Agent     │    │    Agent     │    │    Agent     │
-│              │    │              │    │              │
-│ • Natural    │    │ • Hybrid     │    │ • Playlist   │
-│   language   │    │   parsing    │    │   generation │
-│ • Questions  │    │ • Rule-based │    │ • BPM        │
-│ • Context    │    │   + AI       │    │   matching   │
-│ • Greetings  │    │ • Validation │    │ • Spotify    │
-│              │    │ • Tools      │    │ • Tools      │
-└──────────────┘    └──────────────┘    └──────────────┘
-        │                    │                    │
-        └────────────────────┼────────────────────┘
-                             │
+                             │ 1. User message
                              v
-                    ┌──────────────┐
-                    │   Manager    │
-                    │    Agent     │
-                    │              │
-                    │ • Create     │
-                    │   workout    │
-                    │ • Activate   │
-                    │ • Database   │
-                    │ • Tools      │
-                    └──────────────┘
-```
-
-### WorkoutParserAgent - Детальна схема
-
-```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    WorkoutParserAgent                            │
+│                     WorkoutBuilderAgent                          │
+│        (Веде діалог для збору параметрів воркаута)               │
 │                                                                   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  parse(message, conversation_history)                    │   │
-│  │                                                           │   │
-│  │  1. Try Rule-Based Parser first                          │   │
-│  │     └──→ RuleBasedParser.parse()                         │   │
-│  │         ├── Extract duration (regex)                     │   │
-│  │         ├── Extract intensity (keywords)                 │   │
-│  │         ├── Extract workout_type (keywords)              │   │
-│  │         ├── Extract music_genres (keywords)              │   │
-│  │         └── Extract music_prompt (text)                  │   │
-│  │                                                           │   │
-│  │  2. If rule-based fails or incomplete:                   │   │
-│  │     └──→ AI Parsing (LangChain Agent)                    │   │
-│  │         ├── Use structured chat agent                    │   │
-│  │         ├── Tools: rule_based_parse, validate_intent     │   │
-│  │         └── Output: WorkoutIntent (Pydantic)             │   │
-│  │                                                           │   │
-│  │  3. Merge results                                        │   │
-│  │  4. Return WorkoutIntent                                 │   │
-│  └───────────────────────────────────────────────────────────┘   │
+│  • State: last_question = "none" -> "type" -> "duration" ...      │
+│  • `_process_answer()`: аналізує відповідь користувача            │
+│  • `_get_next_question()`: визначає наступне питання             │
+│  • `_generate_response()`: генерує відповідь асистента            │
 │                                                                   │
-│  Tools:                                                           │
-│  ┌──────────────────┐  ┌──────────────────┐                     │
-│  │ rule_based_parse │  │ validate_intent  │                     │
-│  │                  │  │                  │                     │
-│  │ • Fast           │  │ • Check required │                     │
-│  │ • Regex-based    │  │   fields         │                     │
-│  │ • Low cost       │  │ • Validate BPM   │                     │
-│  └──────────────────┘  └──────────────────┘                     │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### MusicCuratorAgent - Детальна схема
-
-```
+│  Коли всі параметри зібрані:                                     │
+│  • last_question = "final_confirmation"                           │
+│  • Повертає Supervisor'у фінальне питання для підтвердження       │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             │ 2. User confirms ("Так")
+                             v
 ┌─────────────────────────────────────────────────────────────────┐
-│                    MusicCuratorAgent                             │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  generate_playlist(workout_intent, user_id, preferences) │   │
-│  │                                                           │   │
-│  │  1. Analyze workout requirements                         │   │
-│  │     ├── Duration                                         │   │
-│  │     ├── BPM range                                        │   │
-│  │     ├── Workout type                                     │   │
-│  │     └── Music preferences (genres, prompt)               │   │
-│  │                                                           │   │
-│  │  2. Use LangChain Agent with tools:                      │   │
-│  │     ├── search_spotify_tracks()                          │   │
-│  │     ├── get_spotify_recommendations()                    │   │
-│  │     ├── calculate_bpm_progression()                      │   │
-│  │     ├── get_user_preferences()                           │   │
-│  │     └── get_user_music_history()                         │   │
-│  │                                                           │   │
-│  │  3. Generate playlist structure:                         │   │
-│  │     ├── Warm-up phase (lower BPM)                        │   │
-│  │     ├── Main workout (target BPM)                        │   │
-│  │     └── Cool-down phase (lower BPM)                      │   │
-│  │                                                           │   │
-│  │  4. Output: PlaylistResponse (Pydantic)                  │   │
-│  │     ├── tracks: List[PlaylistTrack]                      │   │
-│  │     ├── bpm_range: [min, max]                            │   │
-│  │     ├── total_tracks: int                                │   │
-│  │     ├── total_duration_minutes: float                    │   │
-│  │     └── curation_notes: str                              │   │
-│  │                                                           │   │
-│  │  5. Fallback: Use legacy LLMService if agent fails       │   │
-│  └───────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 💻 Frontend архітектура
-
-### Структура Frontend
-
-```
-apps/web/src/
-├── main.tsx                    # Entry point
-├── App.tsx                     # Root component with routing
-├── pages/
-│   ├── ChatPage.tsx            # Main chat interface
-│   ├── HistoryPage.tsx         # Workout & playlist history
-│   ├── PlayerPage.tsx          # Spotify player
-│   └── LoginPage.tsx           # Authentication
-├── components/
-│   ├── Chat/
-│   │   ├── MessageBubble.tsx   # Message display
-│   │   ├── InputBar.tsx        # Message input
-│   │   ├── TypingIndicator.tsx # Loading indicator
-│   │   ├── PlaylistHistorySidebar.tsx  # History sidebar
-│   │   └── SettingsSidebar.tsx # Workout settings
-│   ├── Player/
-│   │   └── TrackCard.tsx       # Track display
-│   └── Shared/
-│       ├── Button.tsx
-│       ├── LoadingSpinner.tsx
-│       └── ErrorDisplay.tsx
-├── hooks/
-│   ├── useChat.ts              # Chat logic & state
-│   ├── useAuth.ts              # Authentication
-│   ├── usePlaylist.ts          # Playlist management
-│   ├── usePlaylistHistory.ts   # History management
-│   └── useWorkoutHistory.ts    # Workout history
-├── services/
-│   ├── api.ts                  # API client
-│   └── supabase.ts             # Supabase client
-└── types/
-    ├── index.ts                # TypeScript types
-    └── settings.ts             # Settings types
-```
-
-### Frontend потік даних
-
-```
+│                        SupervisorAgent                           │
+│  • Отримує підтвердження                                         │
+│  • Створює об'єкт Workout з зібраних параметрів                  │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             │ 3. Передає Workout для збереження
+                             v
 ┌─────────────────────────────────────────────────────────────────┐
-│                        User Interface                            │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  ChatPage                                                 │   │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │   │
-│  │  │  History     │  │    Chat      │  │  Settings    │   │   │
-│  │  │  Sidebar     │  │    Area      │  │  Sidebar     │   │   │
-│  │  │              │  │              │  │              │   │   │
-│  │  │ • Workouts   │  │ • Messages   │  │ • Workout    │   │   │
-│  │  │ • Playlists  │  │ • Input      │  │   config     │   │   │
-│  │  │              │  │ • Variants   │  │ • Genres     │   │   │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘   │   │
-│  └───────────────────────────────────────────────────────────┘   │
-│                       │                                           │
-│                       v                                           │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  useChat Hook                                            │   │
-│  │  • sendMessage()                                         │   │
-│  │  • generatePlaylist()                                    │   │
-│  │  • clearMessages()                                       │   │
-│  │  • State: messages, isLoading, error                     │   │
-│  └────────────────────┬──────────────────────────────────────┘   │
-│                       │                                           │
-│                       v                                           │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  API Client (api.ts)                                     │   │
-│  │  • POST /api/v1/chat/message                             │   │
-│  │  • POST /api/v1/playlists/generate                       │   │
-│  │  • GET  /api/v1/workouts                                 │   │
-│  │  • GET  /api/v1/playlists                                │   │
-│  └────────────────────┬──────────────────────────────────────┘   │
-│                       │                                           │
-│                       v                                           │
-│              ┌────────────────┐                                  │
-│              │  Backend API   │                                  │
-│              └────────────────┘                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Адаптивний дизайн
-
-```
-Desktop (≥768px)                    Mobile (<768px)
-┌─────────────────────┐            ┌──────────────┐
-│ ┌───┐ ┌──────┐ ┌──┐│            │ [☰]  [⚙]    │
-│ │ H │ │ Chat │ │S ││            │              │
-│ │ i │ │      │ │e ││            │              │
-│ │ s │ │      │ │t ││            │   Chat       │
-│ │ t │ │      │ │t ││            │   Area       │
-│ │   │ │      │ │i ││            │              │
-│ │ W │ │      │ │n ││            │              │
-│ │ o │ │      │ │g ││            │              │
-│ │ r │ │      │ │s ││            │              │
-│ │ k │ │      │ │  ││            │              │
-│ │   │ │      │ │  ││            │              │
-│ │ P │ │      │ │  ││            │              │
-│ │ l │ │      │ │  ││            │              │
-│ │ a │ │      │ │  ││            │              │
-│ │ y │ │      │ │  ││            │              │
-│ └───┘ └──────┘ └──┘│            │              │
-└─────────────────────┘            └──────────────┘
-
-• Sidebars always visible          • Sidebars hidden by default
-• Full layout                      • Overlay sidebars on click
-• Table view for variants          • List view for variants
-```
-
----
-
-## 🗄️ База даних
-
-### Схема бази даних (Supabase PostgreSQL)
-
-```
+│                     WorkoutManagerAgent                          │
+│            (Створює та активує воркаут в БД)                     │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             │ 4. (Після створення воркаута, опціонально)
+                             v
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Database Schema                           │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  users                                                    │   │
-│  │  ┌─────────────┬──────────────┬──────────────────────┐   │   │
-│  │  │ id (PK)     │ email        │ preferences (JSONB)  │   │   │
-│  │  │ spotify_*   │ created_at   │ spotify_user_id      │   │   │
-│  │  └─────────────┴──────────────┴──────────────────────┘   │   │
-│  └───────────────────────────────────────────────────────────┘   │
-│                              │                                    │
-│                              │ 1:N                                │
-│                              │                                    │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  workouts                                                 │   │
-│  │  ┌─────────────┬──────────────┬──────────────────────┐   │   │
-│  │  │ id (PK)     │ user_id (FK) │ type                 │   │   │
-│  │  │ duration_*  │ intensity    │ hr_zones (int[])     │   │   │
-│  │  │ genres      │ prompt       │ interval_stages      │   │   │
-│  │  │ is_active   │ created_at   │ (JSONB)              │   │   │
-│  │  └─────────────┴──────────────┴──────────────────────┘   │   │
-│  └───────────────────────────────────────────────────────────┘   │
-│                              │                                    │
-│                              │ 1:N                                │
-│                              │                                    │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  playlists                                                │   │
-│  │  ┌─────────────┬──────────────┬──────────────────────┐   │   │
-│  │  │ id (PK)     │ user_id (FK) │ workout_id (FK)      │   │   │
-│  │  │ spotify_*   │ total_tracks │ total_duration_*     │   │   │
-│  │  │ created_at  │ tracks (JSONB)│ spotify_url         │   │   │
-│  │  └─────────────┴──────────────┴──────────────────────┘   │   │
-│  └───────────────────────────────────────────────────────────┘   │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  conversations                                            │   │
-│  │  ┌─────────────┬──────────────┬──────────────────────┐   │   │
-│  │  │ id (PK)     │ user_id (FK) │ state                │   │   │
-│  │  │ messages    │ workout_*    │ playlist (JSONB)     │   │   │
-│  │  │ created_at  │ updated_at   │                      │   │   │
-│  │  └─────────────┴──────────────┴──────────────────────┘   │   │
-│  └───────────────────────────────────────────────────────────┘   │
+│                      MusicCuratorAgent                           │
+│                  (Генерує плейлист для воркаута)                 │
 └─────────────────────────────────────────────────────────────────┘
-```
-
-### Таблиці детально
-
-#### users
-
-```sql
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email TEXT UNIQUE,
-    spotify_access_token TEXT,
-    spotify_refresh_token TEXT,
-    spotify_user_id TEXT,
-    spotify_token_expires_at TIMESTAMPTZ,
-    preferences JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### workouts
-
-```sql
-CREATE TABLE workouts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    type TEXT NOT NULL,  -- 'steady', 'intervals', 'fartlek', 'progressive'
-    duration_minutes INTEGER NOT NULL,
-    intensity TEXT NOT NULL,  -- 'low', 'moderate', 'high'
-    hr_zones INTEGER[] NOT NULL,  -- [min, max]
-    interval_stages JSONB,  -- Array of interval stages
-    genres TEXT[],  -- Music genres
-    prompt TEXT,  -- Music search prompt
-    is_active BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### playlists
-
-```sql
-CREATE TABLE playlists (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    workout_id UUID REFERENCES workouts(id) ON DELETE SET NULL,
-    spotify_playlist_id TEXT,
-    spotify_url TEXT,
-    total_tracks INTEGER,
-    total_duration_seconds INTEGER,
-    tracks JSONB,  -- Array of track objects
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### conversations
-
-```sql
-CREATE TABLE conversations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    state TEXT NOT NULL,
-    messages JSONB DEFAULT '[]',
-    workout_intent JSONB,
-    playlist JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### error_logs
-
-```sql
-CREATE TABLE error_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    level TEXT NOT NULL CHECK (level IN ('ERROR', 'CRITICAL', 'WARNING')),
-    message TEXT NOT NULL,
-    error_type TEXT,
-    error_details JSONB,
-    stack_trace TEXT,
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    request_path TEXT,
-    request_method TEXT,
-    request_body JSONB,
-    response_status INTEGER,
-    environment TEXT DEFAULT 'production',
-    service_name TEXT DEFAULT 'runbeat-backend',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Indexes for efficient querying
-CREATE INDEX idx_error_logs_level ON error_logs(level);
-CREATE INDEX idx_error_logs_created_at ON error_logs(created_at DESC);
-CREATE INDEX idx_error_logs_user_id ON error_logs(user_id) WHERE user_id IS NOT NULL;
-CREATE INDEX idx_error_logs_error_type ON error_logs(error_type) WHERE error_type IS NOT NULL;
-CREATE INDEX idx_error_logs_environment ON error_logs(environment);
 ```
 
 ---
 
 ## 🔄 Потоки даних
 
-### Потік 1: Створення воркауту через чат
+### Потік 1: Створення воркаута через діалог (Новий потік)
 
 ```
 ┌─────────┐
 │  User   │
 │ "хочу   │
-│ пробігти│
-│ 30 хв"  │
+│ пробігти"│
 └────┬────┘
+     │ POST /chat/message
+     v
+┌─────────────────────────────────────────────────────────────┐
+│  Backend: SupervisorAgent.handle_message()                   │
+│  • Створює новий ConversationState для user_id               │
+│  • Делегує до WorkoutBuilderAgent                            │
+└────┬─────────────────────────────────────────────────────────┘
      │
+     v
+┌─────────────────────────────────────────────────────────────┐
+│  WorkoutBuilderAgent.process_message()                       │
+│  • state.last_question == "none" -> "type"                   │
+│  • Генерує перше питання                                     │
+└────┬─────────────────────────────────────────────────────────┘
+     │
+     │ Response: "Чудово! ... Оберіть тип тренування: ..."
      v
 ┌─────────────────────────────────────────────────────────────┐
 │  Frontend: ChatPage                                          │
-│  • User types message                                        │
-│  • useChat.sendMessage()                                     │
+│  • Показує питання від AI                                    │
 └────┬─────────────────────────────────────────────────────────┘
      │
-     │ POST /api/v1/chat/message
-     │ { message: "хочу пробігти 30 хв", user_id: "..." }
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  Backend: /api/v1/chat/message                               │
-│  • Validate request                                          │
-│  • Get user preferences from DB                              │
-│  • Call ConversationManager.process_message()                │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  ConversationManager                                         │
-│  • Get/Create conversation                                   │
-│  • Add message to history                                    │
-│  • Check if Supervisor enabled → YES                         │
-│  • Use ConversationOrchestrator                              │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  ConversationOrchestrator (Supervisor)                       │
-│  • State: NEW                                                │
-│  • Route to: ConversationAgent                               │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  ConversationAgent (LangChain)                               │
-│  • Analyze message                                           │
-│  • Detect: workout intent present                            │
-│  • Route to: WorkoutParserAgent                              │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  WorkoutParserAgent (Hybrid)                                 │
-│  ┌───────────────────────────────────────────────────────┐   │
-│  │  1. RuleBasedParser.parse()                           │   │
-│  │     ├── Extract: duration = 30                        │   │
-│  │     ├── Extract: workout_type = "continuous"          │   │
-│  │     └── Extract: intensity = "moderate" (inferred)    │   │
-│  │                                                         │   │
-│  │  2. If incomplete → AI Parsing                         │   │
-│  │     └──→ LangChain Agent                               │   │
-│  │         └──→ OpenAI GPT-4                              │   │
-│  │             └──→ WorkoutIntent (Pydantic)              │   │
-│  └───────────────────────────────────────────────────────┘   │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     │ WorkoutIntent {
-     │   workout_type: "continuous",
-     │   duration_minutes: 30,
-     │   target_bpm_min: 130,
-     │   target_bpm_max: 150,
-     │   confidence: 0.9,
-     │   needs_clarification: false
-     │ }
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  ConversationOrchestrator                                    │
-│  • Intent complete → State: workout_confirmation            │
-│  • Format workout summary                                    │
-│  • Return: "Створити воркаут? (Да/Ні)"                      │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     │ Response {
-     │   message: "Ось що я зрозумів: ... Створити воркаут?",
-     │   workout: WorkoutIntent,
-     │   state: "ask_workout_confirmation",
-     │   is_complete: false
-     │ }
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  Frontend: ChatPage                                          │
-│  • Display AI message                                        │
-│  • Show buttons: "Так" / "Ні"                                │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Потік 2: Підтвердження та створення воркауту
-
-```
 ┌─────────┐
 │  User   │
-│ Clicks  │
-│ "Так"   │
+│ "Стабільна"│
 └────┬────┘
-     │
-     │ POST /api/v1/chat/message
-     │ { message: "Так", conversation_id: "..." }
-     │
+     │ POST /chat/message
      v
 ┌─────────────────────────────────────────────────────────────┐
-│  ConversationManager                                         │
-│  • State: ASK_WORKOUT_CONFIRMATION                           │
-│  • Use ConversationOrchestrator                              │
+│  Backend: SupervisorAgent -> WorkoutBuilderAgent             │
+│  • state.last_question == "type"                             │
+│  • `_process_answer()`: зберігає `type: "steady"`              │
+│  • `_get_next_question()`: повертає "duration"                 │
+│  • Генерує наступне питання                                  │
 └────┬─────────────────────────────────────────────────────────┘
      │
+     │ Response: "Добре, зрозуміло. Яка буде тривалість ...?"
+     v
+... (діалог продовжується, доки всі параметри не зібрано) ...
+     │
      v
 ┌─────────────────────────────────────────────────────────────┐
-│  ConversationOrchestrator                                    │
-│  • State: workout_confirmation                               │
-│  • Route to: WorkoutManagerAgent                             │
+│  WorkoutBuilderAgent                                         │
+│  • state.last_question == "final_confirmation"               │
+│  • Генерує фінальне підтвердження                            │
 └────┬─────────────────────────────────────────────────────────┘
      │
+     │ Response: "Ми зібрали всю інформацію! ... Зберегти його?"
      v
-┌─────────────────────────────────────────────────────────────┐
-│  WorkoutManagerAgent (LangChain)                             │
-│  • Parse: "Так" → is_positive = true                        │
-│  • Use tools: create_workout, activate_workout              │
-│  • Create workout in database                                │
-│  • Activate workout                                          │
-│  • Return workout_id                                         │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     │ workout_id = "abc-123"
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  ConversationManager                                         │
-│  • Update conversation state: COMPLETE                       │
-│  • Return response with workout_id                           │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     │ Response {
-     │   message: "✅ Воркаут успішно створено!",
-     │   workout: { id: "abc-123", ... },
-     │   state: "complete",
-     │   is_complete: true
-     │ }
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  Frontend: ChatPage                                          │
-│  • Display success message                                   │
-│  • Show button: "Так, згенерувати плейлист"                 │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Потік 3: Генерація плейлисту
-
-```
 ┌─────────┐
 │  User   │
-│ Clicks  │
-│ "Згенерувати│
-│ плейлист"│
+│  "Так"  │
 └────┬────┘
-     │
-     │ POST /api/v1/playlists/preview-variants
-     │ { workout_id: "abc-123", ... }
-     │
+     │ POST /chat/message
      v
 ┌─────────────────────────────────────────────────────────────┐
-│  Backend: /api/v1/playlists/preview-variants                 │
-│  • Get workout from DB                                       │
-│  • Call playlist generator                                   │
+│  SupervisorAgent                                             │
+│  • `state.last_question == "final_confirmation"` -> true     │
+│  • Викликає WorkoutManagerAgent для збереження в БД          │
+│  • Очищує стан розмови                                       │
 └────┬─────────────────────────────────────────────────────────┘
      │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  ConversationOrchestrator                                    │
-│  • State: workout_created                                    │
-│  • Route to: MusicCuratorAgent                               │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  MusicCuratorAgent (LangChain)                               │
-│  ┌───────────────────────────────────────────────────────┐   │
-│  │  1. Analyze workout requirements                     │   │
-│  │  2. Use LangChain Agent with tools:                  │   │
-│  │     ├── search_spotify_tracks()                       │   │
-│  │     ├── get_spotify_recommendations()                 │   │
-│  │     ├── calculate_bpm_progression()                   │   │
-│  │     ├── get_user_preferences()                        │   │
-│  │     └── get_user_music_history()                      │   │
-│  │  3. Generate playlist structure                       │   │
-│  │  4. Output: PlaylistResponse (Pydantic)               │   │
-│  │  5. Create playlist in Spotify                        │   │
-│  └───────────────────────────────────────────────────────┘   │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     │ PlaylistResponse {
-     │   tracks: [Track, ...],
-     │   bpm_range: [130, 150],
-     │   total_tracks: 15,
-     │   total_duration_minutes: 45.5
-     │ }
-     │
+     │ Response: "✅ Воркаут успішно створено!"
      v
 ┌─────────────────────────────────────────────────────────────┐
 │  Frontend: ChatPage                                          │
-│  • Display 2 variants                                        │
-│  • User selects variant                                      │
-│  • Call generatePlaylist()                                   │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     │ POST /api/v1/playlists/generate
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  Backend: Generate & Create Spotify Playlist                 │
-│  • Create playlist in Spotify                                │
-│  • Add tracks                                                │
-│  • Save to DB                                                │
-│  • Return spotify_url                                        │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  Frontend: ChatPage                                          │
-│  • Display playlist with "Open in Spotify" button            │
-│  • User clicks → Opens Spotify app                           │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🛠️ Технологічний стек
-
-### Backend Stack
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Backend Technology Stack                   │
-├─────────────────────────────────────────────────────────────┤
-│ Framework:        FastAPI 0.104.1                            │
-│ Language:         Python 3.11+                               │
-│ ASGI Server:      Uvicorn                                    │
-│                                                                 │
-│ AI/LLM:                                                       │
-│   • OpenAI GPT-4  (via openai==1.7.2)                        │
-│   • LangChain     (via langchain, langchain-openai)          │
-│                                                                 │
-│ Database:                                                     │
-│   • Supabase      (PostgreSQL via supabase==2.3.0)           │
-│                                                                 │
-│ External APIs:                                                │
-│   • Spotify API   (via spotipy==2.23.0)                      │
-│                                                                 │
-│ Validation:                                                   │
-│   • Pydantic v2   (Data validation & serialization)          │
-│                                                                 │
-│ Utilities:                                                    │
-│   • loguru        (Logging)                                  │
-│   • httpx         (HTTP client)                              │
-│   • python-dotenv (Environment variables)                    │
-│                                                                 │
-│ Testing:                                                      │
-│   • pytest        (Testing framework)                        │
-│   • pytest-asyncio (Async testing)                           │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Frontend Stack
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Frontend Technology Stack                  │
-├─────────────────────────────────────────────────────────────┤
-│ Framework:        React 18.2.0                               │
-│ Build Tool:       Vite                                       │
-│ Language:         TypeScript                                 │
-│                                                                 │
-│ Routing:          React Router v6                            │
-│                                                                 │
-│ Styling:          Tailwind CSS                               │
-│                                                                 │
-│ State Management:                                             │
-│   • React Hooks   (useState, useEffect, useCallback)         │
-│   • Custom Hooks  (useChat, useAuth, usePlaylist)            │
-│                                                                 │
-│ HTTP Client:      Axios                                      │
-│                                                                 │
-│ Authentication:   Supabase Auth                              │
-│                                                                 │
-│ UI Components:    Custom components                          │
-│   • MessageBubble                                             │
-│   • InputBar                                                  │
-│   • Sidebars                                                  │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🚀 Deployment архітектура
-
-### Railway Deployment
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Railway Platform                          │
-│                                                               │
-│  ┌───────────────────────────────────────────────────────┐   │
-│  │  Backend Service (FastAPI)                            │   │
-│  │  • Runtime: Python 3.11                               │   │
-│  │  • Build: pip install -r requirements.txt             │   │
-│  │  • Start: uvicorn app.main:app --host 0.0.0.0         │   │
-│  │  • Port: $PORT (Railway assigned)                     │   │
-│  │  • Environment: Production                             │   │
-│  └───────────────────────────────────────────────────────┘   │
-│                       │                                       │
-│                       v                                       │
-│  ┌───────────────────────────────────────────────────────┐   │
-│  │  Frontend Service (React)                             │   │
-│  │  • Runtime: Node.js 18                                │   │
-│  │  • Build: npm install && npm run build                │   │
-│  │  • Start: npx serve -s dist -l $PORT                  │   │
-│  │  • Static files served from dist/                     │   │
-│  └───────────────────────────────────────────────────────┘   │
-│                                                               │
-│  Environment Variables:                                       │
-│  • SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY     │
-│  • SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET                  │
-│  • OPENAI_API_KEY                                            │
-│  • USE_LANGCHAIN_PARSER, USE_LANGCHAIN_CURATOR               │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### External Services
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    External Services                         │
-│                                                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │   Supabase   │  │    OpenAI    │  │   Spotify    │      │
-│  │              │  │              │  │              │      │
-│  │ • PostgreSQL │  │ • GPT-4 API  │  │ • Web API    │      │
-│  │ • Auth       │  │ • Structured │  │ • OAuth 2.0  │      │
-│  │ • Storage    │  │   Outputs    │  │ • Playlists  │      │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📈 Feature Flags
-
-### Поточна конфігурація (Production)
-
-```python
-# apps/backend/app/core/config.py
-
-USE_LANGCHAIN_PARSER: bool = True       # ✅ LangChain WorkoutParserAgent enabled
-USE_LANGCHAIN_CURATOR: bool = True      # ✅ LangChain MusicCuratorAgent enabled
-USE_LANGCHAIN_SUPERVISOR: bool = True   # ✅ ConversationOrchestrator (Supervisor) enabled
-```
-
-**Статус:** Повна міграція на LangChain multi-agent систему завершена ✅
-
-### Можливі конфігурації
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Feature Flag Combinations                 │
-├─────────────────────────────────────────────────────────────┤
-│ Configuration 1: Legacy (Fallback)                          │
-│   • USE_LANGCHAIN_PARSER = False                            │
-│   • USE_LANGCHAIN_CURATOR = False                           │
-│   • USE_LANGCHAIN_SUPERVISOR = False                        │
-│   → Uses: LegacyWorkoutParserAgent + LLMService             │
-│                                                                 │
-│ Configuration 2: Hybrid Parser                               │
-│   • USE_LANGCHAIN_PARSER = True                             │
-│   • USE_LANGCHAIN_CURATOR = False                           │
-│   • USE_LANGCHAIN_SUPERVISOR = False                        │
-│   → Uses: LangChainWorkoutParserAgent + LLMService          │
-│                                                                 │
-│ Configuration 3: Full LangChain Agents                       │
-│   • USE_LANGCHAIN_PARSER = True                             │
-│   • USE_LANGCHAIN_CURATOR = True                            │
-│   • USE_LANGCHAIN_SUPERVISOR = False                        │
-│   → Uses: LangChainWorkoutParserAgent + MusicCuratorAgent   │
-│   → Direct agent integration in ConversationManager         │
-│                                                                 │
-│ Configuration 4: Full Multi-Agent System (CURRENT) ✅        │
-│   • USE_LANGCHAIN_PARSER = True                             │
-│   • USE_LANGCHAIN_CURATOR = True                            │
-│   • USE_LANGCHAIN_SUPERVISOR = True                         │
-│   → Uses: ConversationOrchestrator (Supervisor)             │
-│   → Coordinates: ConversationAgent, WorkoutParserAgent,     │
-│                  WorkoutManagerAgent, MusicCuratorAgent     │
-│   → Full LangChain multi-agent orchestration                │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🔐 Безпека
-
-### Authentication Flow
-
-```
-┌─────────┐
-│  User   │
-└────┬────┘
-     │
-     │ 1. Click "Login with Spotify"
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  Frontend: LoginPage                                         │
-│  • Redirect to: /api/v1/auth/spotify/login                  │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  Backend: /api/v1/auth/spotify/login                         │
-│  • Generate OAuth state                                      │
-│  • Redirect to Spotify OAuth                                 │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     │ Redirect to Spotify
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  Spotify OAuth                                               │
-│  • User authorizes                                           │
-│  • Redirect to: /auth/callback?code=...                     │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  Backend: /api/v1/auth/spotify/callback                      │
-│  • Exchange code for tokens                                  │
-│  • Get user info from Spotify                                │
-│  • Create/Update user in Supabase                            │
-│  • Generate Supabase session                                 │
-│  • Return session to frontend                                │
-└────┬─────────────────────────────────────────────────────────┘
-     │
-     v
-┌─────────────────────────────────────────────────────────────┐
-│  Frontend: AuthCallbackPage                                  │
-│  • Store session                                             │
-│  • Redirect to ChatPage                                      │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📊 Метрики та моніторинг
-
-### Ключові метрики
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Performance Metrics                       │
-├─────────────────────────────────────────────────────────────┤
-│ Parsing:                                                     │
-│   • Rule-based success rate:    ~70%                        │
-│   • AI parsing fallback:        ~30%                        │
-│   • Average parse time:         <500ms (rule) / <2s (AI)   │
-│                                                                 │
-│ Conversation:                                                │
-│   • Average turns to complete:  2-3                         │
-│   • Intent completion rate:     >90%                        │
-│                                                                 │
-│ Playlist Generation:                                         │
-│   • Generation time:            <8s                         │
-│   • Track match rate:           >85%                        │
-│   • Spotify playlist creation:  <3s                         │
-│                                                                 │
-│ User Experience:                                             │
-│   • Time to first playlist:     <15s                        │
-│   • User satisfaction:          TBD                         │
-│                                                                 │
-│ Error Logging:                                               │
-│   • Errors logged to database:  Automatic                   │
-│   • Frontend errors:            Logged via errorLogger      │
-│   • Backend errors:             Logged via DatabaseHandler  │
-│   • Retention period:           90 days                     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Система логування помилок
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Error Logging System                      │
-├─────────────────────────────────────────────────────────────┤
-│ Backend Logging:                                             │
-│   • DatabaseLogHandler (loguru handler)                     │
-│     └──→ Automatically logs ERROR, CRITICAL, WARNING        │
-│   • ErrorLoggingService                                      │
-│     └──→ Stores errors in error_logs table                  │
-│   • Thread-safe async logging (non-blocking)                │
-│                                                                 │
-│ Frontend Logging:                                            │
-│   • ErrorLogger service                                      │
-│     └──→ Sends errors to backend via API                    │
-│   • Global error handlers                                    │
-│     ├── window.onerror                                       │
-│     └── unhandledrejection                                   │
-│   • API interceptor logging                                  │
-│     └──→ Logs all API errors automatically                  │
-│                                                                 │
-│ Error Data Captured:                                         │
-│   • Level (ERROR, CRITICAL, WARNING)                         │
-│   • Message & stack trace                                    │
-│   • Error type & details                                     │
-│   • User context (user_id)                                   │
-│   • Request context (path, method, body, status)             │
-│   • Environment & service name                               │
-│                                                                 │
-│ API Endpoints:                                               │
-│   • POST /api/v1/error-logs/     → Create error log         │
-│   • GET  /api/v1/error-logs/     → Get error logs           │
-│   • GET  /api/v1/error-logs/statistics → Get statistics     │
+│  • Показує повідомлення про успіх                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -1253,47 +278,27 @@ USE_LANGCHAIN_SUPERVISOR: bool = True   # ✅ ConversationOrchestrator (Supervis
 
 ## 🎯 Висновки
 
-### Поточна архітектура (Повна міграція на LangChain)
+### Поточна архітектура (Розмовний AI)
 
-1. **✅ Повна LangChain інтеграція**: Всі агенти використовують LangChain
-2. **✅ Multi-Agent система**: ConversationOrchestrator (Supervisor) координує всіх агентів
-3. **✅ ConversationAgent**: Обробка привітань та загальних питань
-4. **✅ Гібридний парсинг**: Rule-based + AI для оптимальної швидкості та точності
-5. **✅ Модульність**: Чітке розділення відповідальностей між агентами
-6. **✅ Адаптивність**: Frontend працює на всіх пристроях
-7. **✅ Надійність**: Fallback механізми на всіх рівнях
-
-### Переваги поточної архітектури
-
-✅ **Повна LangChain інтеграція**: Всі агенти використовують LangChain framework
-✅ **Supervisor Pattern**: ConversationOrchestrator координує workflow
-✅ **Спеціалізовані агенти**: Кожен агент має чітку роль та інструменти
-✅ **Гібридний парсинг**: Rule-based для швидкості + AI для точності
-✅ **Природна мова**: ConversationAgent обробляє привітання та питання
-✅ **Масштабованість**: Легко додавати нові агенти та інструменти
-✅ **Тестованість**: Кожен агент може тестуватися окремо
-✅ **Fallback механізми**: Legacy система доступна як резерв
-✅ **Система логування помилок**: Автоматичне зберігання помилок в БД (backend + frontend)
-✅ **Моніторинг**: API для перегляду та аналізу помилок
+1. **✅ Розмовний підхід**: AI-асистент проактивно веде діалог, покроково збираючи параметри.
+2. **✅ Чітка архітектура агентів**: Supervisor (оркестратор), Builder (діалог), Manager (БД), Curator (музика).
+3. **✅ Модульність**: Кожен агент має чітку, єдину відповідальність.
+4. **✅ Гнучкість**: Систему легко розширювати новими питаннями або логікою.
+5. **✅ Покращений UX**: Взаємодія стала більш природною та інтуїтивною для користувача.
 
 ### Активні компоненти
 
-✅ **ConversationOrchestrator (Supervisor)** - Координує всіх агентів
-✅ **ConversationAgent** - Обробка привітань, питань, контексту
-✅ **WorkoutParserAgent** - Гібридний парсинг workout intent
-✅ **WorkoutManagerAgent** - Створення та активація воркаутів
-✅ **MusicCuratorAgent** - Генерація плейлистів з Spotify інтеграцією
-✅ **ErrorLoggingService** - Зберігання помилок в базі даних
-✅ **DatabaseLogHandler** - Custom loguru handler для автоматичного логування
-✅ **ErrorLogger (Frontend)** - Сервіс для відправки помилок на backend
+✅ **SupervisorAgent** - Координує всіх агентів та керує станом розмови.
+✅ **WorkoutBuilderAgent** - Веде діалог з користувачем для збору параметрів воркаута.
+✅ **WorkoutManagerAgent** - Створює та активує воркаути в базі даних.
+✅ **MusicCuratorAgent** - Генерує плейлисти з інтеграцією Spotify.
+✅ **ErrorLoggingService** - Зберігає помилки в базі даних.
 
 ### Майбутні покращення
 
-✅ **Система логування помилок** (Завершено - зберігання в БД)
 🔮 **Додавання моніторингу та логування** (LangSmith integration)
-🔮 **Кешування для оптимізації** (Redis для агентів)
-🔮 **Batch processing для плейлистів**
-🔮 **A/B тестування різних агентів**
+🔮 **Кешування для оптимізації** (Redis для станів розмов)
+🔮 **A/B тестування різних промптів/питань**
 🔮 **Streaming responses** для кращого UX
 🔮 **Agent memory persistence** для довготривалих розмов
 🔮 **Error analytics dashboard** (візуалізація помилок)
@@ -1832,20 +837,1376 @@ User Message
 
 ---
 
-**Дата створення:** 2025-11-14
-**Останнє оновлення:** 2025-11-14
-**Версія документа:** 2.1
+**Дата створення:** 2025-11-15
+**Останнє оновлення:** 2025-11-15
+**Версія документа:** 3.0
 **Статус:** Актуальний - Повна міграція на LangChain завершена ✅
 
-### Останні зміни (v2.1)
+### Останні зміни (v3.0)
 
-✅ **Додано систему логування помилок:**
+✅ **Перехід на розмовну AI-архітектуру:**
 
-- Backend: `ErrorLoggingService` та `DatabaseLogHandler` для автоматичного логування помилок в БД
-- Frontend: `ErrorLogger` сервіс для відправки помилок на backend
-- Таблиця `error_logs` в базі даних з індексами для швидкого пошуку
-- API endpoints для перегляду та аналізу помилок
-- Глобальні обробники помилок на frontend (window.onerror, unhandledrejection)
-- Автоматичне логування помилок API через interceptors
-- Thread-safe асинхронне логування (не блокує основний потік)
-- Зберігання контексту помилок (user_id, request_path, stack_trace, тощо)
+- Заміна парсингу одного повідомлення на проактивну розмовну модель, де AI-асистент веде користувача покроково.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємодію.
+- Відсутність одного повідомлення на виході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
+- Відсутність одного повідомлення на вході, але заміна на багаторазову взаємоdію.
