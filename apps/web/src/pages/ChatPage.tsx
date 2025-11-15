@@ -358,9 +358,9 @@ export function ChatPage() {
   }
 
   return (
-    <div className='flex flex-col md:flex-row h-screen bg-gray-50 dark:bg-gray-900 relative'>
+    <div className='flex flex-col md:flex-row h-screen bg-gray-50 dark:bg-gray-900 relative overflow-hidden'>
       {/* History Sidebar - Left - 1.5 units */}
-      <div className={`${historyCollapsed ? 'hidden md:flex' : 'flex'} md:flex-[1.5]`}>
+      <div className={`${historyCollapsed ? 'hidden md:flex' : 'flex'} md:flex-[1.5] min-w-0`}>
         <PlaylistHistorySidebar
           userId={user?.id}
           refreshTrigger={refreshTrigger}
@@ -923,7 +923,7 @@ export function ChatPage() {
       </button>
 
       {/* Settings Sidebar - Right - 1.5 units */}
-      <div className={`${settingsCollapsed ? 'hidden md:flex' : 'flex'} ${settingsCollapsed ? 'md:flex-none' : 'md:flex-[1.5]'} overflow-hidden justify-end`}>
+      <div className={`${settingsCollapsed ? 'hidden md:flex' : 'flex'} ${settingsCollapsed ? 'md:flex-none' : 'md:flex-[1.5]'} min-w-0 overflow-hidden justify-end`}>
         <SettingsSidebar
           settings={workoutSettings}
           onSettingsChange={setWorkoutSettings}

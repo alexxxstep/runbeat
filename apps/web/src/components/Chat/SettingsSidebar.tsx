@@ -191,7 +191,7 @@ export function SettingsSidebar({
 
   return (
     <div
-      className={`bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass}`}
+      className={`bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass} min-w-0 w-full`}
     >
       {/* Header */}
       <div className={`${collapsed ? 'p-2' : 'p-4'} border-b border-gray-200 dark:border-gray-700 flex ${collapsed ? 'justify-center' : 'justify-between'} items-center flex-shrink-0`}>
@@ -225,7 +225,7 @@ export function SettingsSidebar({
 
       {/* Main Content */}
       <div
-        className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
+        className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass} min-w-0`}
       >
         {/* Workout Type */}
         <div>

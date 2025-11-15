@@ -36,12 +36,12 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                   clipRule='evenodd'
                 />
               </svg>
-              <div className='flex-1'>
+              <div className='flex-1 min-w-0'>
                 <p className='text-xs font-semibold text-yellow-800 dark:text-yellow-300 mb-1'>
                   Потрібне уточнення
                 </p>
                 {message.workout?.clarification_question && (
-                  <p className='text-xs text-yellow-700 dark:text-yellow-400 italic'>
+                  <p className='text-xs text-yellow-700 dark:text-yellow-400 italic break-words'>
                     {message.workout.clarification_question}
                   </p>
                 )}
