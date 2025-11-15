@@ -56,8 +56,8 @@ class WorkoutBuilder(BaseAgent):
             tools=self.tools,
             verbose=False,
             handle_parsing_errors=True,
-            max_iterations=10,  # Increased to handle complex conversations
-            max_execution_time=30,  # 30 seconds max execution time
+            max_iterations=5,  # Reduced to avoid timeout, use fallback for complex cases
+            max_execution_time=15,  # 15 seconds max execution time (reduced for faster response)
         )
 
         logger.info("WorkoutBuilder initialized with LangChain AI agent")
@@ -269,13 +269,26 @@ class WorkoutBuilder(BaseAgent):
         else:
             context_parts.append("\nStill need: nothing - ready for confirmation!")
 
+        # Current step indicator
+        if not any(k in collected for k in ["duration_minutes", "intensity"]):
+            current_step = "Step 1: Get duration and intensity"
+        elif "genres" not in collected or not collected.get("genres"):
+            current_step = "Step 2: Get music genres"
+        else:
+            current_step = "Step 3: Confirm and create workout"
+
+        context_parts.append(f"\nCurrent step: {current_step}")
+
         # Instructions for the agent
         context_parts.append("\n---")
-        context_parts.append("Based on the conversation history above and this context, respond naturally.")
-        context_parts.append("Use tools (rule_based_parse) to extract workout parameters from the user message.")
-        context_parts.append("Check what you already know before asking questions.")
-        context_parts.append("Move to the next step when you have enough information.")
-        context_parts.append(f"IMPORTANT: When calling create_workout_from_params tool, use user_id='{state.user_id}'")
+        context_parts.append("INSTRUCTIONS:")
+        context_parts.append("1. Use rule_based_parse tool to extract parameters from the user message")
+        context_parts.append("2. Check 'Already collected' - NEVER ask for information you already have")
+        context_parts.append("3. If you have all required info (duration, intensity, genres), ask for confirmation")
+        context_parts.append("4. If user confirms (says 'так', 'yes', 'да', 'ok'), call create_workout_from_params tool")
+        context_parts.append(f"5. CRITICAL: When calling create_workout_from_params, use user_id='{state.user_id}'")
+        context_parts.append("6. Respond in the user's language (Ukrainian or English)")
+        context_parts.append("7. Keep responses short (1-2 sentences)")
 
         return "\n".join(context_parts)
 
@@ -309,13 +322,36 @@ class WorkoutBuilder(BaseAgent):
         if params.get("duration_minutes") or params.get("intensity"):
             params["type"] = "steady"
 
-        # Parse genres
-        possible_genres = [
-            "rock", "pop", "classic", "electronic", "рок", "поп", "класика", "електро",
-            "hip-hop", "jazz", "metal", "indie", "alternative", "dance", "house", "techno",
-            "reggae", "country", "r&b", "blues", "folk"
-        ]
-        found_genres = [g for g in possible_genres if g in message_lower]
+        # Parse genres with fuzzy matching
+        genre_mapping = {
+            # English genres
+            "rock": ["rock", "рок"],
+            "pop": ["pop", "поп"],
+            "electronic": ["electronic", "electric", "electro", "електро", "електронн"],
+            "classical": ["classic", "classical", "класик"],
+            "hip-hop": ["hip-hop", "hip hop", "хіп-хоп", "хіп хоп", "rap", "реп"],
+            "jazz": ["jazz", "джаз"],
+            "metal": ["metal", "метал"],
+            "indie": ["indie", "інді"],
+            "alternative": ["alternative", "альтернатив"],
+            "dance": ["dance", "данс"],
+            "house": ["house", "хаус"],
+            "techno": ["techno", "техно"],
+            "trance": ["trance", "транс"],
+            "reggae": ["reggae", "регі"],
+            "country": ["country", "кантрі"],
+            "r&b": ["r&b", "rnb", "r'n'b"],
+            "blues": ["blues", "блюз"],
+            "folk": ["folk", "фолк"],
+            "ambient": ["ambient", "ембієнт"],
+            "edm": ["edm", "едм"],
+        }
+
+        found_genres = []
+        for genre, variations in genre_mapping.items():
+            if any(var in message_lower for var in variations):
+                found_genres.append(genre)
+
         if found_genres:
             params["genres"] = found_genres
 
@@ -352,6 +388,16 @@ class WorkoutBuilder(BaseAgent):
         # Try to extract parameters from user message first
         parsed_params = self._extract_parameters_from_user_message(user_message)
         if parsed_params:
+            # For genres, accumulate rather than replace
+            if "genres" in parsed_params:
+                existing_genres = collected.get("genres", [])
+                new_genres = parsed_params["genres"]
+                if isinstance(existing_genres, list):
+                    # Merge genres, avoid duplicates
+                    all_genres = list(set(existing_genres + new_genres))
+                    parsed_params["genres"] = all_genres
+                    logger.debug(f"Accumulated genres: {all_genres}")
+
             collected.update(parsed_params)
             # Update state's collected_parameters
             state.collected_parameters.update(parsed_params)

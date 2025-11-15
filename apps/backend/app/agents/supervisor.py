@@ -77,7 +77,7 @@ class SupervisorAgent:
             if not success_indicators:
                 # Agent didn't create workout (maybe reached limit), create it here
                 try:
-                    from app.agents.tools.workout_tools import create_workout_from_params
+                    from app.agents.tools.workout_tools import _create_workout_from_params_internal
 
                     collected = state.collected_parameters
                     workout_type = collected.get("type", "steady")
@@ -91,7 +91,7 @@ class SupervisorAgent:
                         else:
                             genres_str = str(genres_list)
 
-                    result = create_workout_from_params(
+                    result = _create_workout_from_params_internal(
                         user_id=user_id,
                         workout_type=workout_type,
                         duration_minutes=duration,

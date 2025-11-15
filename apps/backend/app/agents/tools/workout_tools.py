@@ -9,6 +9,79 @@ from app.services.supabase_service import supabase_service
 from app.schemas.llm_responses import WorkoutIntent
 
 
+# Internal function (not a tool) - can be called directly
+def _create_workout_from_params_internal(
+    user_id: str,
+    workout_type: str,
+    duration_minutes: int,
+    intensity: str,
+    genres: Optional[str] = None,
+    prompt: Optional[str] = None,
+) -> str:
+    """
+    Internal function to create a workout in the database from simple parameters.
+    This can be called directly by both tools and other services.
+
+    Args:
+        user_id: User ID
+        workout_type: Workout type ("steady", "progressive", "intervals", "fartlek")
+        duration_minutes: Duration in minutes (5-180)
+        intensity: Intensity level ("low", "moderate", "high")
+        genres: Optional comma-separated list of music genres (e.g., "rock,pop")
+        prompt: Optional music prompt/description
+
+    Returns:
+        Workout ID if created successfully, "error: <message>" if failed
+    """
+    try:
+        # Map intensity to BPM ranges
+        intensity_to_bpm = {
+            "low": [110, 130],
+            "moderate": [130, 160],
+            "high": [160, 180],
+        }
+        hr_zones = intensity_to_bpm.get(intensity, [120, 150])
+
+        # Prepare workout data
+        workout_data = {
+            "user_id": user_id,
+            "type": workout_type,
+            "duration_minutes": duration_minutes,
+            "intensity": intensity,
+            "hr_zones": hr_zones,
+        }
+
+        # Add genres if provided
+        if genres:
+            genres_list = [g.strip() for g in genres.split(",") if g.strip()]
+            if genres_list:
+                workout_data["genres"] = genres_list
+
+        # Add prompt if provided
+        if prompt:
+            workout_data["prompt"] = prompt
+
+        # Insert workout
+        client = supabase_service.get_client()
+        result = (
+            client.table("workouts")
+            .insert(workout_data)
+            .execute()
+        )
+
+        if result.data and len(result.data) > 0:
+            workout_id = result.data[0]["id"]
+            logger.info(
+                f"Created workout {workout_id} for user {user_id} from conversation params")
+            return workout_id
+        else:
+            return "error: Failed to create workout - no data returned"
+
+    except Exception as e:
+        logger.error(f"Error creating workout from params: {e}")
+        return f"error: {str(e)}"
+
+
 @tool
 def create_workout(user_id: str, workout_intent_json: str) -> str:
     """
@@ -45,7 +118,8 @@ def create_workout(user_id: str, workout_intent_json: str) -> str:
             "fartlek": "fartlek",
             "recovery": "steady",
         }
-        db_workout_type = type_mapping.get(workout_intent.workout_type, "steady")
+        db_workout_type = type_mapping.get(
+            workout_intent.workout_type, "steady")
 
         # Convert WorkoutIntent to workout data
         workout_data = {
@@ -125,15 +199,18 @@ def activate_workout(workout_id: str, user_id: str) -> str:
             )
 
             if result.data and len(result.data) > 0:
-                logger.info(f"Activated workout {workout_id} for user {user_id}")
+                logger.info(
+                    f"Activated workout {workout_id} for user {user_id}")
                 return "success"
             else:
                 return "error: Workout not found or access denied"
         except Exception as e:
-            error_dict = e if isinstance(e, dict) else {"code": None, "message": str(e)}
+            error_dict = e if isinstance(e, dict) else {
+                "code": None, "message": str(e)}
             # If column doesn't exist, just verify workout exists and return success
             if error_dict.get("code") == "42703" or "does not exist" in str(e).lower():
-                logger.debug("is_active column does not exist, verifying workout exists")
+                logger.debug(
+                    "is_active column does not exist, verifying workout exists")
                 # Just verify the workout exists for this user
                 result = (
                     client.table("workouts")
@@ -144,7 +221,8 @@ def activate_workout(workout_id: str, user_id: str) -> str:
                 )
 
                 if result.data and len(result.data) > 0:
-                    logger.info(f"Workout {workout_id} exists for user {user_id} (is_active column not available)")
+                    logger.info(
+                        f"Workout {workout_id} exists for user {user_id} (is_active column not available)")
                     return "success"
                 else:
                     return "error: Workout not found or access denied"
@@ -181,54 +259,15 @@ def create_workout_from_params(
     Returns:
         Workout ID if created successfully, "error: <message>" if failed
     """
-    try:
-        import json
-
-        # Map intensity to BPM ranges
-        intensity_to_bpm = {
-            "low": [110, 130],
-            "moderate": [130, 160],
-            "high": [160, 180],
-        }
-        hr_zones = intensity_to_bpm.get(intensity, [120, 150])
-
-        # Prepare workout data
-        workout_data = {
-            "user_id": user_id,
-            "type": workout_type,
-            "duration_minutes": duration_minutes,
-            "intensity": intensity,
-            "hr_zones": hr_zones,
-        }
-
-        # Add genres if provided
-        if genres:
-            genres_list = [g.strip() for g in genres.split(",") if g.strip()]
-            if genres_list:
-                workout_data["genres"] = genres_list
-
-        # Add prompt if provided
-        if prompt:
-            workout_data["prompt"] = prompt
-
-        # Insert workout
-        client = supabase_service.get_client()
-        result = (
-            client.table("workouts")
-            .insert(workout_data)
-            .execute()
-        )
-
-        if result.data and len(result.data) > 0:
-            workout_id = result.data[0]["id"]
-            logger.info(f"Created workout {workout_id} for user {user_id} from conversation params")
-            return workout_id
-        else:
-            return "error: Failed to create workout - no data returned"
-
-    except Exception as e:
-        logger.error(f"Error creating workout from params: {e}")
-        return f"error: {str(e)}"
+    # Call internal function
+    return _create_workout_from_params_internal(
+        user_id=user_id,
+        workout_type=workout_type,
+        duration_minutes=duration_minutes,
+        intensity=intensity,
+        genres=genres,
+        prompt=prompt,
+    )
 
 
 @tool
@@ -260,10 +299,12 @@ def get_active_workout(user_id: str) -> str:
             if result.data and len(result.data) > 0:
                 return json.dumps(result.data[0], default=str)
         except Exception as e:
-            error_dict = e if isinstance(e, dict) else {"code": None, "message": str(e)}
+            error_dict = e if isinstance(e, dict) else {
+                "code": None, "message": str(e)}
             # If column doesn't exist, fallback to getting most recent workout
             if error_dict.get("code") == "42703" or "does not exist" in str(e).lower():
-                logger.debug("is_active column does not exist, using most recent workout as fallback")
+                logger.debug(
+                    "is_active column does not exist, using most recent workout as fallback")
                 # Get most recent workout for user
                 result = (
                     client.table("workouts")
@@ -284,4 +325,3 @@ def get_active_workout(user_id: str) -> str:
     except Exception as e:
         logger.error(f"Error getting active workout: {e}")
         return f"error: {str(e)}"
-
