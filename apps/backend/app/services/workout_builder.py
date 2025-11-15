@@ -56,7 +56,8 @@ class WorkoutBuilder(BaseAgent):
             tools=self.tools,
             verbose=False,
             handle_parsing_errors=True,
-            max_iterations=5,
+            max_iterations=10,  # Increased to handle complex conversations
+            max_execution_time=30,  # 30 seconds max execution time
         )
 
         logger.info("WorkoutBuilder initialized with LangChain AI agent")
@@ -84,6 +85,26 @@ class WorkoutBuilder(BaseAgent):
         Processes a user's message using AI agent and returns the response.
         All conversation logic is handled by the AI agent based on the prompt.
         """
+        # Normalize and validate message
+        user_message = user_message.strip()
+
+        # Handle very short or unclear messages early (before calling agent)
+        if len(user_message) <= 2 or user_message in ["+", "-", ".", "!", "?"]:
+            logger.debug(
+                f"Short/unclear message detected: '{user_message}' for user "
+                f"{state.user_id}, using fallback"
+            )
+            # Use fallback response directly without calling agent
+            fallback_response = self._get_fallback_response(state, user_message)
+            state.history.append({"role": "user", "content": user_message})
+            state.history.append({"role": "assistant", "content": fallback_response})
+            state.last_question = self._determine_question_type_from_response(
+                fallback_response, state
+            )
+            return ConversationUpdate(
+                new_state=state, response_message=fallback_response
+            )
+
         # Add user message to history
         state.history.append({"role": "user", "content": user_message})
 
@@ -139,6 +160,20 @@ class WorkoutBuilder(BaseAgent):
 
             response_message = response.get("output", "Вибачте, я не зрозумів. Можете повторити?")
 
+            # Check if agent stopped due to iteration/time limit
+            response_lower = response_message.lower()
+            if (
+                "iteration limit" in response_lower
+                or "time limit" in response_lower
+                or "stopped due to" in response_lower
+            ):
+                logger.warning(
+                    f"Agent reached iteration/time limit for user {state.user_id}. "
+                    f"Message: {user_message}, Response: {response_message[:100]}"
+                )
+                # Provide fallback response based on conversation state
+                response_message = self._get_fallback_response(state, user_message)
+
             # Extract parameters from user message (fallback parsing)
             # The AI agent should handle this via tools, but we also parse as backup
             parsed_params = self._extract_parameters_from_user_message(user_message)
@@ -159,8 +194,21 @@ class WorkoutBuilder(BaseAgent):
             # Import error handler
             from app.utils.openai_error_handler import OpenAIErrorHandler
 
-            # Get user-friendly error message
-            if OpenAIErrorHandler.is_api_error(e):
+            error_str = str(e).lower()
+
+            # Check if it's an iteration/time limit error
+            if (
+                "iteration limit" in error_str
+                or "time limit" in error_str
+                or "stopped due to" in error_str
+            ):
+                logger.warning(
+                    f"Agent reached iteration/time limit (exception) for user "
+                    f"{state.user_id}. Message: {user_message}, Error: {error_str[:200]}"
+                )
+                # Use fallback response
+                error_message = self._get_fallback_response(state, user_message)
+            elif OpenAIErrorHandler.is_api_error(e):
                 error_message = OpenAIErrorHandler.get_error_message(e)
                 logger.warning(
                     f"OpenAI API error in WorkoutBuilder: {type(e).__name__} - {e}"
@@ -272,6 +320,79 @@ class WorkoutBuilder(BaseAgent):
             params["genres"] = found_genres
 
         return params
+
+    def _get_fallback_response(
+        self, state: ConversationState, user_message: str
+    ) -> str:
+        """
+        Provide fallback response when agent reaches iteration/time limit.
+        Uses rule-based logic to provide appropriate response based on state.
+        """
+        collected = state.collected_parameters.copy()  # Work with copy
+        message_lower = user_message.lower().strip()
+
+        # Try to extract parameters from user message first
+        parsed_params = self._extract_parameters_from_user_message(user_message)
+        if parsed_params:
+            collected.update(parsed_params)
+            # Update state's collected_parameters
+            state.collected_parameters.update(parsed_params)
+
+        # Refresh collected after potential updates
+        collected = state.collected_parameters
+
+        # Handle very short or unclear messages
+        if len(message_lower) <= 2 or message_lower in ["+", "-", ".", "!", "?"]:
+            # If we have some parameters, ask for what's missing
+            if collected.get("duration_minutes") and collected.get("intensity"):
+                genres = collected.get("genres")
+                if not genres or (isinstance(genres, list) and len(genres) == 0):
+                    return "Добре! Яку музику ти хочеш слухати під час тренування?"
+            elif collected.get("duration_minutes") or collected.get("intensity"):
+                return "Чудово! Яка планується тривалість та інтенсивність тренування?"
+            else:
+                return "Привіт! Я допоможу тобі створити ідеальне тренування. Яку пробіжку ти хочеш зробити?"
+
+        # Check what we have and what we need
+        has_duration = "duration_minutes" in collected
+        has_intensity = "intensity" in collected
+        has_genres = (
+            "genres" in collected
+            and collected.get("genres")
+            and len(collected.get("genres", [])) > 0
+        )
+
+        # Provide appropriate response based on what's missing
+        if not has_duration or not has_intensity:
+            return (
+                "Чудово! Яка планується тривалість та інтенсивність тренування? "
+                "(наприклад: легка пробіжка 30 хвилин)"
+            )
+        elif not has_genres:
+            return (
+                "Добре! А яку музику ти хочеш слухати під час тренування? "
+                "Можна назвати кілька жанрів."
+            )
+        else:
+            # We have everything, ask for confirmation
+            duration = collected.get("duration_minutes", 30)
+            intensity_map = {
+                "low": "легка",
+                "moderate": "середня",
+                "high": "висока",
+            }
+            intensity_uk = intensity_map.get(
+                collected.get("intensity", "moderate"), "середня"
+            )
+            genres_list = collected.get("genres", [])
+            if isinstance(genres_list, list):
+                genres_str = ", ".join(genres_list)
+            else:
+                genres_str = str(genres_list)
+            return (
+                f"Супер! Отже, {intensity_uk} пробіжка на {duration} хвилин "
+                f"під {genres_str}. Створюємо воркаут?"
+            )
 
     def _determine_question_type_from_response(
         self, response: str, state: ConversationState

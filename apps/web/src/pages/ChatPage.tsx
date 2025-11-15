@@ -923,7 +923,7 @@ export function ChatPage() {
       </button>
 
       {/* Settings Sidebar - Right - 1.5 units */}
-      <div className={`${settingsCollapsed ? 'hidden md:flex' : 'flex'} md:flex-[1.5]`}>
+      <div className={`${settingsCollapsed ? 'hidden md:flex' : 'flex'} ${settingsCollapsed ? 'md:flex-none' : 'md:flex-[1.5]'} overflow-hidden justify-end`}>
         <SettingsSidebar
           settings={workoutSettings}
           onSettingsChange={setWorkoutSettings}
