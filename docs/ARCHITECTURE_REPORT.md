@@ -176,7 +176,7 @@ apps/backend/app/
 │                                                                   │
 │  • Використовує детальний промпт (CONVERSATION_AGENT_SYSTEM_PROMPT)│
 │  • AI сам витягує параметри через промпт (без tools для парсингу)│
-│  • max_iterations=5, max_execution_time=15 секунд (оптимізовано)│
+│  • max_iterations=8, max_execution_time=25 секунд (оптимізовано)│
 │  • Fuzzy matching для розпізнавання жанрів (electric→electronic) │
 │  • Акумуляція жанрів замість заміни (rock + pop → [rock, pop])  │
 │  • Персоналізація через user patterns з БД                       │
@@ -499,11 +499,18 @@ max_iterations=10
 max_execution_time=30  # секунд
 ```
 
-**Стало**:
+**Стало (v3.2)**:
 
 ```python
 max_iterations=5  # Достатньо для більшості випадків
 max_execution_time=15  # Швидший відгук
+```
+
+**Оновлено (v3.3)**:
+
+```python
+max_iterations=8  # Збільшено для повної обробки контексту
+max_execution_time=25  # Достатньо для витягування параметрів
 ```
 
 ---
@@ -1169,8 +1176,8 @@ class PlaylistTrack(BaseModel):
 │    • Веде природну розмову для збору параметрів             │
 │    • AI САМ витягує параметри через промпт (без tools!)     │
 │    • Tools: тільки create_workout_from_params               │
-│    • max_iterations=5, max_execution_time=15 секунд        │
-│      (зменшено для швидшого відгуку)                        │
+│    • max_iterations=8, max_execution_time=25 секунд        │
+│      (збільшено для повної обробки контексту)               │
 │    • Fuzzy matching жанрів в промпті: 20+ жанрів + варіації │
 │    • Акумуляція жанрів при збиранні параметрів              │
 │    • 🧠 Персоналізація через user patterns з БД             │
@@ -1242,8 +1249,8 @@ User Message
 │     • Використовує CONVERSATION_AGENT_SYSTEM_PROMPT         │
 │     • AI САМ витягує параметри через промпт                 │
 │     • Tools: тільки create_workout_from_params              │
-│     • max_iterations=5, max_execution_time=15               │
-│       (оптимізовано для швидшого відгуку)                   │
+│     • max_iterations=8, max_execution_time=25               │
+│       (оптимізовано для повної обробки контексту)           │
 │                                                               │
 │  4. Обробка відповіді:                                       │
 │     • Перевірка на iteration/time limit                     │
@@ -1283,6 +1290,29 @@ User Message
 **Статус:** Актуальний - AI Learning & Personalization ✅
 
 ### Останні зміни (v3.3) - 2025-11-15
+
+🔧 **Виправлення розуміння контексту розмови:**
+
+- **Збільшено ліміти для повної обробки**:
+  - `max_iterations`: 5 → 8 (достатньо для витягування параметрів з контексту)
+  - `max_execution_time`: 15 → 25 секунд (агент встигає обробити історію)
+
+- **Покращено fallback-логіку**:
+  - Fallback тепер **витягує параметри** з поточного повідомлення
+  - Fallback **аналізує історію розмови** (останні 3 повідомлення)
+  - Fallback **оновлює collected_parameters** перед генерацією відповіді
+  - Агент більше НЕ втрачає контекст при досягненні iteration limit
+
+- **Оновлено інструкції в промпті**:
+  - Видалено посилання на неіснуючий `rule_based_parse` tool
+  - Додано явні інструкції для витягування параметрів
+  - Додано нагадування перевіряти chat_history
+  - Підкреслено важливість SHORT відповідей (1-2 речення)
+
+- **Покращено context builder**:
+  - Чіткіші інструкції "ANALYZE the user message"
+  - Явне нагадування "Look at chat_history"
+  - Instruction to UPDATE (не overwrite) параметри
 
 🧠 **AI Learning & Personalization System:**
 

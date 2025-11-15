@@ -55,8 +55,8 @@ class WorkoutBuilder(BaseAgent):
             tools=self.tools,
             verbose=False,
             handle_parsing_errors=True,
-            max_iterations=5,  # Reduced to avoid timeout, use fallback for complex cases
-            max_execution_time=15,  # 15 seconds max execution time (reduced for faster response)
+            max_iterations=8,  # Increased to allow proper parameter extraction
+            max_execution_time=25,  # 25 seconds to handle context + parameter extraction
         )
 
         logger.info("WorkoutBuilder initialized with LangChain AI agent")
@@ -296,14 +296,16 @@ class WorkoutBuilder(BaseAgent):
 
         # Instructions for the agent
         context_parts.append("\n---")
-        context_parts.append("INSTRUCTIONS:")
-        context_parts.append("1. Use rule_based_parse tool to extract parameters from the user message")
-        context_parts.append("2. Check 'Already collected' - NEVER ask for information you already have")
-        context_parts.append("3. If you have all required info (duration, intensity, genres), ask for confirmation")
-        context_parts.append("4. If user confirms (says 'так', 'yes', 'да', 'ok'), call create_workout_from_params tool")
-        context_parts.append(f"5. CRITICAL: When calling create_workout_from_params, use user_id='{state.user_id}'")
-        context_parts.append("6. Respond in the user's language (Ukrainian or English)")
-        context_parts.append("7. Keep responses short (1-2 sentences)")
+        context_parts.append("INSTRUCTIONS FOR THIS TURN:")
+        context_parts.append(f"1. ANALYZE the user message: '{user_message}'")
+        context_parts.append("2. EXTRACT parameters (duration, intensity, genres) from the message using your parser skills")
+        context_parts.append("3. UPDATE collected_parameters by MERGING new info with existing (NEVER overwrite)")
+        context_parts.append("4. CHECK 'Already collected' - NEVER ask for information you already have!")
+        context_parts.append("5. If you have ALL required info → ask for FINAL confirmation")
+        context_parts.append("6. If user confirms (да/так/yes/ok) → call create_workout_from_params tool")
+        context_parts.append(f"7. CRITICAL: use user_id='{state.user_id}' when calling create_workout_from_params")
+        context_parts.append("8. Respond in Ukrainian, keep it SHORT (1-2 sentences)")
+        context_parts.append("\nREMEMBER: Look at chat_history above to see what user already told you!")
 
         return "\n".join(context_parts)
 
@@ -387,11 +389,54 @@ class WorkoutBuilder(BaseAgent):
         self, state: ConversationState, user_message: str
     ) -> str:
         """
-        Minimal fallback response when agent reaches iteration/time limit.
-        AI should handle all parameter extraction, this is just for critical cases.
+        Fallback response when agent reaches iteration/time limit.
+        Extracts parameters from current message and history, then generates response.
         """
         collected = state.collected_parameters
         message_lower = user_message.lower().strip()
+
+        # CRITICAL: Extract parameters from current message when agent fails
+        extracted_params = self._extract_parameters_from_user_message(user_message)
+
+        # CRITICAL: Also check recent history for missed parameters
+        if len(state.history) > 0:
+            # Check last 3 user messages for parameters
+            recent_user_messages = [
+                msg["content"] for msg in state.history[-6:]
+                if msg["role"] == "user"
+            ][-3:]
+
+            for hist_msg in recent_user_messages:
+                hist_params = self._extract_parameters_from_user_message(hist_msg)
+                # Merge with extracted params (don't overwrite existing)
+                for key, value in hist_params.items():
+                    if key not in extracted_params:
+                        extracted_params[key] = value
+                    elif key == "genres":
+                        # Accumulate genres
+                        existing = extracted_params.get("genres", [])
+                        new_genres = hist_params.get("genres", [])
+                        if isinstance(existing, list) and isinstance(new_genres, list):
+                            extracted_params["genres"] = list(set(existing + new_genres))
+
+        # Update collected_parameters with extracted params
+        for key, value in extracted_params.items():
+            if key == "genres":
+                # Accumulate genres (don't replace)
+                existing_genres = collected.get("genres", [])
+                new_genres = value if isinstance(value, list) else [value]
+                if isinstance(existing_genres, list):
+                    all_genres = list(set(existing_genres + new_genres))
+                    collected["genres"] = all_genres
+                else:
+                    collected["genres"] = new_genres
+            else:
+                # Update other params if not already set
+                if key not in collected or not collected[key]:
+                    collected[key] = value
+
+        logger.debug(f"Fallback extracted params for user {state.user_id}: {extracted_params}")
+        logger.debug(f"Updated collected_parameters: {collected}")
 
         # Check if we're waiting for confirmation and user responded
         if state.last_question == "final_confirmation":
