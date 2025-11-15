@@ -491,8 +491,8 @@ export function ChatPage() {
           className='flex-1 overflow-y-auto p-2 md:p-4 space-y-4'
         >
           {messages.length === 0 && (
-            <div className='max-w-3xl mx-auto px-4 md:px-6 py-8 md:py-12'>
-              <div className='text-center mb-8 md:mb-12'>
+            <div className='max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12'>
+              <div className='text-center mb-6 md:mb-8'>
                 <h1 className='text-large-title font-display font-bold text-app-text mb-3'>
                   Привіт! Я RunBeat AI
                 </h1>
@@ -501,14 +501,14 @@ export function ChatPage() {
                 </p>
               </div>
 
-              <div className='bg-app-surface rounded-2xl p-6 md:p-8 mb-6 md:mb-8 border border-app-border'>
-                <h2 className='text-title-1 font-display font-bold text-app-text mb-6 text-center'>
+              <div className='bg-app-surface rounded-2xl p-4 md:p-6 mb-6 md:mb-8 border border-app-border'>
+                <h2 className='text-title-1 font-display font-bold text-app-text mb-4 md:mb-6 text-center'>
                   Як це працює
                 </h2>
 
-                <div className='space-y-3 md:space-y-4'>
+                <div className='space-y-2 md:space-y-3'>
                   {/* Step 1 */}
-                  <div className='bg-app-surface-light rounded-xl p-4 border-l-4 border-app-accent'>
+                  <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
                     <div className='flex items-start gap-3'>
                       <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
                         1
@@ -534,7 +534,7 @@ export function ChatPage() {
                   </div>
 
                   {/* Step 2 */}
-                  <div className='bg-app-surface-light rounded-xl p-4 border-l-4 border-app-accent'>
+                  <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
                     <div className='flex items-start gap-3'>
                       <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
                         2
@@ -552,7 +552,7 @@ export function ChatPage() {
                   </div>
 
                   {/* Step 3 */}
-                  <div className='bg-app-surface-light rounded-xl p-4 border-l-4 border-app-accent'>
+                  <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
                     <div className='flex items-start gap-3'>
                       <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
                         3
@@ -570,29 +570,48 @@ export function ChatPage() {
                   </div>
 
                   {/* Step 4 */}
-                  <div className='bg-app-surface-light rounded-xl p-4 border-l-4 border-app-accent'>
+                  <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
                     <div className='flex items-start gap-3'>
                       <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
                         4
                       </div>
                       <div className='flex-1 min-w-0'>
                         <h3 className='text-headline font-semibold text-app-text mb-1'>
-                          Обери плейлист і збережи в Spotify
+                          Створюй власний воркаут через праву панель
                         </h3>
                         <p className='text-body text-app-text-secondary'>
-                          Вибери кращий варіант, переглянь треки, виключи
-                          небажані. Збережи готовий плейлист у свій Spotify
-                          одним кліком!
+                          Не хочеш спілкуватися з AI? Натисни кнопку "Створити
+                          воркаут" у правій панелі і налаштуй всі параметри
+                          вручну (тривалість, інтенсивність, жанри, інтервали).
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Step 5 */}
-                  <div className='bg-app-surface-light rounded-xl p-4 border-l-4 border-app-accent'>
+                  <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
                     <div className='flex items-start gap-3'>
                       <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
                         5
+                      </div>
+                      <div className='flex-1 min-w-0'>
+                        <h3 className='text-headline font-semibold text-app-text mb-1'>
+                          Обери плейлист і збережи в Spotify
+                        </h3>
+                        <p className='text-body text-app-text-secondary'>
+                          Вибери кращий варіант з 2 згенерованих, переглянь
+                          треки, виключи небажані. Збережи готовий плейлист у
+                          свій Spotify одним кліком!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 6 */}
+                  <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
+                    <div className='flex items-start gap-3'>
+                      <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
+                        6
                       </div>
                       <div className='flex-1 min-w-0'>
                         <h3 className='text-headline font-semibold text-app-text mb-1'>
@@ -608,11 +627,11 @@ export function ChatPage() {
                     </div>
                   </div>
 
-                  {/* Step 6 */}
-                  <div className='bg-app-surface-light rounded-xl p-4 border-l-4 border-app-accent'>
+                  {/* Step 7 */}
+                  <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
                     <div className='flex items-start gap-3'>
                       <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
-                        6
+                        7
                       </div>
                       <div className='flex-1 min-w-0'>
                         <h3 className='text-headline font-semibold text-app-text mb-1'>
@@ -621,7 +640,7 @@ export function ChatPage() {
                         <p className='text-body text-app-text-secondary'>
                           Вибери workout з історії і згенеруй для нього новий
                           плейлист. Параметри (жанри, тривалість, інтенсивність)
-                          збережуться!
+                          збережуться автоматично!
                         </p>
                       </div>
                     </div>

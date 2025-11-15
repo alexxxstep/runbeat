@@ -60,13 +60,14 @@ Set the following environment variables in `.env`:
 - ✅ **Responsive Design** - Works on mobile, tablet, and desktop
 
 ### User Experience
-- 🎯 **6-Step User Flow**
-  1. Describe workout in natural language
+- 🎯 **7-Step User Flow**
+  1. Describe workout in natural language (via AI chat)
   2. AI asks clarifying questions if needed
   3. AI creates workout & generates 2 playlist variants
-  4. Choose best variant, exclude unwanted tracks
-  5. Use history panel to activate past workouts
-  6. Generate new playlists for old workouts
+  4. **OR** Create custom workout via right panel manually
+  5. Choose best variant, exclude unwanted tracks
+  6. Use right history panel to navigate workouts/playlists
+  7. Generate new playlists for saved workouts
 
 ### Technical Features
 - ⚡ Real-time chat with streaming responses

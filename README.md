@@ -16,11 +16,18 @@ AI: Creates workout → Generates 2 playlist variants
 AI: Saves to Spotify (3-5s)
   ↓ Playlist appears in sidebar history
 User: Starts running with perfect music 🏃‍♂️🎵
+
+Alternative:
+User: Clicks "Create Workout" in right panel
+  ↓ Manual configuration (duration, intensity, genres)
+  ↓ AI generates 2 playlist variants
+User: Selects & saves to Spotify 🎵
 ```
 
 ## ✨ Key Features
 
 - 🤖 **Smart AI Conversation** - Natural language workout planning
+- ⚙️ **Manual Workout Creation** - Configure workouts via right panel
 - 🎵 **Dual Playlist Variants** - Choose the best fit every time
 - 📊 **Workout History** - All workouts and playlists saved
 - 🧠 **Personalization** - AI learns your favorite genres and preferences

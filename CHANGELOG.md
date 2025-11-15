@@ -11,15 +11,17 @@
 - 🎯 **Personalized Responses** - AI incorporates user's favorite genres and typical workout parameters
 
 #### Enhanced User Interface
-- 📋 **6-Step User Flow Guide** - Comprehensive in-app instructions
-  1. Describe workout in natural language
-  2. AI clarification questions
+- 📋 **7-Step User Flow Guide** - Comprehensive in-app instructions
+  1. Describe workout via AI chat (natural language)
+  2. AI clarification questions (if needed)
   3. Workout creation & dual playlist generation
-  4. Track selection & exclusion
-  5. History panel navigation
-  6. Repeat workout with new playlists
+  4. OR Create custom workout manually via right panel
+  5. Track selection & exclusion
+  6. History panel navigation (right sidebar)
+  7. Regenerate playlists for saved workouts
 - 🔄 **Auto-Refresh History** - Workout/playlist panels update automatically
 - ⚡ **Instant Workout Activation** - Click workout in history to make it active
+- ⚙️ **Manual Workout Creation** - Create workouts via right panel without AI chat
 
 #### Backend Improvements
 - 🔧 **Fixed AI Agent Context** - Agent now properly understands conversation history
