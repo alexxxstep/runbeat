@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 
@@ -12,42 +12,42 @@ export function useAuth() {
     setSpotifyAuthenticated,
   } = useAuthStore();
 
-  useEffect(() => {
-    const checkAuthStatus = async () => {
-      // --- START: DEVELOPMENT MOCK ---
-      if (import.meta.env.DEV) {
-        const devUserId = 'dev_user_id_persistent';
-        const devUser = { id: devUserId, spotify_user_id: 'dev_spotify_id' };
-        setUser(devUser);
-        setSpotifyAuthenticated(true);
-        setLoading(false);
-        return; // Skip real auth check in dev
-      }
-      // --- END: DEVELOPMENT MOCK ---
-
-      const storedUserId = localStorage.getItem('spotify_user_id');
-      if (storedUserId) {
-        try {
-          const status = await api.checkSpotifyAuthStatus(storedUserId);
-          setSpotifyAuthenticated(status.authenticated);
-          if (status.authenticated) {
-            setUser({
-              id: storedUserId,
-              spotify_user_id: status.spotify_user_id,
-            });
-          }
-        } catch (error) {
-          console.error('Failed to check Spotify auth status:', error);
-          setSpotifyAuthenticated(false);
-          setUser(null);
-          localStorage.removeItem('spotify_user_id');
+  const refreshSpotifyStatus = useCallback(async () => {
+    const storedUserId = localStorage.getItem('spotify_user_id');
+    if (storedUserId) {
+      try {
+        const status = await api.checkSpotifyAuthStatus(storedUserId);
+        setSpotifyAuthenticated(status.authenticated);
+        if (status.authenticated) {
+          setUser({
+            id: storedUserId,
+            spotify_user_id: status.spotify_user_id,
+          });
         }
+      } catch (error) {
+        console.error('Failed to check Spotify auth status:', error);
+        setSpotifyAuthenticated(false);
+        setUser(null);
+        localStorage.removeItem('spotify_user_id');
       }
-      setLoading(false);
-    };
-
-    checkAuthStatus();
+    }
+    setLoading(false);
   }, [setUser, setLoading, setSpotifyAuthenticated]);
+
+  useEffect(() => {
+    // --- START: DEVELOPMENT MOCK ---
+    if (import.meta.env.DEV) {
+      const devUserId = 'dev_user_id_persistent';
+      const devUser = { id: devUserId, spotify_user_id: 'dev_spotify_id' };
+      setUser(devUser);
+      setSpotifyAuthenticated(true);
+      setLoading(false);
+      return; // Skip real auth check in dev
+    }
+    // --- END: DEVELOPMENT MOCK ---
+
+    refreshSpotifyStatus();
+  }, [refreshSpotifyStatus]);
 
   const signInWithSpotify = async () => {
     try {
@@ -83,5 +83,6 @@ export function useAuth() {
     spotifyAuthenticated,
     signInWithSpotify,
     signOut,
+    refreshSpotifyStatus,
   };
 }
