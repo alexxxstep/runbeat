@@ -22,18 +22,25 @@ async def send_message(request: ChatRequest) -> ChatResponse:
                 detail="user_id is required for conversation management",
             )
 
-        response_message = await supervisor_agent.handle_message(
+        response_message, created_workout = await supervisor_agent.handle_message(
             user_id=request.user_id, message=request.message
         )
 
-        # The new system is simpler: the supervisor's response is the message.
-        # Frontend will handle displaying workout info embedded in messages.
+        # Return workout object if created (for frontend to update history & show as active)
+        from app.models.workout import Workout
+        workout_obj = None
+        if created_workout:
+            try:
+                workout_obj = Workout(**created_workout)
+            except Exception as e:
+                logger.error(f"Failed to convert workout dict to Workout model: {e}")
+
         return ChatResponse(
             message=response_message,
-            workout=None,  # Handled via message content
-            playlist=None,  # Handled via message content
+            workout=workout_obj,  # Include created workout for frontend
+            playlist=None,
             needs_clarification=False,  # Agent manages the flow
-            is_complete=False,  # Agent manages the flow
+            is_complete=bool(created_workout),  # Complete if workout was created
         )
 
     except HTTPException:

@@ -32,13 +32,17 @@ class SupervisorAgent:
             self.states[user_id] = ConversationState(user_id=user_id)
         return self.states[user_id]
 
-    async def handle_message(self, user_id: str, message: str) -> str:
+    async def handle_message(self, user_id: str, message: str) -> tuple[str, dict | None]:
         """
         Main entry point for handling a user's message.
         All conversation logic is handled by the WorkoutBuilder AI agent
         via prompts.
+
+        Returns:
+            tuple: (response_message, workout_obj or None)
         """
         state = self._get_or_create_state(user_id)
+        created_workout = None  # Track created workout
 
         # Delegate the conversation to the WorkoutBuilder AI agent
         # The agent handles all logic including workout creation via its prompt
@@ -49,6 +53,20 @@ class SupervisorAgent:
 
         response_message = update.response_message
         state = update.new_state
+
+        # Check if agent created workout (extract from response)
+        if "workout_created:" in response_message:
+            try:
+                import json
+                # Extract workout object from agent response
+                if "|" in response_message:
+                    parts = response_message.split("|", 1)
+                    if len(parts) == 2 and parts[0].startswith("workout_created:"):
+                        created_workout = json.loads(parts[1])
+                        # Clean response message (remove workout data)
+                        response_message = "✅ Воркаут успішно створено! Тепер ви можете згенерувати плейлист."
+            except Exception as e:
+                logger.error(f"Failed to parse workout from agent response: {e}")
 
         # Save conversation to database after each message exchange
         await conversation_service.save_conversation(
@@ -109,6 +127,16 @@ class SupervisorAgent:
                     )
 
                     if "error" not in result.lower():
+                        # Parse workout object from result
+                        if result.startswith("workout_created:"):
+                            try:
+                                import json
+                                parts = result.split("|", 1)
+                                if len(parts) == 2:
+                                    created_workout = json.loads(parts[1])
+                            except Exception as e:
+                                logger.error(f"Failed to parse workout object: {e}")
+
                         response_message = "✅ Воркаут успішно створено! Тепер ви можете згенерувати плейлист."
                         logger.info(
                             f"Workout created via supervisor fallback for user {user_id}"
@@ -164,7 +192,7 @@ class SupervisorAgent:
             )
             self.clear_state(user_id)
 
-        return response_message
+        return response_message, created_workout
 
     def clear_state(self, user_id: str):
         """Clears the conversation state for a user."""

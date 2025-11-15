@@ -146,6 +146,8 @@ export function ChatPage() {
       setActiveWorkout(workout);
       setActiveWorkoutId(workout.id);
       setExcludedTrackIds(new Set()); // Reset excluded tracks for new workout
+      // Refresh workout history to show new workout
+      setRefreshTrigger((prev) => prev + 1);
       // Show question about generating playlist
       setShowPlaylistQuestion(true);
       return;
@@ -586,6 +588,8 @@ export function ChatPage() {
                           // Workout created, now show playlist generation option
                           setActiveWorkoutId(confirmedWorkout.id);
                           setActiveWorkout(confirmedWorkout);
+                          // Refresh workout history to show new workout
+                          setRefreshTrigger((prev) => prev + 1);
                         }
                       }}
                     disabled={isLoading}

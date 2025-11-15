@@ -1,7 +1,7 @@
 """
 Workout management tools for LangChain agents.
 """
-from typing import Optional, Dict
+from typing import Optional
 from langchain.tools import tool
 from loguru import logger
 
@@ -151,10 +151,13 @@ def _create_workout_from_params_internal(
         )
 
         if result.data and len(result.data) > 0:
-            workout_id = result.data[0]["id"]
+            workout_obj = result.data[0]
+            workout_id = workout_obj["id"]
             logger.info(
                 f"Created workout {workout_id} for user {user_id} from conversation params")
-            return workout_id
+            # Return workout_id|workout_json for parsing by supervisor
+            import json
+            return f"workout_created:{workout_id}|{json.dumps(workout_obj)}"
         else:
             return "error: Failed to create workout - no data returned"
 
@@ -177,7 +180,7 @@ def create_workout(user_id: str, workout_intent_json: str) -> str:
     """
     try:
         import json
-        from datetime import datetime
+        # datetime not needed - using supabase timestamps
 
         intent_dict = json.loads(workout_intent_json)
         workout_intent = WorkoutIntent(**intent_dict)
