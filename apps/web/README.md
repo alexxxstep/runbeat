@@ -23,7 +23,7 @@ cp .env.example .env
 npm run dev
 ```
 
-The app will be available at `http://localhost:3000`
+The app will be available at `http://localhost:5173`
 
 ## 📁 Project Structure
 
@@ -36,7 +36,7 @@ src/
 ├── hooks/            # Custom React hooks
 ├── pages/            # Page components
 ├── services/         # API and service integrations
-├── store/            # State management (Zustand)
+├── stores/           # State management (Zustand)
 └── types/            # TypeScript type definitions
 ```
 

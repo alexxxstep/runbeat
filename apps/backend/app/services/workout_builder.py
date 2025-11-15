@@ -11,8 +11,8 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from app.schemas.conversation import ConversationState, ConversationUpdate, CurrentQuestion
 from app.agents.base import BaseAgent
 from app.agents.prompts.conversation_prompts import CONVERSATION_AGENT_SYSTEM_PROMPT
-from app.agents.tools.parser_tools import rule_based_parse, validate_intent
 from app.agents.tools.workout_tools import create_workout_from_params
+from app.services.conversation_service import conversation_service
 
 
 class WorkoutBuilder(BaseAgent):
@@ -29,10 +29,9 @@ class WorkoutBuilder(BaseAgent):
             agent_type="conversation"
         )
 
-        # Tools for parsing workout parameters and creating workouts
+        # Tools for creating workouts
+        # Note: AI agent now extracts parameters through prompt, not tools
         self.tools = [
-            rule_based_parse,
-            validate_intent,
             create_workout_from_params,
         ]
 
@@ -108,8 +107,8 @@ class WorkoutBuilder(BaseAgent):
         # Add user message to history
         state.history.append({"role": "user", "content": user_message})
 
-        # Build comprehensive context for the AI agent
-        conversation_context = self._build_conversation_context(state, user_message)
+        # Build comprehensive context for the AI agent (with user patterns)
+        conversation_context = await self._build_conversation_context(state, user_message)
 
         try:
             # Create temporary memory from conversation history
@@ -174,11 +173,8 @@ class WorkoutBuilder(BaseAgent):
                 # Provide fallback response based on conversation state
                 response_message = self._get_fallback_response(state, user_message)
 
-            # Extract parameters from user message (fallback parsing)
-            # The AI agent should handle this via tools, but we also parse as backup
-            parsed_params = self._extract_parameters_from_user_message(user_message)
-            if parsed_params:
-                state.collected_parameters.update(parsed_params)
+            # AI agent extracts parameters through prompt
+            # No fallback parsing needed - agent handles everything
 
             # Determine question type based on response content
             state.last_question = self._determine_question_type_from_response(response_message, state)
@@ -221,11 +217,12 @@ class WorkoutBuilder(BaseAgent):
             state.history.append({"role": "assistant", "content": error_message})
             return ConversationUpdate(new_state=state, response_message=error_message)
 
-    def _build_conversation_context(self, state: ConversationState, user_message: str) -> str:
+    async def _build_conversation_context(self, state: ConversationState, user_message: str) -> str:
         """
         Build comprehensive context string for the AI agent.
         This context helps the agent understand what information is already collected
         and what still needs to be gathered. The agent uses this to make decisions.
+        Includes user patterns for personalization.
         """
         collected = state.collected_parameters
         context_parts = []
@@ -235,6 +232,24 @@ class WorkoutBuilder(BaseAgent):
 
         # Current user message
         context_parts.append(f"Current user message: {user_message}")
+
+        # User patterns for personalization
+        try:
+            patterns = await conversation_service.get_user_patterns(state.user_id)
+            if patterns.get("has_history"):
+                context_parts.append("\n## USER PREFERENCES (from history):")
+                if "favorite_genres" in patterns:
+                    genres_str = ", ".join(patterns["favorite_genres"])
+                    context_parts.append(f"- Favorite genres: {genres_str}")
+                if "typical_duration" in patterns:
+                    context_parts.append(f"- Typical duration: ~{patterns['typical_duration']} minutes")
+                if "preferred_type" in patterns:
+                    context_parts.append(f"- Preferred workout type: {patterns['preferred_type']}")
+                if "common_intensity" in patterns:
+                    context_parts.append(f"- Common intensity: {patterns['common_intensity']}")
+                context_parts.append("(Use these preferences to provide better suggestions)")
+        except Exception as e:
+            logger.debug(f"Could not fetch user patterns: {e}")
 
         # What we already know (from previous messages)
         known_info = []
@@ -318,9 +333,20 @@ class WorkoutBuilder(BaseAgent):
         elif any(k in message_lower for k in ["важк", "висок", "high", "hard", "інтенсивн", "intense"]):
             params["intensity"] = "high"
 
-        # Default workout type
+        # Parse workout type
+        workout_type = "steady"  # default
+        if any(k in message_lower for k in ["інтервал", "interval"]):
+            workout_type = "intervals"
+        elif any(k in message_lower for k in ["фартлек", "fartlek"]):
+            workout_type = "fartlek"
+        elif any(k in message_lower for k in ["відновлен", "recovery"]):
+            workout_type = "steady"  # recovery maps to steady
+        elif any(k in message_lower for k in ["біг", "пробіжк", "run", "steady", "стабільн", "постійн"]):
+            workout_type = "steady"
+
+        # Only set type if we have some workout parameters
         if params.get("duration_minutes") or params.get("intensity"):
-            params["type"] = "steady"
+            params["type"] = workout_type
 
         # Parse genres with fuzzy matching
         genre_mapping = {
@@ -361,10 +387,10 @@ class WorkoutBuilder(BaseAgent):
         self, state: ConversationState, user_message: str
     ) -> str:
         """
-        Provide fallback response when agent reaches iteration/time limit.
-        Uses rule-based logic to provide appropriate response based on state.
+        Minimal fallback response when agent reaches iteration/time limit.
+        AI should handle all parameter extraction, this is just for critical cases.
         """
-        collected = state.collected_parameters.copy()  # Work with copy
+        collected = state.collected_parameters
         message_lower = user_message.lower().strip()
 
         # Check if we're waiting for confirmation and user responded
@@ -375,7 +401,6 @@ class WorkoutBuilder(BaseAgent):
                 for word in ["так", "yes", "да", "ок", "ok", "створ", "create"]
             ):
                 # User confirmed - supervisor will create workout
-                # Return message that indicates confirmation
                 return "Добре! Створюю воркаут..."
             # Check for decline (no/ні)
             elif any(
@@ -384,26 +409,6 @@ class WorkoutBuilder(BaseAgent):
             ):
                 # User declined
                 return "Зрозуміло! Якщо потрібна допомога ще - звертайся. Успішного тренування! 🏃‍♂️"
-
-        # Try to extract parameters from user message first
-        parsed_params = self._extract_parameters_from_user_message(user_message)
-        if parsed_params:
-            # For genres, accumulate rather than replace
-            if "genres" in parsed_params:
-                existing_genres = collected.get("genres", [])
-                new_genres = parsed_params["genres"]
-                if isinstance(existing_genres, list):
-                    # Merge genres, avoid duplicates
-                    all_genres = list(set(existing_genres + new_genres))
-                    parsed_params["genres"] = all_genres
-                    logger.debug(f"Accumulated genres: {all_genres}")
-
-            collected.update(parsed_params)
-            # Update state's collected_parameters
-            state.collected_parameters.update(parsed_params)
-
-        # Refresh collected after potential updates
-        collected = state.collected_parameters
 
         # Handle very short or unclear messages
         if len(message_lower) <= 2 or message_lower in ["+", "-", ".", "!", "?"]:

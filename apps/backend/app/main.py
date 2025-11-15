@@ -8,7 +8,7 @@ from loguru import logger
 
 from app.core.config import settings
 from app.api.routes import (
-    health, chat, playlists, auth, workouts, users, error_logs, spotify
+    health, chat, playlists, auth, workouts, users, error_logs, spotify, analytics
 )
 
 # Configure logger
@@ -86,6 +86,7 @@ app.include_router(workouts.router, prefix=api_v1_prefix, tags=["workouts"])
 app.include_router(users.router, prefix=api_v1_prefix, tags=["users"])
 app.include_router(error_logs.router, prefix=api_v1_prefix, tags=["error-logs"])
 app.include_router(spotify.router, prefix=api_v1_prefix, tags=["spotify"])
+app.include_router(analytics.router, prefix=f"{api_v1_prefix}/analytics", tags=["analytics"])
 
 # Backward compatibility: also include without prefix for existing clients
 # TODO: Remove in future version

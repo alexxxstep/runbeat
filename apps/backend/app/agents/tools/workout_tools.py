@@ -9,6 +9,76 @@ from app.services.supabase_service import supabase_service
 from app.schemas.llm_responses import WorkoutIntent
 
 
+# Genre normalization mapping (Ukrainian/variations → English)
+GENRE_NORMALIZATION_MAP = {
+    # Electronic and variants
+    "електро": "electronic",
+    "електронна": "electronic",
+    "електронну": "electronic",
+    "електроніка": "electronic",
+    "електронн": "electronic",
+    "electro": "electronic",
+    "electric": "electronic",
+    "едм": "electronic",
+    "edm": "electronic",
+    # Rock
+    "рок": "rock",
+    # Pop
+    "поп": "pop",
+    # Classical
+    "класика": "classical",
+    "класична": "classical",
+    "класичну": "classical",
+    "класик": "classical",
+    # Hip-hop
+    "хіп-хоп": "hip-hop",
+    "hip hop": "hip-hop",
+    "реп": "hip-hop",
+    "rap": "hip-hop",
+    # Metal
+    "метал": "metal",
+    # Techno
+    "техно": "techno",
+    # House
+    "хаус": "house",
+    # Jazz
+    "джаз": "jazz",
+    # Indie
+    "інді": "indie",
+    # Alternative
+    "альтернатив": "alternative",
+    # Dance
+    "данс": "dance",
+    # Trance
+    "транс": "trance",
+    # Reggae
+    "регі": "reggae",
+    # Country
+    "кантрі": "country",
+    # Blues
+    "блюз": "blues",
+    # Folk
+    "фолк": "folk",
+    # Ambient
+    "ембієнт": "ambient",
+    "chill": "ambient",
+}
+
+
+def _normalize_genre(genre: str) -> str:
+    """
+    Normalize genre name to English standard form.
+
+    Args:
+        genre: Genre name in any language/variant
+
+    Returns:
+        Normalized English genre name
+    """
+    genre_lower = genre.lower().strip()
+    return GENRE_NORMALIZATION_MAP.get(genre_lower, genre_lower)
+
+
 # Internal function (not a tool) - can be called directly
 def _create_workout_from_params_internal(
     user_id: str,
@@ -51,11 +121,22 @@ def _create_workout_from_params_internal(
             "hr_zones": hr_zones,
         }
 
-        # Add genres if provided
+        # Add genres if provided (with normalization)
         if genres:
             genres_list = [g.strip() for g in genres.split(",") if g.strip()]
             if genres_list:
-                workout_data["genres"] = genres_list
+                # Normalize all genres to English
+                normalized_genres = [_normalize_genre(g) for g in genres_list]
+                # Remove duplicates while preserving order
+                seen = set()
+                unique_genres = []
+                for g in normalized_genres:
+                    if g not in seen:
+                        seen.add(g)
+                        unique_genres.append(g)
+                workout_data["genres"] = unique_genres
+                logger.debug(
+                    f"Normalized genres: {genres_list} → {unique_genres}")
 
         # Add prompt if provided
         if prompt:

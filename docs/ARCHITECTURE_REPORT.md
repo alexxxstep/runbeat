@@ -1,9 +1,9 @@
 # 📊 RunBeat - Детальний звіт по архітектурі проекту
 
 **Дата:** 2025-11-15
-**Версія:** 3.0
+**Версія:** 3.3
 **Статус:** Production Ready
-**Останнє оновлення:** 2025-11-15 (Перехід на розмовну AI-архітектуру)
+**Останнє оновлення:** 2025-11-15 (AI Learning & Personalization)
 
 ---
 
@@ -12,12 +12,14 @@
 1. [Загальний огляд](#загальний-огляд)
 2. [Архітектура системи](#архітектура-системи)
 3. [Backend архітектура](#backend-архітектура)
-4. [Frontend архітектура](#frontend-архітектура)
-5. [База даних](#база-даних)
-6. [Потоки даних](#потоки-даних)
-7. [Multi-Agent система](#multi-agent-система)
-8. [Технологічний стек](#технологічний-стек)
-9. [Deployment архітектура](#deployment-архітектура)
+4. [Frontend архітектура (Web)](#frontend-архітектура)
+5. [Mobile App архітектура](#mobile-app-архітектура)
+6. [База даних](#база-даних)
+7. [Потоки даних](#потоки-даних)
+8. [Multi-Agent система](#multi-agent-система)
+9. [API Endpoints](#api-endpoints)
+10. [Технологічний стек](#технологічний-стек)
+11. [Deployment архітектура](#deployment-архітектура)
 
 ---
 
@@ -28,11 +30,14 @@ RunBeat - це AI-powered система для генерації персон�
 ### Основні можливості:
 
 - 🤖 **Розмовний AI-асистент** для покрокового створення тренувань.
+- 🧠 **AI Learning & Personalization** - система вчиться на розмовах користувача.
+- 🎯 **Персоналізовані рекомендації** на основі історії користувача.
 - 🎵 Генерація плейлистів на основі параметрів тренування.
 - 🏃 Підтримка різних типів тренувань (стабільна, інтервальна, фартлек).
 - 📱 Адаптивний веб-інтерфейс з оптимізованою швидкістю завантаження.
 - 🔗 Інтеграція з Spotify API.
 - 💾 Збереження історії тренувань та плейлистів.
+- 📊 Analytics API для моніторингу та оптимізації розмов.
 
 ---
 
@@ -43,20 +48,21 @@ RunBeat - це AI-powered система для генерації персон�
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Користувач                               │
-│                    (Web Browser / Mobile)                        │
 └────────────────────────────┬────────────────────────────────────┘
                              │
+                ┌────────────┴────────────┐
+                │                         │
+                v                         v
+┌───────────────────────────┐  ┌──────────────────────────────┐
+│   Web App (React + Vite)  │  │  Mobile App (React Native)   │
+│  • Tailwind CSS           │  │  • Expo                      │
+│  • React Router           │  │  • React Navigation          │
+│  • Lazy Loading           │  │  • Cross-platform            │
+└────────────┬──────────────┘  └─────────────┬────────────────┘
+             │                               │
+             │ REST API (/api/v1/*)          │
+             └───────────────┬───────────────┘
                              │ HTTPS
-                             │
-                             v
-┌─────────────────────────────────────────────────────────────────┐
-│                      Frontend (React)                            │
-│  • React.lazy & Suspense для швидкого завантаження              │
-│  • Адаптивні компоненти чату, історії та налаштувань              │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             │ REST API (/api/v1/chat/message)
-                             │
                              v
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Backend (FastAPI)                             │
@@ -81,6 +87,9 @@ RunBeat - це AI-powered система для генерації персон�
 │  │ • Веде діалог│          │ • Створює    │                    │
 │  │ • Збирає     │          │   воркаут в БД│                   │
 │  │   параметри  │          │              │                    │
+│  │ • Fuzzy      │          │              │                    │
+│  │   розпізнаван│          │              │                    │
+│  │   ня жанрів  │          │              │                    │
 │  └──────────────┘          └───────┬──────┘                    │
 │                                    │                           │
 │                                    v                           │
@@ -116,12 +125,14 @@ apps/backend/app/
 ├── api/
 │   └── routes/
 │       ├── chat.py            # Новий, спрощений Chat endpoint
+│       ├── analytics.py       # Analytics API для conversation insights
 │       └── ...                # Інші роути (workouts, playlists)
 ├── services/
 │   ├── spotify_service.py     # Spotify API client (рефакторений)
 │   ├── spotify_modules/       # Модулі для spotify_service
 │   ├── supabase_service.py    # Database client
 │   ├── workout_builder.py     # WorkoutBuilder - LangChain AI-агент
+│   ├── conversation_service.py # ConversationService - збереження та аналіз розмов
 │   └── ...                    # Інші сервіси
 ├── agents/                        # Multi-agent система
 │   ├── __init__.py
@@ -131,7 +142,8 @@ apps/backend/app/
 │   ├── curator.py                 # MusicCuratorAgent (генерація плейлистів)
 │   ├── tools/                     # Інструменти для агентів
 │   │   ├── parser_tools.py        # rule_based_parse, validate_intent
-│   │   └── workout_tools.py       # create_workout_from_params
+│   │   └── workout_tools.py       # create_workout_from_params (tool)
+│   │                              # _create_workout_from_params_internal (internal)
 │   └── prompts/                   # Промпти для агентів
 │       └── conversation_prompts.py # CONVERSATION_AGENT_SYSTEM_PROMPT
 ├── schemas/
@@ -163,9 +175,14 @@ apps/backend/app/
 │        (LangChain AI-агент для збору параметрів воркаута)         │
 │                                                                   │
 │  • Використовує детальний промпт (CONVERSATION_AGENT_SYSTEM_PROMPT)│
-│  • Tools: rule_based_parse, validate_intent, create_workout      │
-│  • max_iterations=10, max_execution_time=30 секунд              │
+│  • AI сам витягує параметри через промпт (без tools для парсингу)│
+│  • max_iterations=5, max_execution_time=15 секунд (оптимізовано)│
+│  • Fuzzy matching для розпізнавання жанрів (electric→electronic) │
+│  • Акумуляція жанрів замість заміни (rock + pop → [rock, pop])  │
+│  • Персоналізація через user patterns з БД                       │
+│  • Витягує з БД: улюблені жанри, типову тривалість, preferred type│
 │  • Fallback-логіка для iteration limits та коротких повідомлень │
+│  • Явні індикатори кроків у контексті (Step 1, 2, 3)            │
 │  • State: last_question = "none" -> "goal_clarification" ...      │
 │                                                                   │
 │  Коли всі параметри зібрані:                                     │
@@ -179,7 +196,9 @@ apps/backend/app/
 │                        SupervisorAgent                           │
 │  • Отримує підтвердження ("Да"/"так"/"yes")                      │
 │  • Якщо агент не створив воркаут (iteration limit),             │
-│    створює його через fallback (create_workout_from_params)     │
+│    створює його через fallback                                  │
+│    (_create_workout_from_params_internal)                       │
+│  • Виправлено: тепер використовує внутрішню функцію, а не tool │
 │  • Очищує стан розмови після успішного створення                │
 └────────────────────────────┬────────────────────────────────────┘
                              │
@@ -189,6 +208,67 @@ apps/backend/app/
 │                      MusicCuratorAgent                           │
 │                  (Генерує плейлист для воркаута)                 │
 └─────────────────────────────────────────────────────────────────┘
+```
+
+### 🧠 AI Learning & Personalization
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   ConversationService                            │
+│           (Збереження та аналіз розмов)                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  📝 save_conversation()                                          │
+│     • Зберігає кожну розмову в БД після кожного повідомлення    │
+│     • Таблиця: conversations (messages JSONB, workout_intent)   │
+│     • State: active, completed, abandoned                       │
+│                                                                   │
+│  🔍 get_user_patterns()                                          │
+│     • Аналізує останні 20 розмов користувача                    │
+│     • Favorite genres (top 3)                                   │
+│     • Typical duration (середнє)                                │
+│     • Preferred workout type (найпопулярніший)                  │
+│     • Common intensity (найчастіший)                            │
+│                                                                   │
+│  📊 get_conversation_insights()                                  │
+│     • Аналізує всі розмови за N днів                            │
+│     • Completion rate (% успішних)                              │
+│     • Abandonment rate (% покинутих)                            │
+│     • Most common genres                                        │
+│     • Average messages per conversation                         │
+│                                                                   │
+│  🎯 Використання в AI:                                           │
+│     WorkoutBuilder витягує patterns → додає в context →         │
+│     AI бачить історію → дає кращі підказки!                     │
+└─────────────────────────────────────────────────────────────────┘
+
+Потік персоналізації:
+┌──────────┐
+│   User   │ "хочу пробіжку"
+└────┬─────┘
+     │
+     v
+┌─────────────────────────────────────┐
+│ WorkoutBuilder.process_message()    │
+│  ↓                                   │
+│ conversation_service.get_user_patterns(user_id)
+│  ↓                                   │
+│ Витягує з БД:                        │
+│  - favorite_genres: ["electronic", "rock"]
+│  - typical_duration: 45 min         │
+│  - preferred_type: "fartlek"        │
+│  ↓                                   │
+│ Додає в context:                    │
+│ "USER PREFERENCES (from history):   │
+│  - Favorite genres: electronic, rock"│
+│  ↓                                   │
+│ AI отримує context → генерує відповідь:
+│ "Чудово! Може фартлек на 45 хв     │
+│  під electronic?"                   │
+└─────────────────────────────────────┘
+     │
+     v
+  User отримує персоналізовану підказку! 🎯
 ```
 
 ---
@@ -291,22 +371,140 @@ apps/backend/app/
 
 ### Активні компоненти
 
-✅ **SupervisorAgent** - Координує всіх агентів та керує станом розмови. Має fallback для створення воркаутів, якщо агент досягає iteration limit.
-✅ **WorkoutBuilder** - LangChain AI-агент з детальними промптами для природної розмови з користувачем. Веде діалог для збору параметрів воркаута з fallback-логікою для обробки помилок.
+✅ **SupervisorAgent** - Координує всіх агентів та керує станом розмови. Має fallback для створення воркаутів. Зберігає розмови в БД після кожного повідомлення.
+✅ **WorkoutBuilder** - LangChain AI-агент з детальними промптами для природної розмови з користувачем. AI сам витягує параметри через промпт. Використовує user patterns для персоналізації.
+✅ **ConversationService** - Зберігає розмови в БД, аналізує user patterns, надає insights для оптимізації.
 ✅ **WorkoutManagerAgent** - Створює та активує воркаути в базі даних.
 ✅ **MusicCuratorAgent** - Генерує плейлисти з інтеграцією Spotify.
 ✅ **ErrorLoggingService** - Зберігає помилки в базі даних.
+✅ **Analytics API** - Endpoints для моніторингу conversation insights та user patterns.
+
+### Виправлені проблеми (v3.2)
+
+🐛 **Критичні помилки**:
+
+- ❌ `BaseTool.__call__() got an unexpected keyword argument 'user_id'` → ✅ Виправлено через внутрішню функцію
+- ❌ Агент зациклювався на одному питанні → ✅ Виправлено через акумуляцію параметрів
+- ❌ Жанри не розпізнавалися ("electric" не працював) → ✅ Додано fuzzy matching
+- ❌ Агент досягав iteration limit (10 ітерацій) → ✅ Оптимізовано до 5 ітерацій з кращим fallback
+
+### Реалізовано (v3.3) ✅
+
+✅ **AI Learning & Personalization** - AI вчиться на розмовах користувача
+✅ **User Patterns Analysis** - аналіз улюблених жанрів, тривалості, типу
+✅ **Conversation Storage** - збереження всіх розмов в БД
+✅ **Analytics API** - insights для оптимізації промптів
+✅ **Персоналізовані підказки** - AI бачить історію користувача
 
 ### Майбутні покращення
 
-🔮 **Додавання моніторингу та логування** (LangSmith integration)
-🔮 **Кешування для оптимізації** (Redis для станів розмов)
+🔮 **LangSmith integration** - детальний моніторинг AI агентів
+🔮 **Redis для кешування** - швидший доступ до user patterns
 🔮 **A/B тестування різних промптів/питань**
 🔮 **Streaming responses** для кращого UX
-🔮 **Agent memory persistence** для довготривалих розмов
+🔮 **Автоматична оптимізація промптів** на основі analytics
 🔮 **Error analytics dashboard** (візуалізація помилок)
 
 ---
+
+---
+
+## 🔧 Технічні деталі виправлень (v3.2)
+
+### Виправлення помилки з викликом tool
+
+**Проблема**: SupervisorAgent намагався викликати LangChain `@tool` як звичайну функцію, що викликало помилку:
+
+```
+BaseTool.__call__() got an unexpected keyword argument 'user_id'
+```
+
+**Рішення**:
+
+```python
+# workout_tools.py
+
+# Створено внутрішню функцію (не tool)
+def _create_workout_from_params_internal(
+    user_id: str,
+    workout_type: str,
+    duration_minutes: int,
+    intensity: str,
+    genres: Optional[str] = None,
+    prompt: Optional[str] = None,
+) -> str:
+    # ... реалізація створення воркаута ...
+    pass
+
+# Tool тепер викликає внутрішню функцію
+@tool
+def create_workout_from_params(...) -> str:
+    return _create_workout_from_params_internal(...)
+
+# supervisor.py
+from app.agents.tools.workout_tools import _create_workout_from_params_internal
+
+# Тепер можна викликати напряму
+result = _create_workout_from_params_internal(
+    user_id=user_id,
+    workout_type=workout_type,
+    ...
+)
+```
+
+### Fuzzy matching для жанрів
+
+**Проблема**: Користувач писав "electric", але система не розпізнавала це як "electronic".
+
+**Рішення**:
+
+```python
+# workout_builder.py
+genre_mapping = {
+    "electronic": ["electronic", "electric", "electro", "електро", "електронн"],
+    "rock": ["rock", "рок"],
+    "pop": ["pop", "поп"],
+    # ... 20+ жанрів з варіаціями
+}
+
+found_genres = []
+for genre, variations in genre_mapping.items():
+    if any(var in message_lower for var in variations):
+        found_genres.append(genre)
+```
+
+### Акумуляція жанрів
+
+**Проблема**: При введенні "electric", потім "rock", зберігався лише "rock".
+
+**Рішення**:
+
+```python
+# workout_builder.py
+if "genres" in parsed_params:
+    existing_genres = collected.get("genres", [])
+    new_genres = parsed_params["genres"]
+    if isinstance(existing_genres, list):
+        # Злиття без дублікатів
+        all_genres = list(set(existing_genres + new_genres))
+        parsed_params["genres"] = all_genres
+```
+
+### Оптимізація лімітів
+
+**Було**:
+
+```python
+max_iterations=10
+max_execution_time=30  # секунд
+```
+
+**Стало**:
+
+```python
+max_iterations=5  # Достатньо для більшості випадків
+max_execution_time=15  # Швидший відгук
+```
 
 ---
 
@@ -496,41 +694,182 @@ WorkoutIntent (confirmed by user)
 
 ---
 
-## 🎨 Frontend Component Hierarchy
+## 🎨 Frontend архітектура
+
+### Технологічний стек
+
+- **Framework**: React 18 + TypeScript
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS
+- **State Management**: Zustand (authStore)
+- **Routing**: React Router v6
+- **HTTP Client**: Axios (api service)
+
+### Структура проекту
 
 ```
-App
+apps/web/
+├── src/
+│   ├── App.tsx                 # Main app component with routing
+│   ├── main.tsx                # Entry point
+│   ├── components/
+│   │   ├── Chat/
+│   │   │   ├── InputBar.tsx              # Message input component
+│   │   │   ├── MessageBubble.tsx         # Chat message bubble
+│   │   │   ├── PlaylistHistorySidebar.tsx # Workout & playlist history
+│   │   │   ├── SettingsSidebar.tsx       # Workout settings panel
+│   │   │   └── TypingIndicator.tsx       # Loading indicator
+│   │   ├── Player/
+│   │   │   └── TrackCard.tsx             # Track display card
+│   │   ├── Shared/
+│   │   │   ├── Button.tsx
+│   │   │   ├── ErrorDisplay.tsx
+│   │   │   ├── LoadingSpinner.tsx
+│   │   │   └── SpotifyConnectBanner.tsx
+│   │   └── ProtectedRoute.tsx            # Auth guard component
+│   ├── pages/
+│   │   ├── ChatPage.tsx                  # Main chat interface
+│   │   ├── HistoryPage.tsx               # Workout history
+│   │   ├── PlayerPage.tsx                # Music player
+│   │   ├── LoginPage.tsx                 # Spotify login
+│   │   └── AuthCallbackPage.tsx          # OAuth callback handler
+│   ├── hooks/
+│   │   ├── useAuth.ts                    # Authentication hook
+│   │   ├── useChat.ts                    # Chat logic hook
+│   │   ├── usePlaylist.ts                # Playlist operations
+│   │   ├── usePlaylistHistory.ts         # Playlist history
+│   │   └── useWorkoutHistory.ts          # Workout history
+│   ├── services/
+│   │   ├── api.ts                        # API client (Axios)
+│   │   ├── errorLogger.ts                # Error logging to backend
+│   │   └── supabase.ts                   # Supabase client
+│   ├── stores/
+│   │   └── authStore.ts                  # Zustand auth state
+│   └── types/
+│       ├── index.ts                      # Shared types
+│       └── settings.ts                   # Workout settings types
+└── ...
+```
+
+### Component Hierarchy
+
+```
+App (React Router)
 ├── Routes
-│   ├── / (ChatPage)
+│   ├── / (ChatPage) [Protected]
 │   │   ├── PlaylistHistorySidebar
-│   │   │   ├── WorkoutList
-│   │   │   └── PlaylistList
+│   │   │   ├── Workout history list
+│   │   │   └── Playlist history list
 │   │   │
-│   │   ├── ChatArea
-│   │   │   ├── MessageList
-│   │   │   │   └── MessageBubble (×N)
-│   │   │   ├── VariantSelector (if variants shown)
-│   │   │   └── TypingIndicator
+│   │   ├── Chat Area
+│   │   │   ├── MessageBubble (×N)        # User + Assistant messages
+│   │   │   ├── TypingIndicator           # Loading state
+│   │   │   └── ErrorDisplay              # Error messages
 │   │   │
-│   │   ├── InputBar
-│   │   │   ├── TextInput
-│   │   │   └── SendButton
+│   │   ├── InputBar                      # Message input + Send button
 │   │   │
 │   │   └── SettingsSidebar
-│   │       ├── WorkoutTypeSelector
-│   │       ├── DurationSliders
-│   │       ├── IntensitySelector
-│   │       ├── HRZoneSliders
-│   │       ├── GenreSelector
-│   │       ├── PromptInput
-│   │       └── SaveButton
+│   │       ├── WorkoutTypeSelector       # steady/intervals/fartlek
+│   │       ├── DurationSlider            # Duration control
+│   │       ├── IntensitySelector         # low/moderate/high
+│   │       ├── GenreSelector             # Music genres
+│   │       └── PromptInput               # Additional prompt
 │   │
-│   ├── /history (HistoryPage)
-│   ├── /player/:id (PlayerPage)
-│   └── /login (LoginPage)
+│   ├── /login (LoginPage)                # Spotify authentication
+│   ├── /auth/callback (AuthCallbackPage) # OAuth callback
+│   ├── /history (HistoryPage) [Protected]
+│   │   └── Workout & Playlist lists
+│   │
+│   └── /player/:playlistId? (PlayerPage) [Protected]
+│       ├── TrackCard (×N)                # Track list
+│       └── Player controls
 │
-└── ProtectedRoute (Auth wrapper)
+└── Components used across pages:
+    ├── ProtectedRoute               # Auth guard wrapper
+    ├── LoadingSpinner               # Loading state
+    ├── ErrorDisplay                 # Error messages
+    ├── SpotifyConnectBanner         # Spotify connection prompt
+    └── Button                       # Reusable button component
 ```
+
+### Key Features
+
+- **Lazy Loading**: Pages загружаються за допомогою React.lazy для швидшого початкового завантаження
+- **Protected Routes**: ProtectedRoute перевіряє автентифікацію та підключення Spotify
+- **Responsive Design**: Адаптивний UI для mobile та desktop (sidebars collapse на mobile)
+- **Real-time Chat**: Conversational interface для створення workouts
+- **Error Handling**: Централізований error logging до backend API
+- **Spotify Integration**: OAuth authentication та playlist generation
+
+---
+
+## 📱 Mobile App архітектура
+
+### Mobile технологічний стек
+
+- **Framework**: React Native 0.73
+- **Platform**: Expo ~50.0
+- **Language**: TypeScript
+- **State Management**: Zustand
+- **Navigation**: React Navigation v6 (Stack + Bottom Tabs)
+- **HTTP Client**: Axios
+- **Backend**: Supabase client
+
+### Mobile структура проекту
+
+```
+apps/mobile/
+├── App.tsx                    # Main app entry point
+├── src/
+│   ├── components/
+│   │   ├── Chat/             # Chat UI components
+│   │   │   ├── MessageBubble.tsx
+│   │   │   ├── InputBar.tsx
+│   │   │   └── TypingIndicator.tsx
+│   │   ├── Player/           # Player components
+│   │   └── Shared/           # Shared components
+│   │       ├── Button.tsx
+│   │       └── LoadingSpinner.tsx
+│   ├── navigation/
+│   │   └── index.tsx         # Navigation setup (Stack + Tabs)
+│   ├── screens/
+│   │   ├── ChatScreen.tsx    # Main chat interface
+│   │   ├── HistoryScreen.tsx # Workout history
+│   │   └── PlayerScreen.tsx  # Music player
+│   ├── hooks/
+│   │   ├── useAuth.ts        # Authentication hook
+│   │   ├── useChat.ts        # Chat logic
+│   │   ├── usePlaylist.ts    # Playlist operations
+│   │   └── useSpotify.ts     # Spotify integration
+│   ├── services/
+│   │   ├── api.ts            # Backend API client
+│   │   ├── spotify.ts        # Spotify service
+│   │   └── supabase.ts       # Supabase client
+│   ├── store/                # Zustand state management
+│   └── types/
+│       └── index.ts          # TypeScript types
+└── app.json                  # Expo configuration
+```
+
+### Ключові можливості
+
+- ✅ **Cross-platform**: iOS, Android, Web через Expo
+- ✅ **Native Navigation**: React Navigation для smooth transitions
+- ✅ **Spotify Integration**: OAuth та playlist playback
+- ✅ **Offline Support**: Можливість роботи офлайн
+- ✅ **Push Notifications**: Сповіщення про нові плейлисти (planned)
+- ✅ **Shared Codebase**: Спільна логіка з web app (hooks, types)
+
+### Відмінності від Web App
+
+| Feature            | Web App          | Mobile App                   |
+| ------------------ | ---------------- | ---------------------------- |
+| **UI Framework**   | React + Tailwind | React Native + Custom styles |
+| **Navigation**     | React Router     | React Navigation             |
+| **Build Tool**     | Vite             | Expo                         |
+| **Platform**       | Browser only     | iOS, Android, Web            |
+| **Storage**        | localStorage     | AsyncStorage                 |
+| **Spotify Player** | Web Playback SDK | Native SDK (planned)         |
 
 ---
 
@@ -603,6 +942,62 @@ Request:
 
 GET    /api/v1/error-logs/?level=ERROR&limit=100&offset=0
 GET    /api/v1/error-logs/statistics?days=7
+```
+
+### Analytics API (NEW! 🎯)
+
+```
+GET    /api/v1/analytics/conversation-insights?days=30
+Response:
+{
+  "success": true,
+  "insights": {
+    "total_analyzed": 150,
+    "completion_rate": 82.5,
+    "abandonment_rate": 12.3,
+    "most_common_genres": {
+      "electronic": 45,
+      "rock": 38,
+      "pop": 32
+    },
+    "average_messages_per_conversation": 6.2
+  }
+}
+
+GET    /api/v1/analytics/user-patterns/{user_id}
+Response:
+{
+  "success": true,
+  "user_id": "uuid",
+  "patterns": {
+    "has_history": true,
+    "total_conversations": 25,
+    "favorite_genres": ["electronic", "rock", "pop"],
+    "typical_duration": 45,
+    "preferred_type": "fartlek",
+    "common_intensity": "moderate"
+  }
+}
+
+GET    /api/v1/analytics/recommendations?days=30
+Response:
+{
+  "success": true,
+  "insights": { ... },
+  "recommendations": [
+    {
+      "type": "healthy",
+      "severity": "success",
+      "message": "Conversation flow is healthy! Keep up the good work."
+    },
+    {
+      "type": "popular_genres",
+      "severity": "info",
+      "message": "Most popular genres: electronic, rock, pop. Ensure these are well-supported."
+    }
+  ],
+  "analyzed_days": 30
+}
 ```
 
 ---
@@ -772,15 +1167,23 @@ class PlaylistTrack(BaseModel):
 │ 1. WorkoutBuilder (основний AI-агент)                       │
 │    • LangChain AI-агент з детальними промптами               │
 │    • Веде природну розмову для збору параметрів             │
-│    • Tools: rule_based_parse, validate_intent,              │
-│             create_workout_from_params                      │
-│    • max_iterations=10, max_execution_time=30 секунд       │
+│    • AI САМ витягує параметри через промпт (без tools!)     │
+│    • Tools: тільки create_workout_from_params               │
+│    • max_iterations=5, max_execution_time=15 секунд        │
+│      (зменшено для швидшого відгуку)                        │
+│    • Fuzzy matching жанрів в промпті: 20+ жанрів + варіації │
+│    • Акумуляція жанрів при збиранні параметрів              │
+│    • 🧠 Персоналізація через user patterns з БД             │
+│    • Витягує з БД: favorite genres, typical duration, etc.  │
 │    • Fallback-логіка для iteration limits                  │
+│    • Явні індикатори кроків (Step 1, 2, 3) у контексті     │
 │                                                               │
 │ 2. SupervisorAgent (Оркестратор)                            │
 │    • Керує станом розмови для кожного користувача           │
 │    • Делегує завдання до WorkoutBuilder                     │
-│    • Має fallback для створення воркаутів                   │
+│    • Має fallback для створення воркаутів через             │
+│      _create_workout_from_params_internal() (внутрішня)    │
+│    • Виправлено критичну помилку з викликом tools           │
 │    • Очищує стан після успішного створення                  │
 │                                                               │
 │ 3. MusicCuratorAgent                                        │
@@ -793,6 +1196,12 @@ class PlaylistTrack(BaseModel):
 │    • Creates & activates workouts                           │
 │    • Database operations                                    │
 │    • Tools: create_workout, activate_workout, get_active    │
+│                                                               │
+│ 5. ConversationService (NEW! 🧠)                            │
+│    • Зберігає розмови в БД (conversations table)            │
+│    • Аналізує user patterns (genres, duration, type)        │
+│    • Надає insights для оптимізації (completion rate, etc.) │
+│    • Інтегрований з WorkoutBuilder для персоналізації       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -825,12 +1234,16 @@ User Message
 │     • Зібрані параметри з state.collected_parameters        │
 │     • Відсутні параметри                                     │
 │     • Історія розмови (останні 20 повідомлень)              │
+│     • 🧠 User patterns з БД (витягує ConversationService):  │
+│       - favorite_genres, typical_duration, preferred_type   │
+│     • AI бачить preferences → дає кращі підказки!           │
 │                                                               │
 │  3. Виклик LangChain AI-агента:                              │
 │     • Використовує CONVERSATION_AGENT_SYSTEM_PROMPT         │
-│     • Tools: rule_based_parse, validate_intent,             │
-│              create_workout_from_params                     │
-│     • max_iterations=10, max_execution_time=30              │
+│     • AI САМ витягує параметри через промпт                 │
+│     • Tools: тільки create_workout_from_params              │
+│     • max_iterations=5, max_execution_time=15               │
+│       (оптимізовано для швидшого відгуку)                   │
 │                                                               │
 │  4. Обробка відповіді:                                       │
 │     • Перевірка на iteration/time limit                     │
@@ -842,10 +1255,16 @@ User Message
      v
 ┌─────────────────────────────────────────────────────────────┐
 │  SupervisorAgent (продовження)                              │
+│  • 💾 Зберігає розмову в БД:                                │
+│    conversation_service.save_conversation(user_id, state)   │
+│    (таблиця conversations: messages, workout_intent)        │
 │  • Якщо user підтвердив ("Да"/"так") і last_question ==      │
 │    "final_confirmation":                                     │
 │    - Перевіряє, чи створив агент воркаут                    │
 │    - Якщо ні → створює через fallback                       │
+│      (_create_workout_from_params_internal)                 │
+│  • Виправлено: використовує внутрішню функцію, а не tool    │
+│  • ✅ Позначає розмову як completed в БД                     │
 │  • Очищує стан після успішного створення                    │
 └────┬─────────────────────────────────────────────────────────┘
      │
@@ -860,8 +1279,83 @@ User Message
 
 **Дата створення:** 2025-11-15
 **Останнє оновлення:** 2025-11-15
-**Версія документа:** 3.1
-**Статус:** Актуальний - Повна міграція на LangChain завершена ✅
+**Версія документа:** 3.3
+**Статус:** Актуальний - AI Learning & Personalization ✅
+
+### Останні зміни (v3.3) - 2025-11-15
+
+🧠 **AI Learning & Personalization System:**
+
+- **ConversationService** - новий сервіс для збереження та аналізу розмов:
+
+  - `save_conversation()` - зберігає кожну розмову в БД після кожного повідомлення
+  - `get_user_patterns()` - аналізує останні 20 розмов користувача та визначає:
+    - Улюблені музичні жанри (top 3)
+    - Типову тривалість тренувань (середнє значення)
+    - Preferred workout type (найпопулярніший тип)
+    - Common intensity (найчастіша інтенсивність)
+  - `get_conversation_insights()` - аналізує всі розмови за N днів для оптимізації:
+    - Completion rate (% успішних розмов)
+    - Abandonment rate (% покинутих розмов)
+    - Most common genres (найпопулярніші жанри)
+    - Average messages per conversation
+  - `mark_conversation_completed()` - позначає розмову як завершену після створення воркаута
+
+- **Analytics API** - три нових endpoints для моніторингу:
+
+  - `GET /api/v1/analytics/conversation-insights?days=30` - insights для оптимізації
+  - `GET /api/v1/analytics/user-patterns/{user_id}` - персоналізовані patterns користувача
+  - `GET /api/v1/analytics/recommendations?days=30` - рекомендації для покращення промптів
+
+- **Персоналізація AI-агента**:
+
+  - WorkoutBuilder тепер витягує user patterns з БД перед кожною розмовою
+  - Додає patterns у context промпту: "USER PREFERENCES (from history): ..."
+  - AI бачить історію користувача та дає кращі, персоналізовані підказки
+  - Приклад: якщо користувач зазвичай обирає фартлек 45 хв під electronic, AI запропонує це
+
+- **Інтеграція з SupervisorAgent**:
+
+  - Автоматичне збереження розмови після кожного повідомлення
+  - Позначення розмови як "completed" після успішного створення воркаута
+  - Історія зберігається в таблиці `conversations` (messages JSONB, workout_intent JSONB)
+
+- **Періодичний аналіз для оптимізації**:
+  - Адміністратори можуть переглядати insights через Analytics API
+  - Рекомендації для покращення conversation flow
+  - Виявлення проблемних місць (низький completion rate, високий abandonment rate)
+
+### Останні зміни (v3.2) - 2025-11-15
+
+🔧 **Виправлення критичних помилок AI-агента:**
+
+- **Виправлено критичну помилку**: `BaseTool.__call__() got an unexpected keyword argument 'user_id'`
+
+  - Створено внутрішню функцію `_create_workout_from_params_internal()` для використання supervisor
+  - Tool `create_workout_from_params` тепер викликає цю внутрішню функцію
+  - SupervisorAgent використовує внутрішню функцію для fallback створення воркаутів
+
+- **Покращено розпізнавання жанрів**:
+
+  - Додано fuzzy matching для жанрів: "electric" → "electronic", "electro" → "electronic"
+  - Підтримка 20+ жанрів з різними варіаціями написання (українською та англійською)
+  - Приклади: rock/рок, pop/поп, electronic/electric/електронн, classical/класик
+
+- **Виправлено зациклення розмови**:
+
+  - Жанри тепер акумулюються замість заміни: "rock" + "pop" → ["rock", "pop"]
+  - Покращено логіку fallback для відстеження стану розмови
+
+- **Оптимізовано продуктивність**:
+
+  - Зменшено `max_iterations` з 10 до 5 для швидшого відгуку
+  - Зменшено `max_execution_time` з 30 до 15 секунд
+  - Покращено fallback логіку для обробки iteration limits
+
+- **Покращено контекст для агента**:
+  - Додано явні індикатори кроків: "Step 1: Get duration and intensity", "Step 2: Get music genres", "Step 3: Confirm and create workout"
+  - Детальніші інструкції в контексті для запобігання повторенню питань
+  - Чіткий user_id у контексті для правильного виклику tools
 
 ### Останні зміни (v3.1)
 
@@ -872,7 +1366,6 @@ User Message
 - Додана обробка підтвердження/відмови з кнопками Да/Ні на frontend
 - Реалізована fallback-логіка для обробки iteration limits та коротких повідомлень
 - SupervisorAgent має fallback для створення воркаутів, якщо агент досягає ліміту ітерацій
-- Збільшені ліміти агента: `max_iterations=10`, `max_execution_time=30` секунд
 - Покращена обробка помилок та повторних спроб через `OpenAIErrorHandler`
 
 ### Останні зміни (v3.0)

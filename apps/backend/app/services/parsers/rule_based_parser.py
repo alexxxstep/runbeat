@@ -75,14 +75,23 @@ class RuleBasedParser:
     # Music genre keywords
     MUSIC_GENRE_KEYWORDS = {
         'rock': ['рок', 'rock', 'рок-музика', 'рок-музику'],
-        'electronic': ['електроніка', 'electronic', 'електронна', 'електронну', 'електроніку'],
+        'electronic': ['електроніка', 'electronic', 'електронна', 'електронну', 'електроніку', 'електро', 'electro', 'electric', 'електронн', 'edm'],
         'hip-hop': ['хіп-хоп', 'hip-hop', 'hip hop', 'реп', 'rap'],
         'pop': ['поп', 'pop', 'поп-музика'],
         'metal': ['метал', 'metal'],
         'techno': ['техно', 'techno'],
         'house': ['хаус', 'house'],
         'jazz': ['джаз', 'jazz'],
-        'classical': ['класика', 'classical', 'класична'],
+        'classical': ['класика', 'classical', 'класична', 'класик'],
+        'indie': ['інді', 'indie'],
+        'alternative': ['альтернатив', 'alternative'],
+        'dance': ['данс', 'dance'],
+        'trance': ['транс', 'trance'],
+        'reggae': ['регі', 'reggae'],
+        'country': ['кантрі', 'country'],
+        'blues': ['блюз', 'blues'],
+        'folk': ['фолк', 'folk'],
+        'ambient': ['ембієнт', 'ambient', 'chill'],
     }
 
     # Music description keywords

@@ -7,6 +7,7 @@ from loguru import logger
 
 from app.schemas.conversation import ConversationState
 from app.services.workout_builder import WorkoutBuilder
+from app.services.conversation_service import conversation_service
 
 
 class SupervisorAgent:
@@ -48,6 +49,13 @@ class SupervisorAgent:
 
         response_message = update.response_message
         state = update.new_state
+
+        # Save conversation to database after each message exchange
+        await conversation_service.save_conversation(
+            user_id=user_id,
+            state=state,
+            conversation_state="active"
+        )
 
         # Check if user confirmed workout creation (from fallback or agent)
         message_lower = message.lower().strip()
@@ -133,11 +141,12 @@ class SupervisorAgent:
         if success_indicators:
             # Check if response contains error before clearing state
             if "error" not in response_message.lower():
-                # Workout was successfully created - clear state
+                # Workout was successfully created - clear state and mark completed
                 logger.info(
                     f"Workout created successfully for user {user_id}, "
                     f"clearing state"
                 )
+                await conversation_service.mark_conversation_completed(user_id)
                 self.clear_state(user_id)
             else:
                 logger.warning(
