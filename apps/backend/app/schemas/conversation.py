@@ -28,7 +28,7 @@ class ConversationState(BaseModel):
     history: List[dict] = Field(default_factory=list)
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ConversationUpdate(BaseModel):

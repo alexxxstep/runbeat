@@ -10,7 +10,6 @@ from app.agents.prompts.curator_prompts import (
 )
 from app.agents.prompts.conversation_prompts import (
     CONVERSATION_AGENT_SYSTEM_PROMPT,
-    CONVERSATION_AGENT_USER_PROMPT_TEMPLATE,
 )
 from app.agents.prompts.manager_prompts import (
     MANAGER_AGENT_SYSTEM_PROMPT,
@@ -23,7 +22,6 @@ __all__ = [
     "CURATOR_AGENT_SYSTEM_PROMPT",
     "CURATOR_AGENT_USER_PROMPT_TEMPLATE",
     "CONVERSATION_AGENT_SYSTEM_PROMPT",
-    "CONVERSATION_AGENT_USER_PROMPT_TEMPLATE",
     "MANAGER_AGENT_SYSTEM_PROMPT",
     "MANAGER_AGENT_USER_PROMPT_TEMPLATE",
 ]
