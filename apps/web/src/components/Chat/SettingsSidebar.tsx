@@ -185,18 +185,16 @@ export function SettingsSidebar({
     }
   }, [durationHours, durationMinutes]);
 
-  const sidebarWidthClass = collapsed ? 'w-12' : 'w-80'; // Increased width for better layout
-  const contentOpacityClass = collapsed ? 'opacity-0' : 'opacity-100';
-  const contentVisibilityClass = collapsed ? 'invisible' : 'visible';
-
-    return (
+  return (
     <div
-      className={`bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass}`}
+      className={`bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col h-full w-80 transition-all duration-300 ease-in-out`}
     >
       {/* Header */}
       <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0'>
         <h2
-          className={`text-lg font-semibold text-gray-900 dark:text-white transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
+          className={`text-lg font-semibold text-gray-900 dark:text-white transition-opacity duration-300 ${
+            collapsed ? 'opacity-0' : 'opacity-100'
+          }`}
         >
           Воркаут
         </h2>
@@ -207,7 +205,7 @@ export function SettingsSidebar({
         >
           <svg
             className={`w-5 h-5 text-gray-600 dark:text-gray-400 transform transition-transform duration-300 ${
-              collapsed ? 'rotate-180' : ''
+              collapsed ? '' : 'rotate-180'
             }`}
             fill='none'
             stroke='currentColor'
@@ -217,7 +215,7 @@ export function SettingsSidebar({
               strokeLinecap='round'
               strokeLinejoin='round'
               strokeWidth={2}
-              d='M15 19l-7-7 7-7' // Changed to a left-pointing arrow, which will rotate right when collapsed
+              d='M9 5l7 7-7 7' // Right-pointing arrow
             />
           </svg>
         </button>
@@ -225,7 +223,9 @@ export function SettingsSidebar({
 
       {/* Main Content */}
       <div
-        className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
+        className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 transition-opacity duration-300 ${
+          collapsed ? 'opacity-0 invisible' : 'opacity-100 visible'
+        }`}
       >
         {/* Workout Type */}
         <div>
@@ -561,7 +561,9 @@ export function SettingsSidebar({
 
       {/* Save Button */}
       <div
-        className={`p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
+        className={`p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0 transition-opacity duration-300 ${
+          collapsed ? 'opacity-0 invisible' : 'opacity-100 visible'
+        }`}
       >
         <button
           onClick={handleSave}

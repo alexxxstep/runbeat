@@ -922,37 +922,41 @@ export function ChatPage() {
         </svg>
       </button>
 
-      {/* Settings Sidebar - Right - 1.5 units */}
-      <div className={`${settingsCollapsed ? 'hidden md:flex' : 'flex'} md:flex-[1.5]`}>
+      {/* Settings Sidebar - Right - Absolutely Positioned */}
+      <div
+        className={`absolute top-0 right-0 h-full z-30 transition-transform duration-300 ease-in-out ${
+          settingsCollapsed ? 'translate-x-full' : 'translate-x-0'
+        }`}
+      >
         <SettingsSidebar
-        settings={workoutSettings}
-        onSettingsChange={setWorkoutSettings}
-        collapsed={settingsCollapsed}
-        onToggleCollapse={() => setSettingsCollapsed(!settingsCollapsed)}
-        userId={user?.id}
-        onSave={() => {
-          // Refresh workout history after save (with delay to ensure data is saved)
-          // Single refresh call - debounce is handled in PlaylistHistorySidebar
-          setTimeout(() => {
-            setRefreshTrigger((prev) => prev + 1);
-          }, 500);
-        }}
-        onWorkoutActivated={(workout) => {
-          const workoutData: Workout = {
-            type: workout.type as Workout['type'],
-            duration_minutes: workout.duration_minutes,
-            intensity: workout.intensity as Workout['intensity'],
-            hr_zones: workout.hr_zones,
-          };
-          setActiveWorkout(workoutData);
-          setExcludedTrackIds(new Set()); // Reset excluded tracks when activating workout
-          // Set workout ID if available (for newly saved workouts)
-          if (workout.id) {
-            setActiveWorkoutId(workout.id);
-          }
-          addWorkoutActivationMessage(workoutData);
-          setShowPlaylistQuestion(true);
-        }}
+          settings={workoutSettings}
+          onSettingsChange={setWorkoutSettings}
+          collapsed={settingsCollapsed}
+          onToggleCollapse={() => setSettingsCollapsed(!settingsCollapsed)}
+          userId={user?.id}
+          onSave={() => {
+            // Refresh workout history after save (with delay to ensure data is saved)
+            // Single refresh call - debounce is handled in PlaylistHistorySidebar
+            setTimeout(() => {
+              setRefreshTrigger((prev) => prev + 1);
+            }, 500);
+          }}
+          onWorkoutActivated={(workout) => {
+            const workoutData: Workout = {
+              type: workout.type as Workout['type'],
+              duration_minutes: workout.duration_minutes,
+              intensity: workout.intensity as Workout['intensity'],
+              hr_zones: workout.hr_zones,
+            };
+            setActiveWorkout(workoutData);
+            setExcludedTrackIds(new Set()); // Reset excluded tracks when activating workout
+            // Set workout ID if available (for newly saved workouts)
+            if (workout.id) {
+              setActiveWorkoutId(workout.id);
+            }
+            addWorkoutActivationMessage(workoutData);
+            setShowPlaylistQuestion(true);
+          }}
         />
       </div>
     </div>
