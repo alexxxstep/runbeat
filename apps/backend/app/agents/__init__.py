@@ -1,24 +1,14 @@
 """
-LangChain Multi-Agent System for RunBeat.
-
-Agents:
-- ConversationAgent: Handles user conversation
-- WorkoutParserAgent: Parses workout intent
-- MusicCuratorAgent: Generates playlists
-- WorkoutManagerAgent: Manages workouts
-- ConversationOrchestrator: Coordinates all agents
+This module initializes the agents used in the application.
 """
-
-from app.agents.curator import MusicCuratorAgent
-from app.agents.parser import WorkoutParserAgent
-from app.agents.conversation import ConversationAgent
-from app.agents.manager import WorkoutManagerAgent
-from app.agents.supervisor import ConversationOrchestrator
+from .supervisor import supervisor_agent
+from .manager import WorkoutManagerAgent
+from .curator import MusicCuratorAgent
+from .workout_builder_agent import WorkoutBuilderAgent
 
 __all__ = [
-    "WorkoutParserAgent",
-    "MusicCuratorAgent",
-    "ConversationAgent",
+    "supervisor_agent",
     "WorkoutManagerAgent",
-    "ConversationOrchestrator",
+    "MusicCuratorAgent",
+    "WorkoutBuilderAgent",
 ]
