@@ -3,8 +3,9 @@ Chat API endpoints with conversation flow management.
 """
 from fastapi import APIRouter, HTTPException
 from loguru import logger
-from app.schemas.chat import ChatRequest, ChatResponse
+
 from app.agents.supervisor import supervisor_agent
+from app.schemas.chat import ChatRequest, ChatResponse
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -26,13 +27,13 @@ async def send_message(request: ChatRequest) -> ChatResponse:
         )
 
         # The new system is simpler: the supervisor's response is the message.
-        # The frontend will handle displaying workout info embedded in messages.
+        # Frontend will handle displaying workout info embedded in messages.
         return ChatResponse(
             message=response_message,
-            workout=None,  # This will be handled via message content
-            playlist=None,  # This will be handled via message content
-            needs_clarification=False,  # The agent manages the flow
-            is_complete=False,  # The agent manages the flow
+            workout=None,  # Handled via message content
+            playlist=None,  # Handled via message content
+            needs_clarification=False,  # Agent manages the flow
+            is_complete=False,  # Agent manages the flow
         )
 
     except HTTPException:

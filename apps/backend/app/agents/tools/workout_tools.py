@@ -157,6 +157,81 @@ def activate_workout(workout_id: str, user_id: str) -> str:
 
 
 @tool
+def create_workout_from_params(
+    user_id: str,
+    workout_type: str,
+    duration_minutes: int,
+    intensity: str,
+    genres: Optional[str] = None,
+    prompt: Optional[str] = None,
+) -> str:
+    """
+    Create a workout in the database from simple parameters (for conversation flow).
+
+    This is a simplified version that takes parameters directly from conversation state.
+
+    Args:
+        user_id: User ID
+        workout_type: Workout type ("steady", "progressive", "intervals", "fartlek")
+        duration_minutes: Duration in minutes (5-180)
+        intensity: Intensity level ("low", "moderate", "high")
+        genres: Optional comma-separated list of music genres (e.g., "rock,pop")
+        prompt: Optional music prompt/description
+
+    Returns:
+        Workout ID if created successfully, "error: <message>" if failed
+    """
+    try:
+        import json
+
+        # Map intensity to BPM ranges
+        intensity_to_bpm = {
+            "low": [110, 130],
+            "moderate": [130, 160],
+            "high": [160, 180],
+        }
+        hr_zones = intensity_to_bpm.get(intensity, [120, 150])
+
+        # Prepare workout data
+        workout_data = {
+            "user_id": user_id,
+            "type": workout_type,
+            "duration_minutes": duration_minutes,
+            "intensity": intensity,
+            "hr_zones": hr_zones,
+        }
+
+        # Add genres if provided
+        if genres:
+            genres_list = [g.strip() for g in genres.split(",") if g.strip()]
+            if genres_list:
+                workout_data["genres"] = genres_list
+
+        # Add prompt if provided
+        if prompt:
+            workout_data["prompt"] = prompt
+
+        # Insert workout
+        client = supabase_service.get_client()
+        result = (
+            client.table("workouts")
+            .insert(workout_data)
+            .execute()
+        )
+
+        if result.data and len(result.data) > 0:
+            workout_id = result.data[0]["id"]
+            logger.info(f"Created workout {workout_id} for user {user_id} from conversation params")
+            return workout_id
+        else:
+            return "error: Failed to create workout - no data returned"
+
+    except Exception as e:
+        logger.error(f"Error creating workout from params: {e}")
+        return f"error: {str(e)}"
+
+
+@tool
 def get_active_workout(user_id: str) -> str:
     """
     Get user's currently active workout.

@@ -1,5 +1,7 @@
-from typing import List, Optional, Literal
+from typing import List, Literal, Optional
+
 from pydantic import BaseModel, Field
+
 from .workout import Workout
 
 # The parameter the assistant is currently asking the user about

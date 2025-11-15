@@ -2,36 +2,21 @@
 Playlist Generator - Core algorithm for generating workout playlists.
 """
 from typing import List, Dict, Optional, Any
+import asyncio
+import math
+
 from app.models.workout import Workout
 from app.models.playlist import Track, PlaylistData
 from app.services.spotify_service import SpotifyService
-from app.core.config import settings
-from loguru import logger
-import asyncio
-import random
-import math
-
-# New import for the WorkoutProfiler
 from app.services.workout_profiler import WorkoutProfiler, WorkoutSegment
 from app.schemas.playlist import IntervalStage as IntervalStageSchema
-
-
-# Conditional import for LangChain MusicCuratorAgent
-MusicCuratorAgent = None
-if settings.USE_LANGCHAIN_CURATOR:
-    try:
-        from app.agents.curator import MusicCuratorAgent
-        logger.info("MusicCuratorAgent imported for PlaylistGenerator")
-    except ImportError as e:
-        logger.warning(f"MusicCuratorAgent not available: {e}")
-        MusicCuratorAgent = None
+from loguru import logger
 
 
 class PlaylistGenerator:
     """
-    Single-class playlist generator (simplified from 7 agents).
+    Playlist generator using WorkoutProfiler for dynamic playlist creation.
     Generates personalized workout playlists based on workout parameters.
-    Supports both legacy generation and LangChain MusicCuratorAgent.
     """
 
     def __init__(self, spotify: SpotifyService):
@@ -42,11 +27,7 @@ class PlaylistGenerator:
             spotify: SpotifyService instance
         """
         self.spotify = spotify
-        self.use_langchain_curator = False  # Disabled by default for new method
-
-        # The new profiler will be used instead of the langchain agent for now
-        # We can decide later how to integrate them if needed.
-        logger.info("PlaylistGenerator: Initializing with new WorkoutProfiler method.")
+        logger.info("PlaylistGenerator initialized with WorkoutProfiler method.")
 
 
     async def generate(

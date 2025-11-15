@@ -1,5 +1,6 @@
 """
-Prompts for WorkoutParserAgent.
+Prompts for parser tools and agents.
+Used by LangChain agents for workout intent parsing.
 """
 from langchain.output_parsers import PydanticOutputParser
 from app.schemas.llm_responses import WorkoutIntent
