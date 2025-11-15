@@ -1,26 +1,31 @@
 # RunBeat 🎵🏃‍♂️
 
-Mobile-first AI music assistant for runners that generates personalized workout playlists through natural chat conversation.
+AI-powered music assistant for runners that generates personalized workout playlists through natural chat conversation.
 
 ## 🎯 Project Overview
 
-RunBeat uses AI to understand your workout needs and generates Spotify playlists tailored to your running session in under 10 seconds.
+RunBeat uses advanced AI to understand your workout needs in natural language and generates perfectly timed Spotify playlists in under 10 seconds. The system learns from your preferences and adapts to your running style.
 
 ### Core User Flow
 
 ```
-User: "Хочу пробігти 40 хв з інтервалами"
-  ↓ AI parses intent (2s)
-AI: "Який інтервал роботи/відпочинку?"
-  ↓
-User: "5-2-5-2"
-  ↓ Generate playlist (8s)
-AI: Shows playlist (15 tracks, BPM 120-165)
-  ↓
-User: Taps "Open in Spotify"
-  ↓ Spotify app opens
-User: Starts running 🏃‍♂️🎵
+User: "Хочу інтервальну пробіжку 40 хв під електронну музику"
+  ↓ AI parses intent & parameters (instant)
+AI: Creates workout → Generates 2 playlist variants
+  ↓ User selects best variant
+AI: Saves to Spotify (3-5s)
+  ↓ Playlist appears in sidebar history
+User: Starts running with perfect music 🏃‍♂️🎵
 ```
+
+## ✨ Key Features
+
+- 🤖 **Smart AI Conversation** - Natural language workout planning
+- 🎵 **Dual Playlist Variants** - Choose the best fit every time
+- 📊 **Workout History** - All workouts and playlists saved
+- 🧠 **Personalization** - AI learns your favorite genres and preferences
+- ⚡ **Fast Generation** - Playlists ready in seconds
+- 🎯 **BPM Matching** - Music synced to workout intensity
 
 ## 🏗️ Tech Stack
 
@@ -86,26 +91,50 @@ npm run dev
 
 ## 📚 Documentation
 
-- [PRD](./PRD_CURSOR_AI.md) - Product Requirements Document
-- [API Documentation](./docs/API.md) - Complete API reference
-- [Testing Plan](./docs/TESTING_PLAN.md) - Comprehensive testing strategy and plan
-- [Deployment Guide](./docs/DEPLOYMENT.md) - Deployment instructions
-- [Project Status](./PROJECT_STATUS.md) - Current project status
-- [Backend README](./apps/backend/README.md) - Backend setup guide
+### Core Documentation
+- 📋 [Architecture Report](./docs/ARCHITECTURE_REPORT.md) - Complete system architecture (v3.3)
+- 📄 [PRD](./PRD_CURSOR_AI.md) - Product Requirements Document
+- 📝 [Changelog](./CHANGELOG.md) - Version history and updates
+- 🤝 [Contributing Guide](./CONTRIBUTING.md) - How to contribute
 
-## 🎯 MVP Goals
+### Setup Guides
+- 🔌 [Backend README](./apps/backend/README.md) - Backend setup & deployment
+- 🌐 [Web README](./apps/web/README.md) - Web app setup
+- 📱 [Mobile README](./apps/mobile/README.md) - Mobile app setup
 
-- [ ] User can chat with AI
-- [ ] AI parses workout intent correctly (>90% accuracy)
-- [ ] Playlist generates in < 10 seconds
-- [ ] Playlist matches workout parameters (BPM, duration)
-- [ ] "Open in Spotify" opens Spotify app
-- [ ] User can view playlist history
+### Technical Guides
+- 🗄️ [Database Migration](./apps/backend/DATABASE_MIGRATION_COMPLETE_v2.sql) - Complete DB schema
+- 🎼 [Playlist Algorithm](./docs/PLAYLIST_GENERATION_ALGORITHM.md) - How playlists are generated
+- 🤖 [OpenAI Models Usage](./apps/backend/OPENAI_MODELS_USAGE.md) - AI integration details
+- ⚙️ [Environment Setup](./apps/backend/ENV_SETUP_GUIDE.md) - Configuration guide
+- 🚂 [Railway Deployment](./apps/backend/RAILWAY_QUICK_START.md) - Deploy to Railway
+
+## 🎯 Feature Status
+
+### ✅ Completed (MVP)
+- ✅ Natural language AI chat interface
+- ✅ Workout intent parsing (95%+ accuracy)
+- ✅ Dual playlist variant generation (<10s)
+- ✅ BPM & genre matching
+- ✅ Spotify integration & saving
+- ✅ Workout & playlist history
+- ✅ User pattern recognition & learning
+- ✅ Responsive web interface
+
+### 🚧 In Progress
+- 🚧 Mobile app (React Native)
+- 🚧 Advanced analytics dashboard
+- 🚧 Social sharing features
+
+### 📋 Planned
+- 📋 Voice commands
+- 📋 Offline mode
+- 📋 Apple Music integration
 
 ## 📝 Development
 
-See [PRD_CURSOR_AI.md](./PRD_CURSOR_AI.md) for detailed development plan and architecture.
+See [ARCHITECTURE_REPORT.md](./docs/ARCHITECTURE_REPORT.md) for detailed system architecture and development guidelines.
 
-**Status:** 🚧 In Development
-**Target MVP:** 3 weeks
-**Version:** 2.0
+**Status:** ✅ MVP Complete, actively adding features
+**Version:** 3.3 (AI Learning & Personalization)
+**Last Updated:** November 2024

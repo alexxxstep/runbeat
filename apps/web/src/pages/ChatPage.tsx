@@ -9,11 +9,7 @@ import { PlaylistHistorySidebar } from '../components/Chat/PlaylistHistorySideba
 import { SettingsSidebar } from '../components/Chat/SettingsSidebar';
 import type { WorkoutSettings } from '../types/settings';
 import { api } from '../services/api';
-import type {
-  Workout,
-  PlaylistVariantsResponse,
-  Track,
-} from '../types';
+import type { Workout, PlaylistVariantsResponse, Track } from '../types';
 
 export function ChatPage() {
   const { user, spotifyAuthenticated } = useAuth();
@@ -50,7 +46,9 @@ export function ChatPage() {
   );
   const [loadingVariants, setLoadingVariants] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [excludedTrackIds, setExcludedTrackIds] = useState<Set<string>>(new Set());
+  const [excludedTrackIds, setExcludedTrackIds] = useState<Set<string>>(
+    new Set()
+  );
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle window resize for mobile/desktop sidebar state
@@ -68,7 +66,8 @@ export function ChatPage() {
   // Auto-scroll to bottom when messages or variants change
   useEffect(() => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
     }
   }, [messages, variants, isLoading, loadingVariants]);
 
@@ -93,7 +92,10 @@ export function ChatPage() {
         activeWorkout.id !== workout.id ||
         activeWorkoutId !== workout.id
       ) {
-        console.log('Found workout activation message, setting active workout:', workout);
+        console.log(
+          'Found workout activation message, setting active workout:',
+          workout
+        );
         setActiveWorkout(workout);
         if (workout.id) {
           setActiveWorkoutId(workout.id);
@@ -199,25 +201,20 @@ export function ChatPage() {
     try {
       // Use saved genres and interval_stages from workout if available
       let genresToUse = workoutSettings.genres;
-      let intervalStagesToUse =
-        workoutSettings.intervalStages?.map((stage) => ({
+      let intervalStagesToUse = workoutSettings.intervalStages?.map(
+        (stage) => ({
           name: stage.name,
           duration_minutes: stage.durationMinutes,
           hr_zone: stage.hrZone,
           bpm_range: stage.bpmRange,
-        }));
+        })
+      );
 
       // If workout was loaded from history, get saved parameters
       if (activeWorkoutId) {
         try {
-          const savedWorkout = await api.getWorkout(
-            activeWorkoutId,
-            user!.id
-          );
-          if (
-            savedWorkout.genres &&
-            savedWorkout.genres.length > 0
-          ) {
+          const savedWorkout = await api.getWorkout(activeWorkoutId, user!.id);
+          if (savedWorkout.genres && savedWorkout.genres.length > 0) {
             genresToUse = savedWorkout.genres;
           }
           if (
@@ -253,12 +250,11 @@ export function ChatPage() {
         user_id: user?.id,
         interval_stages: intervalStagesToUse,
         prompt: promptToUse,
-        excluded_track_ids: excludedIdsArray.length > 0 ? excludedIdsArray : undefined,
+        excluded_track_ids:
+          excludedIdsArray.length > 0 ? excludedIdsArray : undefined,
       };
       console.log('Sending request to previewPlaylistVariants:', request);
-      const variantsData = await api.previewPlaylistVariants(
-        request
-      );
+      const variantsData = await api.previewPlaylistVariants(request);
       console.log('Received variants data:', variantsData);
 
       // Validate response structure
@@ -273,8 +269,10 @@ export function ChatPage() {
 
       // Validate variants - check if they are empty
       if (
-        (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) &&
-        (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
+        (!variantsData.variant1.tracks ||
+          variantsData.variant1.tracks.length === 0) &&
+        (!variantsData.variant2.tracks ||
+          variantsData.variant2.tracks.length === 0)
       ) {
         console.error('Both variants are empty:', {
           variant1: variantsData.variant1,
@@ -287,13 +285,18 @@ export function ChatPage() {
 
       // Check if at least one variant has tracks
       if (
-        (!variantsData.variant1.tracks || variantsData.variant1.tracks.length === 0) ||
-        (!variantsData.variant2.tracks || variantsData.variant2.tracks.length === 0)
+        !variantsData.variant1.tracks ||
+        variantsData.variant1.tracks.length === 0 ||
+        !variantsData.variant2.tracks ||
+        variantsData.variant2.tracks.length === 0
       ) {
-        console.warn('One of the variants is empty, but continuing with available variant', {
-          variant1Tracks: variantsData.variant1.tracks?.length || 0,
-          variant2Tracks: variantsData.variant2.tracks?.length || 0,
-        });
+        console.warn(
+          'One of the variants is empty, but continuing with available variant',
+          {
+            variant1Tracks: variantsData.variant1.tracks?.length || 0,
+            variant2Tracks: variantsData.variant2.tracks?.length || 0,
+          }
+        );
       }
 
       // Update excluded track IDs with tracks from new variants
@@ -323,7 +326,10 @@ export function ChatPage() {
       console.log('Variants state set successfully');
     } catch (error) {
       console.error('Failed to generate variants:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Не вдалося згенерувати варіанти плейлисту';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Не вдалося згенерувати варіанти плейлисту';
       setLocalError(errorMessage);
 
       // Log error to backend
@@ -379,63 +385,66 @@ export function ChatPage() {
             }
           }}
           onWorkoutClick={async (workoutId) => {
-          try {
-            const workout = await api.getWorkout(workoutId, user!.id);
-            const workoutData: Workout = {
-              type: workout.type as Workout['type'],
-              duration_minutes: workout.duration_minutes,
-              intensity: workout.intensity as Workout['intensity'],
-              hr_zones: workout.hr_zones,
-            };
-            setActiveWorkout(workoutData);
-            setActiveWorkoutId(workoutId); // Set workout ID to prevent duplicate creation
-            setVariants(null); // Clear previous variants to allow re-generation
-            setExcludedTrackIds(new Set()); // Reset excluded tracks when selecting workout from history
+            try {
+              const workout = await api.getWorkout(workoutId, user!.id);
+              const workoutData: Workout = {
+                type: workout.type as Workout['type'],
+                duration_minutes: workout.duration_minutes,
+                intensity: workout.intensity as Workout['intensity'],
+                hr_zones: workout.hr_zones,
+              };
+              setActiveWorkout(workoutData);
+              setActiveWorkoutId(workoutId); // Set workout ID to prevent duplicate creation
+              setVariants(null); // Clear previous variants to allow re-generation
+              setExcludedTrackIds(new Set()); // Reset excluded tracks when selecting workout from history
 
-            // Update workout settings with saved genres and interval_stages
-            if (workout.genres && workout.genres.length > 0) {
-              setWorkoutSettings((prev) => ({
-                ...prev,
-                genres: workout.genres || [],
-              }));
-            }
-            if (workout.interval_stages && workout.interval_stages.length > 0) {
-              // Convert backend format to frontend format
-              const intervalStages = workout.interval_stages.map(
-                (stage: any, index: number) => ({
-                  id: `stage-${index}`,
-                  name: stage.name,
-                  durationMinutes: stage.duration_minutes,
-                  hrZone: stage.hr_zone,
-                  bpmRange: stage.bpm_range,
-                })
-              );
-              setWorkoutSettings((prev) => ({
-                ...prev,
-                intervalStages: intervalStages,
-              }));
-            }
-            if (workout.prompt) {
-              setWorkoutSettings((prev) => ({
-                ...prev,
-                prompt: workout.prompt || '',
-              }));
-            } else {
-              // Clear prompt if not in saved workout
-              setWorkoutSettings((prev) => ({
-                ...prev,
-                prompt: '',
-              }));
-            }
+              // Update workout settings with saved genres and interval_stages
+              if (workout.genres && workout.genres.length > 0) {
+                setWorkoutSettings((prev) => ({
+                  ...prev,
+                  genres: workout.genres || [],
+                }));
+              }
+              if (
+                workout.interval_stages &&
+                workout.interval_stages.length > 0
+              ) {
+                // Convert backend format to frontend format
+                const intervalStages = workout.interval_stages.map(
+                  (stage: any, index: number) => ({
+                    id: `stage-${index}`,
+                    name: stage.name,
+                    durationMinutes: stage.duration_minutes,
+                    hrZone: stage.hr_zone,
+                    bpmRange: stage.bpm_range,
+                  })
+                );
+                setWorkoutSettings((prev) => ({
+                  ...prev,
+                  intervalStages: intervalStages,
+                }));
+              }
+              if (workout.prompt) {
+                setWorkoutSettings((prev) => ({
+                  ...prev,
+                  prompt: workout.prompt || '',
+                }));
+              } else {
+                // Clear prompt if not in saved workout
+                setWorkoutSettings((prev) => ({
+                  ...prev,
+                  prompt: '',
+                }));
+              }
 
-            // Add AI message with workout parameters
-            addWorkoutActivationMessage(workoutData);
-            setShowPlaylistQuestion(true);
-          } catch (error) {
-            console.error('Failed to load workout:', error);
-            // Error logged to console - no alert shown
-          }
-        }}
+              // Add AI message with workout parameters
+              addWorkoutActivationMessage(workoutData);
+              setShowPlaylistQuestion(true);
+            } catch (error) {
+              console.error('Failed to load workout:', error);
+              // Error logged to console - no alert shown
+            }
+          }}
         />
       </div>
 
@@ -477,7 +486,10 @@ export function ChatPage() {
           </div>
         )}
 
-        <div ref={chatContainerRef} className='flex-1 overflow-y-auto p-2 md:p-4 space-y-4'>
+        <div
+          ref={chatContainerRef}
+          className='flex-1 overflow-y-auto p-2 md:p-4 space-y-4'
+        >
           {messages.length === 0 && (
             <div className='max-w-3xl mx-auto px-4 md:px-6 py-8 md:py-12'>
               <div className='text-center mb-8 md:mb-12'>
@@ -494,47 +506,122 @@ export function ChatPage() {
                   Як це працює
                 </h2>
 
-                <div className='space-y-4 md:space-y-6'>
+                <div className='space-y-3 md:space-y-4'>
                   {/* Step 1 */}
-                  <div className='bg-app-surface-light rounded-xl p-4 md:p-6 border-l-4 border-app-accent'>
-                    <div className='flex items-start gap-4'>
-                      <div className='flex-shrink-0 w-10 h-10 bg-app-accent text-white rounded-full flex items-center justify-center font-bold text-lg'>
+                  <div className='bg-app-surface-light rounded-xl p-4 border-l-4 border-app-accent'>
+                    <div className='flex items-start gap-3'>
+                      <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
                         1
                       </div>
                       <div className='flex-1 min-w-0'>
-                        <h3 className='text-headline font-semibold text-app-text mb-2'>
+                        <h3 className='text-headline font-semibold text-app-text mb-1'>
                           Опиши своє тренування
                         </h3>
-                        <p className='text-body text-app-text-secondary mb-3'>
-                          Просто напиши мені, що ти хочеш зробити. Я розумію природну мову! Наприклад:
+                        <p className='text-body text-app-text-secondary mb-2'>
+                          Просто напиши мені, що ти хочеш зробити. Я розумію
+                          природну мову! Наприклад:
                         </p>
-                        <ul className='list-disc list-inside space-y-1 text-body text-app-text-secondary ml-4 mb-3'>
+                        <ul className='list-disc list-inside space-y-1 text-subhead text-app-text-secondary ml-4'>
                           <li>"хочу легку пробіжку 30 хвилин"</li>
                           <li>"інтервали 40 хв, рок-музика"</li>
-                          <li>"фартлек 55 хв під електронну музику"</li>
-                          <li>"темповий біг 45 хв, енергійна музика для ранкового бігу"</li>
+                          <li>
+                            "темповий біг 45 хв, енергійна музика для ранкового
+                            бігу"
+                          </li>
                         </ul>
-                        <p className='text-body text-app-text-secondary'>
-                          Я можу розпізнати: тип тренування (стабільна, інтервальна, фартлек),
-                          тривалість, інтенсивність (легка, середня, висока),
-                          та музичні побажання (жанри, опис).
-                        </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Step 2 */}
-                  <div className='bg-app-surface-light rounded-xl p-4 md:p-6 border-l-4 border-app-accent'>
-                    <div className='flex items-start gap-4'>
-                      <div className='flex-shrink-0 w-10 h-10 bg-app-accent text-white rounded-full flex items-center justify-center font-bold text-lg'>
+                  <div className='bg-app-surface-light rounded-xl p-4 border-l-4 border-app-accent'>
+                    <div className='flex items-start gap-3'>
+                      <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
                         2
                       </div>
                       <div className='flex-1 min-w-0'>
-                        <h3 className='text-headline font-semibold text-app-text mb-2'>
+                        <h3 className='text-headline font-semibold text-app-text mb-1'>
                           Я задам уточнюючі питання (якщо потрібно)
                         </h3>
                         <p className='text-body text-app-text-secondary'>
-                          Якщо мені потрібна додаткова інформація, я запитаю. Наприклад: "Який інтервал роботи/відпочинку?" або "Яка інтенсивність?". Просто відповідай на мої питання.
+                          Якщо мені потрібна додаткова інформація, я запитаю.
+                          Просто відповідай на мої питання.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 3 */}
+                  <div className='bg-app-surface-light rounded-xl p-4 border-l-4 border-app-accent'>
+                    <div className='flex items-start gap-3'>
+                      <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
+                        3
+                      </div>
+                      <div className='flex-1 min-w-0'>
+                        <h3 className='text-headline font-semibold text-app-text mb-1'>
+                          Створюю тренування і генерую плейлист
+                        </h3>
+                        <p className='text-body text-app-text-secondary'>
+                          Після підтвердження я створю workout і згенерую 2
+                          варіанти плейлиста, підібравши треки за BPM і жанрами.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 4 */}
+                  <div className='bg-app-surface-light rounded-xl p-4 border-l-4 border-app-accent'>
+                    <div className='flex items-start gap-3'>
+                      <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
+                        4
+                      </div>
+                      <div className='flex-1 min-w-0'>
+                        <h3 className='text-headline font-semibold text-app-text mb-1'>
+                          Обери плейлист і збережи в Spotify
+                        </h3>
+                        <p className='text-body text-app-text-secondary'>
+                          Вибери кращий варіант, переглянь треки, виключи
+                          небажані. Збережи готовий плейлист у свій Spotify
+                          одним кліком!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 5 */}
+                  <div className='bg-app-surface-light rounded-xl p-4 border-l-4 border-app-accent'>
+                    <div className='flex items-start gap-3'>
+                      <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
+                        5
+                      </div>
+                      <div className='flex-1 min-w-0'>
+                        <h3 className='text-headline font-semibold text-app-text mb-1'>
+                          Використовуй праву панель історії
+                        </h3>
+                        <p className='text-body text-app-text-secondary'>
+                          У правій панелі зберігаються всі твої воркаути і
+                          плейлисти. Натисни на workout - він стане активним.
+                          Натисни на playlist - відкриється в Spotify або покаже
+                          деталі.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 6 */}
+                  <div className='bg-app-surface-light rounded-xl p-4 border-l-4 border-app-accent'>
+                    <div className='flex items-start gap-3'>
+                      <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
+                        6
+                      </div>
+                      <div className='flex-1 min-w-0'>
+                        <h3 className='text-headline font-semibold text-app-text mb-1'>
+                          Створюй нові плейлисти для старих workout
+                        </h3>
+                        <p className='text-body text-app-text-secondary'>
+                          Вибери workout з історії і згенеруй для нього новий
+                          плейлист. Параметри (жанри, тривалість, інтенсивність)
+                          збережуться!
                         </p>
                       </div>
                     </div>
@@ -565,63 +652,75 @@ export function ChatPage() {
 
           {/* Show buttons for workout confirmation or playlist generation */}
           {/* Hide buttons if playlist is already generated (variants exist or playlist in messages) */}
-          {activeWorkout && showPlaylistQuestion && !variants && !messages.some(m => m.playlist?.spotify_url || m.playlist?.playlist_id) && (
-            <div className='max-w-2xl mx-auto flex justify-start mb-4 px-2 md:px-0'>
-              <div className='flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto'>
-                {activeWorkoutId ? (
-                  // Workout already created - show button to generate playlist
-                  <button
-                    onClick={generateVariants}
-                    disabled={loadingVariants}
-                    className='px-6 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
-                  >
-                    {loadingVariants ? 'Генерація...' : 'Так, згенерувати плейлист'}
-                  </button>
-                ) : (
-                  // Workout not created yet - show buttons to confirm creation
-                  <>
+          {activeWorkout &&
+            showPlaylistQuestion &&
+            !variants &&
+            !messages.some(
+              (m) => m.playlist?.spotify_url || m.playlist?.playlist_id
+            ) && (
+              <div className='max-w-2xl mx-auto flex justify-start mb-4 px-2 md:px-0'>
+                <div className='flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto'>
+                  {activeWorkoutId ? (
+                    // Workout already created - show button to generate playlist
                     <button
-                      onClick={async () => {
-                        // Send "Да" to chat to confirm workout creation
-                        const confirmedWorkout = await sendMessage('Да', user?.id);
-                        if (confirmedWorkout && confirmedWorkout.id) {
-                          // Workout created, now show playlist generation option
-                          setActiveWorkoutId(confirmedWorkout.id);
-                          setActiveWorkout(confirmedWorkout);
-                          // Refresh workout history to show new workout
-                          setRefreshTrigger((prev) => prev + 1);
-                        }
-                      }}
-                    disabled={isLoading}
-                    className='px-6 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
-                  >
-                    {isLoading ? 'Створення...' : 'Так'}
-                  </button>
-                  <button
-                    onClick={async () => {
-                      // Send "Ні" to chat to decline workout creation
-                      await sendMessage('Ні', user?.id);
-                      setShowPlaylistQuestion(false);
-                      setActiveWorkout(null);
-                      setActiveWorkoutId(null);
-                    }}
-                    disabled={isLoading}
-                    className='px-6 py-3 bg-app-surface text-app-text border border-app-border rounded-xl hover:bg-app-surface-light transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
-                  >
-                    Ні
-                  </button>
-                  </>
-                )}
+                      onClick={generateVariants}
+                      disabled={loadingVariants}
+                      className='px-6 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
+                    >
+                      {loadingVariants
+                        ? 'Генерація...'
+                        : 'Так, згенерувати плейлист'}
+                    </button>
+                  ) : (
+                    // Workout not created yet - show buttons to confirm creation
+                    <>
+                      <button
+                        onClick={async () => {
+                          // Send "Да" to chat to confirm workout creation
+                          const confirmedWorkout = await sendMessage(
+                            'Да',
+                            user?.id
+                          );
+                          if (confirmedWorkout && confirmedWorkout.id) {
+                            // Workout created, now show playlist generation option
+                            setActiveWorkoutId(confirmedWorkout.id);
+                            setActiveWorkout(confirmedWorkout);
+                            // Refresh workout history to show new workout
+                            setRefreshTrigger((prev) => prev + 1);
+                          }
+                        }}
+                        disabled={isLoading}
+                        className='px-6 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
+                      >
+                        {isLoading ? 'Створення...' : 'Так'}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          // Send "Ні" to chat to decline workout creation
+                          await sendMessage('Ні', user?.id);
+                          setShowPlaylistQuestion(false);
+                          setActiveWorkout(null);
+                          setActiveWorkoutId(null);
+                        }}
+                        disabled={isLoading}
+                        className='px-6 py-3 bg-app-surface text-app-text border border-app-border rounded-xl hover:bg-app-surface-light transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
+                      >
+                        Ні
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Show track variants for selection */}
           {variants && (
             <div className='max-w-4xl mx-auto space-y-4 px-2 md:px-0'>
               {/* Check if both variants are empty */}
-              {(!variants.variant1?.tracks || variants.variant1.tracks.length === 0) &&
-               (!variants.variant2?.tracks || variants.variant2.tracks.length === 0) ? (
+              {(!variants.variant1?.tracks ||
+                variants.variant1.tracks.length === 0) &&
+              (!variants.variant2?.tracks ||
+                variants.variant2.tracks.length === 0) ? (
                 <div className='bg-red-900/20 border border-red-800 rounded-xl p-4'>
                   <p className='text-red-400 font-semibold text-body'>
                     ❌ Помилка: Не вдалося згенерувати варіанти плейлистів
@@ -636,253 +735,316 @@ export function ChatPage() {
                     <li>Занадто вузький діапазон BPM</li>
                   </ul>
                   <p className='text-red-300 text-subhead mt-2'>
-                    Спробуйте змінити параметри воркауту або додати жанри музики.
+                    Спробуйте змінити параметри воркауту або додати жанри
+                    музики.
                   </p>
                 </div>
               ) : (
                 <>
-              <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6'>
-                <h3 className='text-headline font-semibold text-app-text'>
-                  Оберіть варіант плейлисту:
-                </h3>
-                <button
-                  onClick={generateVariants}
-                  disabled={loadingVariants}
-                  className='px-4 py-2.5 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold text-subhead disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto'
-                >
-                  {loadingVariants ? 'Генерація...' : 'Згенерувати ще'}
-                </button>
-              </div>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                {/* Variant 1 */}
-                <div className='bg-app-surface rounded-xl p-4 border-2 border-app-accent'>
-                  <h4 className='text-headline font-semibold text-app-text mb-3'>
-                    Варіант 1
-                  </h4>
-                  <div className='text-subhead text-app-text-secondary mb-4'>
-                    <p>{variants.variant1.total_tracks} треків</p>
-                    <p>
-                      {Math.round(variants.variant1.total_duration / 60)} хв
-                    </p>
+                  <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6'>
+                    <h3 className='text-headline font-semibold text-app-text'>
+                      Оберіть варіант плейлисту:
+                    </h3>
+                    <button
+                      onClick={generateVariants}
+                      disabled={loadingVariants}
+                      className='px-4 py-2.5 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold text-subhead disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto'
+                    >
+                      {loadingVariants ? 'Генерація...' : 'Згенерувати ще'}
+                    </button>
                   </div>
-                  <div className='max-h-48 md:max-h-64 overflow-y-auto mb-2 md:mb-3'>
-                    <div className='hidden md:block'>
-                      <table className='w-full text-xs'>
-                        <thead className='bg-gray-100 dark:bg-gray-700'>
-                          <tr>
-                            <th className='p-2 text-left'>№</th>
-                            <th className='p-2 text-left'>Назва</th>
-                            <th className='p-2 text-left'>Виконавець</th>
-                            <th className='p-2 text-left'>Тривалість</th>
-                          </tr>
-                        </thead>
-                      <tbody>
-                        {variants.variant1.tracks && variants.variant1.tracks.length > 0 ? (
-                          variants.variant1.tracks.map(
-                            (track: Track, index: number) => (
-                            <tr
-                              key={track.id}
-                              className='border-b border-gray-200 dark:border-gray-700'
-                            >
-                              <td className='p-2'>{index + 1}</td>
-                              <td className='p-2'>{track.name}</td>
-                              <td className='p-2'>{track.artist}</td>
-                              <td className='p-2'>
-                                {Math.floor(track.duration_ms / 60000)}:
-                                {String(
-                                  Math.floor((track.duration_ms % 60000) / 1000)
-                                ).padStart(2, '0')}
-                              </td>
-                            </tr>
-                          )
-                        )
-                        ) : (
-                          <tr>
-                            <td colSpan={4} className='p-4 text-center text-gray-500 dark:text-gray-400'>
+                  <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                    {/* Variant 1 */}
+                    <div className='bg-app-surface rounded-xl p-4 border-2 border-app-accent'>
+                      <h4 className='text-headline font-semibold text-app-text mb-3'>
+                        Варіант 1
+                      </h4>
+                      <div className='text-subhead text-app-text-secondary mb-4'>
+                        <p>{variants.variant1.total_tracks} треків</p>
+                        <p>
+                          {Math.round(variants.variant1.total_duration / 60)} хв
+                        </p>
+                      </div>
+                      <div className='max-h-48 md:max-h-64 overflow-y-auto mb-2 md:mb-3'>
+                        <div className='hidden md:block'>
+                          <table className='w-full text-xs'>
+                            <thead className='bg-gray-100 dark:bg-gray-700'>
+                              <tr>
+                                <th className='p-2 text-left'>№</th>
+                                <th className='p-2 text-left'>Назва</th>
+                                <th className='p-2 text-left'>Виконавець</th>
+                                <th className='p-2 text-left'>Тривалість</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {variants.variant1.tracks &&
+                              variants.variant1.tracks.length > 0 ? (
+                                variants.variant1.tracks.map(
+                                  (track: Track, index: number) => (
+                                    <tr
+                                      key={track.id}
+                                      className='border-b border-gray-200 dark:border-gray-700'
+                                    >
+                                      <td className='p-2'>{index + 1}</td>
+                                      <td className='p-2'>{track.name}</td>
+                                      <td className='p-2'>{track.artist}</td>
+                                      <td className='p-2'>
+                                        {Math.floor(track.duration_ms / 60000)}:
+                                        {String(
+                                          Math.floor(
+                                            (track.duration_ms % 60000) / 1000
+                                          )
+                                        ).padStart(2, '0')}
+                                      </td>
+                                    </tr>
+                                  )
+                                )
+                              ) : (
+                                <tr>
+                                  <td
+                                    colSpan={4}
+                                    className='p-4 text-center text-gray-500 dark:text-gray-400'
+                                  >
+                                    Немає треків у цьому варіанті
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                        {/* Mobile view - list format */}
+                        <div className='md:hidden space-y-2'>
+                          {variants.variant1.tracks &&
+                          variants.variant1.tracks.length > 0 ? (
+                            variants.variant1.tracks.map(
+                              (track: Track, index: number) => (
+                                <div
+                                  key={track.id}
+                                  className='p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs'
+                                >
+                                  <div className='font-medium truncate'>
+                                    {index + 1}. {track.name}
+                                  </div>
+                                  <div className='text-gray-600 dark:text-gray-400 truncate'>
+                                    {track.artist}
+                                  </div>
+                                  <div className='text-gray-500 dark:text-gray-500 text-[10px]'>
+                                    {Math.floor(track.duration_ms / 60000)}:
+                                    {String(
+                                      Math.floor(
+                                        (track.duration_ms % 60000) / 1000
+                                      )
+                                    ).padStart(2, '0')}
+                                  </div>
+                                </div>
+                              )
+                            )
+                          ) : (
+                            <div className='p-4 text-center text-app-text-tertiary text-subhead'>
                               Немає треків у цьому варіанті
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                    </div>
-                    {/* Mobile view - list format */}
-                    <div className='md:hidden space-y-2'>
-                      {variants.variant1.tracks && variants.variant1.tracks.length > 0 ? (
-                        variants.variant1.tracks.map((track: Track, index: number) => (
-                          <div
-                            key={track.id}
-                            className='p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs'
-                          >
-                            <div className='font-medium truncate'>{index + 1}. {track.name}</div>
-                            <div className='text-gray-600 dark:text-gray-400 truncate'>{track.artist}</div>
-                            <div className='text-gray-500 dark:text-gray-500 text-[10px]'>
-                              {Math.floor(track.duration_ms / 60000)}:
-                              {String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}
                             </div>
-                          </div>
-                        ))
+                          )}
+                        </div>
+                      </div>
+                      {variants.variant1.tracks &&
+                      variants.variant1.tracks.length > 0 ? (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const playlist = await generatePlaylist(
+                                activeWorkout!,
+                                user?.id,
+                                workoutSettings.genres,
+                                workoutSettings.intervalStages,
+                                workoutSettings.prompt,
+                                activeWorkoutId,
+                                variants.variant1.tracks // Pass selected variant tracks
+                              );
+                              setVariants(null);
+                              setActiveWorkout(null);
+                              setActiveWorkoutId(null);
+                              setShowPlaylistQuestion(false); // Hide buttons after playlist is created
+                              // Refresh history after successful generation
+                              if (
+                                playlist?.spotify_url ||
+                                playlist?.playlist_id
+                              ) {
+                                // Refresh once after a short delay to ensure data is saved
+                                setTimeout(() => {
+                                  setRefreshTrigger((prev) => prev + 1);
+                                }, 500);
+                              }
+                            } catch (error) {
+                              console.error(
+                                'Failed to generate playlist:',
+                                error
+                              );
+                            }
+                          }}
+                          className='w-full px-4 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold text-body'
+                        >
+                          Обрати цей варіант
+                        </button>
                       ) : (
-                        <div className='p-4 text-center text-app-text-tertiary text-subhead'>
-                          Немає треків у цьому варіанті
+                        <div className='w-full px-4 py-3 bg-app-surface text-app-text-tertiary rounded-xl text-center font-semibold cursor-not-allowed text-body border border-app-border'>
+                          Варіант недоступний
                         </div>
                       )}
                     </div>
-                  </div>
-                  {variants.variant1.tracks && variants.variant1.tracks.length > 0 ? (
-                  <button
-                    onClick={async () => {
-                      try {
-                        const playlist = await generatePlaylist(
-                          activeWorkout!,
-                          user?.id,
-                          workoutSettings.genres,
-                          workoutSettings.intervalStages,
-                          workoutSettings.prompt,
-                          activeWorkoutId,
-                          variants.variant1.tracks // Pass selected variant tracks
-                        );
-                        setVariants(null);
-                        setActiveWorkout(null);
-                        setActiveWorkoutId(null);
-                        setShowPlaylistQuestion(false); // Hide buttons after playlist is created
-                        // Refresh history after successful generation
-                        if (playlist?.spotify_url || playlist?.playlist_id) {
-                          // Refresh once after a short delay to ensure data is saved
-                          setTimeout(() => {
-                            setRefreshTrigger((prev) => prev + 1);
-                          }, 500);
-                        }
-                      } catch (error) {
-                        console.error('Failed to generate playlist:', error);
-                      }
-                    }}
-                    className='w-full px-4 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold text-body'
-                  >
-                    Обрати цей варіант
-                  </button>
-                  ) : (
-                    <div className='w-full px-4 py-3 bg-app-surface text-app-text-tertiary rounded-xl text-center font-semibold cursor-not-allowed text-body border border-app-border'>
-                      Варіант недоступний
-                    </div>
-                  )}
-                </div>
 
-                {/* Variant 2 */}
-                <div className='bg-app-surface rounded-xl p-4 border-2 border-app-accent'>
-                  <h4 className='text-headline font-semibold text-app-text mb-3'>
-                    Варіант 2
-                  </h4>
-                  <div className='text-subhead text-app-text-secondary mb-4'>
-                    <p>{variants.variant2.total_tracks} треків</p>
-                    <p>
-                      {Math.round(variants.variant2.total_duration / 60)} хв
-                    </p>
-                  </div>
-                  <div className='max-h-48 md:max-h-64 overflow-y-auto mb-4'>
-                    <div className='hidden md:block'>
-                      <table className='w-full text-subhead'>
-                        <thead className='bg-app-surface-light'>
-                          <tr>
-                            <th className='p-2 text-left text-app-text-secondary'>№</th>
-                            <th className='p-2 text-left text-app-text-secondary'>Назва</th>
-                            <th className='p-2 text-left text-app-text-secondary'>Виконавець</th>
-                            <th className='p-2 text-left text-app-text-secondary'>Тривалість</th>
-                          </tr>
-                        </thead>
-                      <tbody>
-                        {variants.variant2.tracks && variants.variant2.tracks.length > 0 ? (
-                          variants.variant2.tracks.map(
-                            (track: Track, index: number) => (
-                            <tr
-                              key={track.id}
-                              className='border-b border-app-border'
-                            >
-                              <td className='p-2 text-app-text-secondary'>{index + 1}</td>
-                              <td className='p-2 text-app-text'>{track.name}</td>
-                              <td className='p-2 text-app-text-secondary'>{track.artist}</td>
-                              <td className='p-2 text-app-text-secondary'>
-                                {Math.floor(track.duration_ms / 60000)}:
-                                {String(
-                                  Math.floor((track.duration_ms % 60000) / 1000)
-                                ).padStart(2, '0')}
-                              </td>
-                            </tr>
-                          )
-                        )
-                        ) : (
-                          <tr>
-                            <td colSpan={4} className='p-4 text-center text-app-text-tertiary'>
+                    {/* Variant 2 */}
+                    <div className='bg-app-surface rounded-xl p-4 border-2 border-app-accent'>
+                      <h4 className='text-headline font-semibold text-app-text mb-3'>
+                        Варіант 2
+                      </h4>
+                      <div className='text-subhead text-app-text-secondary mb-4'>
+                        <p>{variants.variant2.total_tracks} треків</p>
+                        <p>
+                          {Math.round(variants.variant2.total_duration / 60)} хв
+                        </p>
+                      </div>
+                      <div className='max-h-48 md:max-h-64 overflow-y-auto mb-4'>
+                        <div className='hidden md:block'>
+                          <table className='w-full text-subhead'>
+                            <thead className='bg-app-surface-light'>
+                              <tr>
+                                <th className='p-2 text-left text-app-text-secondary'>
+                                  №
+                                </th>
+                                <th className='p-2 text-left text-app-text-secondary'>
+                                  Назва
+                                </th>
+                                <th className='p-2 text-left text-app-text-secondary'>
+                                  Виконавець
+                                </th>
+                                <th className='p-2 text-left text-app-text-secondary'>
+                                  Тривалість
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {variants.variant2.tracks &&
+                              variants.variant2.tracks.length > 0 ? (
+                                variants.variant2.tracks.map(
+                                  (track: Track, index: number) => (
+                                    <tr
+                                      key={track.id}
+                                      className='border-b border-app-border'
+                                    >
+                                      <td className='p-2 text-app-text-secondary'>
+                                        {index + 1}
+                                      </td>
+                                      <td className='p-2 text-app-text'>
+                                        {track.name}
+                                      </td>
+                                      <td className='p-2 text-app-text-secondary'>
+                                        {track.artist}
+                                      </td>
+                                      <td className='p-2 text-app-text-secondary'>
+                                        {Math.floor(track.duration_ms / 60000)}:
+                                        {String(
+                                          Math.floor(
+                                            (track.duration_ms % 60000) / 1000
+                                          )
+                                        ).padStart(2, '0')}
+                                      </td>
+                                    </tr>
+                                  )
+                                )
+                              ) : (
+                                <tr>
+                                  <td
+                                    colSpan={4}
+                                    className='p-4 text-center text-app-text-tertiary'
+                                  >
+                                    Немає треків у цьому варіанті
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                        {/* Mobile view - list format */}
+                        <div className='md:hidden space-y-2'>
+                          {variants.variant2.tracks &&
+                          variants.variant2.tracks.length > 0 ? (
+                            variants.variant2.tracks.map(
+                              (track: Track, index: number) => (
+                                <div
+                                  key={track.id}
+                                  className='p-3 bg-app-surface-light rounded-lg border border-app-border'
+                                >
+                                  <div className='font-medium truncate text-app-text'>
+                                    {index + 1}. {track.name}
+                                  </div>
+                                  <div className='text-app-text-secondary truncate text-subhead'>
+                                    {track.artist}
+                                  </div>
+                                  <div className='text-app-text-tertiary text-caption'>
+                                    {Math.floor(track.duration_ms / 60000)}:
+                                    {String(
+                                      Math.floor(
+                                        (track.duration_ms % 60000) / 1000
+                                      )
+                                    ).padStart(2, '0')}
+                                  </div>
+                                </div>
+                              )
+                            )
+                          ) : (
+                            <div className='p-4 text-center text-app-text-tertiary text-subhead'>
                               Немає треків у цьому варіанті
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                    </div>
-                    {/* Mobile view - list format */}
-                    <div className='md:hidden space-y-2'>
-                      {variants.variant2.tracks && variants.variant2.tracks.length > 0 ? (
-                        variants.variant2.tracks.map((track: Track, index: number) => (
-                          <div
-                            key={track.id}
-                            className='p-3 bg-app-surface-light rounded-lg border border-app-border'
-                          >
-                            <div className='font-medium truncate text-app-text'>{index + 1}. {track.name}</div>
-                            <div className='text-app-text-secondary truncate text-subhead'>{track.artist}</div>
-                            <div className='text-app-text-tertiary text-caption'>
-                              {Math.floor(track.duration_ms / 60000)}:
-                              {String(Math.floor((track.duration_ms % 60000) / 1000)).padStart(2, '0')}
                             </div>
-                          </div>
-                        ))
+                          )}
+                        </div>
+                      </div>
+                      {variants.variant2.tracks &&
+                      variants.variant2.tracks.length > 0 ? (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const playlist = await generatePlaylist(
+                                activeWorkout!,
+                                user?.id,
+                                workoutSettings.genres,
+                                workoutSettings.intervalStages,
+                                workoutSettings.prompt,
+                                activeWorkoutId,
+                                variants.variant2.tracks // Pass selected variant tracks
+                              );
+                              setVariants(null);
+                              setActiveWorkout(null);
+                              setActiveWorkoutId(null);
+                              setShowPlaylistQuestion(false); // Hide buttons after playlist is created
+                              // Refresh history after successful generation
+                              if (
+                                playlist?.spotify_url ||
+                                playlist?.playlist_id
+                              ) {
+                                // Refresh once after a short delay to ensure data is saved
+                                setTimeout(() => {
+                                  setRefreshTrigger((prev) => prev + 1);
+                                }, 500);
+                              }
+                            } catch (error) {
+                              console.error(
+                                'Failed to generate playlist:',
+                                error
+                              );
+                            }
+                          }}
+                          className='w-full px-4 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold text-body'
+                        >
+                          Обрати цей варіант
+                        </button>
                       ) : (
-                        <div className='p-4 text-center text-app-text-tertiary text-subhead'>
-                          Немає треків у цьому варіанті
+                        <div className='w-full px-4 py-3 bg-app-surface text-app-text-tertiary rounded-xl text-center font-semibold cursor-not-allowed text-body border border-app-border'>
+                          Варіант недоступний
                         </div>
                       )}
                     </div>
                   </div>
-                  {variants.variant2.tracks && variants.variant2.tracks.length > 0 ? (
-                  <button
-                    onClick={async () => {
-                      try {
-                        const playlist = await generatePlaylist(
-                          activeWorkout!,
-                          user?.id,
-                          workoutSettings.genres,
-                          workoutSettings.intervalStages,
-                          workoutSettings.prompt,
-                          activeWorkoutId,
-                          variants.variant2.tracks // Pass selected variant tracks
-                        );
-                        setVariants(null);
-                        setActiveWorkout(null);
-                        setActiveWorkoutId(null);
-                        setShowPlaylistQuestion(false); // Hide buttons after playlist is created
-                        // Refresh history after successful generation
-                        if (playlist?.spotify_url || playlist?.playlist_id) {
-                          // Refresh once after a short delay to ensure data is saved
-                          setTimeout(() => {
-                            setRefreshTrigger((prev) => prev + 1);
-                          }, 500);
-                        }
-                      } catch (error) {
-                        console.error('Failed to generate playlist:', error);
-                      }
-                    }}
-                    className='w-full px-4 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold text-body'
-                  >
-                    Обрати цей варіант
-                  </button>
-                  ) : (
-                    <div className='w-full px-4 py-3 bg-app-surface text-app-text-tertiary rounded-xl text-center font-semibold cursor-not-allowed text-body border border-app-border'>
-                      Варіант недоступний
-                    </div>
-                  )}
-                </div>
-              </div>
-              </>
+                </>
               )}
             </div>
           )}

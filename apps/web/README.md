@@ -50,12 +50,30 @@ Set the following environment variables in `.env`:
 
 ## 📱 Features
 
-- ✅ Chat interface with AI
-- ✅ Playlist generation
-- ✅ Spotify integration
-- ✅ Workout history
-- ✅ User preferences
-- ✅ Responsive design with Tailwind CSS
+### Core Features
+- ✅ **AI Chat Interface** - Natural language workout planning
+- ✅ **Dual Playlist Variants** - Choose between 2 generated options
+- ✅ **Spotify Integration** - Save playlists directly to Spotify
+- ✅ **Workout History Panel** - View and reuse past workouts
+- ✅ **Playlist History** - Access all your generated playlists
+- ✅ **Track Management** - Exclude unwanted tracks, regenerate variants
+- ✅ **Responsive Design** - Works on mobile, tablet, and desktop
+
+### User Experience
+- 🎯 **6-Step User Flow**
+  1. Describe workout in natural language
+  2. AI asks clarifying questions if needed
+  3. AI creates workout & generates 2 playlist variants
+  4. Choose best variant, exclude unwanted tracks
+  5. Use history panel to activate past workouts
+  6. Generate new playlists for old workouts
+
+### Technical Features
+- ⚡ Real-time chat with streaming responses
+- 🎨 Dark/Light theme support
+- 📱 Mobile-optimized sidebar navigation
+- 🔄 Automatic history refresh on workout/playlist creation
+- ❌ Error handling with user-friendly messages
 
 ## 🧪 Development
 
@@ -72,9 +90,25 @@ npm run preview
 
 ## 🎨 Styling
 
-This project uses Tailwind CSS for styling. Configuration is in `tailwind.config.js`.
+This project uses:
+- **Tailwind CSS** - Utility-first CSS framework
+- **Custom Design Tokens** - See `tailwind.config.js` for theme
+- **Responsive Breakpoints** - Mobile-first approach
+- **Dark Mode Support** - Automatic theme switching
 
 ## 📚 Documentation
 
-See [PRD_CURSOR_AI.md](../../PRD_CURSOR_AI.md) for full project documentation.
+- [Architecture Report](../../docs/ARCHITECTURE_REPORT.md) - Complete system architecture
+- [PRD](../../PRD_CURSOR_AI.md) - Product Requirements Document
+- [Frontend Section](../../docs/ARCHITECTURE_REPORT.md#frontend-архітектура) - Detailed frontend docs
+
+## 🔧 Tech Stack
+
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+- **Tailwind CSS** - Styling
+- **Zustand** - State management
+- **React Router v6** - Routing
+- **Axios** - HTTP client
 

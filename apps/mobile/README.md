@@ -58,11 +58,19 @@ Set the following environment variables in `.env`:
 
 ## 📱 Features
 
-- ✅ Chat interface with AI
-- ✅ Playlist generation
-- ✅ Spotify integration
-- ✅ Workout history
-- ✅ User preferences
+### Core Features
+- ✅ **AI Chat Interface** - Natural language workout planning
+- ✅ **Dual Playlist Variants** - Choose between 2 generated options
+- ✅ **Spotify Integration** - Save playlists directly to Spotify
+- ✅ **Workout History** - View and reuse past workouts
+- ✅ **Playlist History** - Access all your generated playlists
+- ✅ **Native Performance** - Smooth animations and gestures
+
+### Mobile-Specific
+- 📱 Native navigation with React Navigation v6
+- 🎨 Platform-specific UI (iOS/Android)
+- ⚡ Optimized for mobile performance
+- 🔔 Push notifications (planned)
 
 ## 🧪 Development
 
@@ -75,9 +83,23 @@ npm run android
 
 # Run on Web
 npm run web
+
+# Start with tunnel for testing on real device
+npx expo start --tunnel
 ```
+
+## 🔧 Tech Stack
+
+- **React Native 0.73** - Mobile framework
+- **Expo SDK 49** - Development platform
+- **TypeScript** - Type safety
+- **Zustand** - State management
+- **React Navigation v6** - Navigation
+- **Axios** - HTTP client
 
 ## 📚 Documentation
 
-See [PRD_CURSOR_AI.md](../../PRD_CURSOR_AI.md) for full project documentation.
+- [Architecture Report](../../docs/ARCHITECTURE_REPORT.md) - Complete system architecture
+- [PRD](../../PRD_CURSOR_AI.md) - Product Requirements Document
+- [Mobile Section](../../docs/ARCHITECTURE_REPORT.md#mobile-app-архітектура) - Detailed mobile docs
 
