@@ -194,15 +194,17 @@ export function SettingsSidebar({
       className={`bg-app-surface border-l border-app-border flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass}`}
     >
       {/* Header */}
-      <div className={`${collapsed ? 'p-2' : 'p-4'} border-b border-app-border flex ${collapsed ? 'justify-center' : 'justify-between'} items-center flex-shrink-0`}>
-        <h2
-          className={`text-title-2 font-display font-bold text-app-text transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
-        >
-          Воркаут
-        </h2>
+      <div className={`${collapsed ? 'p-2' : 'p-4'} border-b border-app-border flex ${collapsed ? 'justify-center' : 'justify-between'} items-center flex-shrink-0 relative`}>
+        {!collapsed && (
+          <h2
+            className={`text-title-2 font-display font-bold text-app-text transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
+          >
+            Воркаут
+          </h2>
+        )}
         <button
           onClick={onToggleCollapse}
-          className={`${collapsed ? 'p-2 w-full' : 'p-2'} hover:bg-app-surface-light rounded-full transition-all duration-300 ease-in-out flex-shrink-0`}
+          className={`${collapsed ? 'p-2 w-full flex justify-center' : 'p-2'} hover:bg-app-surface-light rounded-full transition-all duration-300 ease-in-out flex-shrink-0 z-10`}
           title={collapsed ? 'Розгорнути' : 'Згорнути'}
         >
           <svg
