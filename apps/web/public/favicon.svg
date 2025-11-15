@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
   <defs>
     <linearGradient id="heartGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ff1e56;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#e91e63;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#FF6B35;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF8C42;stop-opacity:1" />
     </linearGradient>
   </defs>
 
-  <!-- Green background circle (Spotify green #1DB954) -->
-  <circle cx="50" cy="50" r="48" fill="#1DB954" stroke="#1ed760" stroke-width="2"/>
+  <!-- Dark background circle -->
+  <circle cx="50" cy="50" r="48" fill="#1A1A1A" stroke="#2A2A2A" stroke-width="2"/>
 
-  <!-- Red heart - reduced by 20%, shifted down, convex with smooth rounded sides -->
+  <!-- Orange heart - reduced by 20%, shifted down, convex with smooth rounded sides -->
   <path d="M 50 38
            C 50 38 34 30 23 36
            C 15 40 12 46 13 52
@@ -23,17 +23,17 @@
            C 66 30 50 38 50 38
            Z"
         fill="url(#heartGradient)"
-        stroke="#ffffff"
-        stroke-width="2.5"
+        stroke="#FF6B35"
+        stroke-width="2"
         stroke-linejoin="round"/>
 
-  <!-- Black music note with horizontal line instead of flag -->
+  <!-- White music note with horizontal line instead of flag -->
   <g transform="translate(50, 62)">
     <!-- Note head (filled circle) -->
-    <circle cx="0" cy="0" r="5" fill="#000000"/>
+    <circle cx="0" cy="0" r="5" fill="#FFFFFF"/>
     <!-- Note stem (vertical line) -->
-    <line x1="5" y1="0" x2="5" y2="-14" stroke="#000000" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="5" y1="0" x2="5" y2="-14" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
     <!-- Horizontal line (replacing flag) -->
-    <line x1="5" y1="-14" x2="12" y2="-14" stroke="#000000" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="5" y1="-14" x2="12" y2="-14" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
   </g>
 </svg>
