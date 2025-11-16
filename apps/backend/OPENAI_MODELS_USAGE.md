@@ -31,10 +31,9 @@ self.llm = ChatOpenAI(
 ```
 
 **Агенти, що використовують цю модель**:
-- `WorkoutParserAgent` - парсинг воркаутів з повідомлень
-- `MusicCuratorAgent` - генерація плейлистів
-- `ConversationAgent` - обробка загальних питань
-- `ConversationOrchestrator` (Supervisor) - координація агентів
+- Parser tools - парсинг даних з повідомлень
+- `WorkoutBuilder` (ConversationAgent) - розмова та створення воркаутів
+- `SupervisorAgent` - координація потоку розмови
 
 ### 2. Legacy LLMService
 
@@ -65,10 +64,9 @@ response = await self.client.beta.chat.completions.parse(
 
 ### LangChain Agents
 
-- **WorkoutParserAgent**: `temperature=0.3` (низька для точного парсингу)
-- **MusicCuratorAgent**: `temperature=0.7` (вища для креативності при генерації плейлистів)
-- **ConversationAgent**: `temperature=0.7` (вища для природної розмови)
-- **ConversationOrchestrator**: Використовує температури під-агентів
+- **Parser tools**: `temperature=0.3` (низька для точного парсингу)
+- **WorkoutBuilder**: `temperature=0.7` (вища для природної розмови)
+- **SupervisorAgent**: Використовує WorkoutBuilder та інші компоненти
 
 ### Legacy LLMService
 
@@ -103,10 +101,9 @@ OPENAI_MODEL=gpt-4-turbo-preview
 **Варіант 2: Різні моделі для різних агентів**
 ```env
 OPENAI_MODEL=gpt-4  # Fallback для всіх агентів
-OPENAI_MODEL_PARSER=gpt-4  # Для WorkoutParserAgent
-OPENAI_MODEL_CURATOR=gpt-4-turbo-preview  # Для MusicCuratorAgent (швидше)
-OPENAI_MODEL_CONVERSATION=gpt-3.5-turbo  # Для ConversationAgent (дешевше)
-OPENAI_MODEL_SUPERVISOR=gpt-4  # Для ConversationOrchestrator
+OPENAI_MODEL_PARSER=gpt-4  # Для parser tools
+OPENAI_MODEL_CONVERSATION=gpt-3.5-turbo  # Для WorkoutBuilder (дешевше)
+OPENAI_MODEL_SUPERVISOR=gpt-4  # Для SupervisorAgent
 ```
 
 ### На production (Railway)
@@ -117,7 +114,6 @@ OPENAI_MODEL_SUPERVISOR=gpt-4  # Для ConversationOrchestrator
 OPENAI_MODEL=gpt-4-turbo-preview
 # Або окремо для кожного агента:
 OPENAI_MODEL_PARSER=gpt-4
-OPENAI_MODEL_CURATOR=gpt-4-turbo-preview
 OPENAI_MODEL_CONVERSATION=gpt-3.5-turbo
 ```
 
@@ -129,26 +125,24 @@ OPENAI_MODEL_CONVERSATION=gpt-3.5-turbo
 # В BaseAgent можна передати model_name
 agent = WorkoutParserAgent()
 # Але зараз це не використовується - агенти автоматично використовують
-# відповідну модель з settings (OPENAI_MODEL_PARSER, OPENAI_MODEL_CURATOR, тощо)
+# відповідну модель з settings (OPENAI_MODEL_PARSER, OPENAI_MODEL_CONVERSATION, тощо)
 # або fallback на OPENAI_MODEL
 ```
 
 ## Використання в різних компонентах
 
-### 1. Парсинг воркаутів
+### 1. Парсинг даних
 
-**LangChain**: `WorkoutParserAgent` → `BaseAgent.llm` → `ChatOpenAI(model=settings.OPENAI_MODEL)`
-**Legacy**: `LLMService.parse_workout()` → `AsyncOpenAI.beta.chat.completions.parse(model=settings.OPENAI_MODEL)`
+**Parser tools** → `BaseAgent.llm` → `ChatOpenAI(model=settings.OPENAI_MODEL_PARSER or settings.OPENAI_MODEL)`
 
 ### 2. Генерація плейлистів
 
-**LangChain**: `MusicCuratorAgent` → `BaseAgent.llm` → `ChatOpenAI(model=settings.OPENAI_MODEL)`
-**Legacy**: `LLMService.generate_playlist()` → `AsyncOpenAI.beta.chat.completions.parse(model=settings.OPENAI_MODEL)`
+**PlaylistGenerator** → використовує Spotify API напряму (без OpenAI)
 
-### 3. Розмова
+### 3. Розмова та створення воркаутів
 
-**LangChain**: `ConversationAgent` → `BaseAgent.llm` → `ChatOpenAI(model=settings.OPENAI_MODEL)`
-**Supervisor**: `ConversationOrchestrator` → `BaseAgent.llm` → `ChatOpenAI(model=settings.OPENAI_MODEL)`
+**WorkoutBuilder** → `BaseAgent.llm` → `ChatOpenAI(model=settings.OPENAI_MODEL_CONVERSATION or settings.OPENAI_MODEL)`
+**SupervisorAgent** → `BaseAgent.llm` → `ChatOpenAI(model=settings.OPENAI_MODEL_SUPERVISOR or settings.OPENAI_MODEL)`
 
 ## Вартість використання
 

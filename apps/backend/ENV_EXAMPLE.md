@@ -25,7 +25,6 @@ OPENAI_MODEL=gpt-4
 
 # Optional: Different models for different agents (falls back to OPENAI_MODEL if not set)
 # OPENAI_MODEL_PARSER=gpt-4
-# OPENAI_MODEL_CURATOR=gpt-4-turbo-preview
 # OPENAI_MODEL_CONVERSATION=gpt-3.5-turbo
 # OPENAI_MODEL_SUPERVISOR=gpt-4
 
@@ -33,7 +32,6 @@ OPENAI_MODEL=gpt-4
 # LangChain Feature Flags
 # ============================================
 USE_LANGCHAIN_PARSER=true
-USE_LANGCHAIN_CURATOR=true
 USE_LANGCHAIN_SUPERVISOR=true
 
 # ============================================
@@ -54,38 +52,40 @@ RAILWAY_PUBLIC_DOMAIN=
 ## Пояснення змінних OpenAI
 
 ### Обов'язкові:
+
 - `OPENAI_API_KEY` - API ключ OpenAI (обов'язково)
 - `OPENAI_MODEL` - Модель за замовчуванням для всіх агентів (за замовчуванням: `gpt-4`)
 
 ### Опціональні (для різних агентів):
-- `OPENAI_MODEL_PARSER` - Модель для WorkoutParserAgent (парсинг воркаутів)
-- `OPENAI_MODEL_CURATOR` - Модель для MusicCuratorAgent (генерація плейлистів)
-- `OPENAI_MODEL_CONVERSATION` - Модель для ConversationAgent (розмова)
-- `OPENAI_MODEL_SUPERVISOR` - Модель для ConversationOrchestrator (координація)
+
+- `OPENAI_MODEL_PARSER` - Модель для parser tools (парсинг даних)
+- `OPENAI_MODEL_CONVERSATION` - Модель для ConversationAgent (розмова та створення воркаутів)
+- `OPENAI_MODEL_SUPERVISOR` - Модель для SupervisorAgent (координація)
 
 Якщо опціональні змінні не встановлені, використовується `OPENAI_MODEL`.
 
 ## Приклади конфігурацій
 
 ### Варіант 1: Одна модель для всіх (найпростіше)
+
 ```env
 OPENAI_API_KEY=sk-proj-ваш_ключ
 OPENAI_MODEL=gpt-4
 ```
 
 ### Варіант 2: Оптимізація вартості (різні моделі)
+
 ```env
 OPENAI_API_KEY=sk-proj-ваш_ключ
 OPENAI_MODEL=gpt-4  # Fallback
 OPENAI_MODEL_PARSER=gpt-4  # Точний парсинг
-OPENAI_MODEL_CURATOR=gpt-4-turbo-preview  # Швидша генерація плейлистів
 OPENAI_MODEL_CONVERSATION=gpt-3.5-turbo  # Дешевша розмова
 OPENAI_MODEL_SUPERVISOR=gpt-4  # Координація
 ```
 
 ### Варіант 3: Економія (gpt-3.5 для тестування)
+
 ```env
 OPENAI_API_KEY=sk-proj-ваш_ключ
 OPENAI_MODEL=gpt-3.5-turbo
 ```
-

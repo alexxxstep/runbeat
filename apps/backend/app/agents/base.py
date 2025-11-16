@@ -18,7 +18,7 @@ class BaseAgent(ABC):
         model_name: Optional[str] = None,
         temperature: float = 0.3,
         max_tokens: int = 1000,
-        agent_type: Optional[str] = None,  # "parser", "curator", "conversation", "supervisor"
+        agent_type: Optional[str] = None,  # "parser", "conversation", "supervisor"
     ):
         """
         Initialize base agent.
@@ -27,13 +27,12 @@ class BaseAgent(ABC):
             model_name: OpenAI model name (defaults to settings.OPENAI_MODEL or agent-specific model)
             temperature: LLM temperature
             max_tokens: Maximum tokens in response
-            agent_type: Type of agent for model selection ("parser", "curator", "conversation", "supervisor")
+            agent_type: Type of agent for model selection ("parser", "conversation", "supervisor")
         """
         # Select model based on agent type if model_name not provided
         if not model_name and agent_type:
             model_map = {
                 "parser": settings.OPENAI_MODEL_PARSER,
-                "curator": settings.OPENAI_MODEL_CURATOR,
                 "conversation": settings.OPENAI_MODEL_CONVERSATION,
                 "supervisor": settings.OPENAI_MODEL_SUPERVISOR,
             }

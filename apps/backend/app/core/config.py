@@ -28,13 +28,11 @@ class Settings(BaseSettings):
 
     # Optional: Different models for different agents (falls back to OPENAI_MODEL if not set)
     OPENAI_MODEL_PARSER: Optional[str] = None  # Model for parser tools/agents
-    OPENAI_MODEL_CURATOR: Optional[str] = None  # Model for MusicCuratorAgent
     OPENAI_MODEL_CONVERSATION: Optional[str] = None  # Model for ConversationAgent (WorkoutBuilder)
     OPENAI_MODEL_SUPERVISOR: Optional[str] = None  # Model for SupervisorAgent
 
     # LangChain Feature Flags (all enabled by default - migration complete)
     USE_LANGCHAIN_PARSER: bool = True  # Use LangChain parser tools (default: enabled)
-    USE_LANGCHAIN_CURATOR: bool = True  # Use LangChain MusicCuratorAgent (default: enabled)
     USE_LANGCHAIN_SUPERVISOR: bool = True  # Use LangChain Supervisor (default: enabled)
 
     # App Settings
