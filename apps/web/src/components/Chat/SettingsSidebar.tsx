@@ -104,6 +104,59 @@ export function SettingsSidebar({
     updateSettings({ intervalStages: filtered });
   };
 
+  const duplicateIntervalStage = (id: string) => {
+    if (!localSettings.intervalStages) return;
+    const stageIndex = localSettings.intervalStages.findIndex(
+      (stage) => stage.id === id
+    );
+    if (stageIndex === -1) return;
+
+    const originalStage = localSettings.intervalStages[stageIndex];
+    const duplicatedStage: IntervalStage = {
+      ...originalStage,
+      id: Date.now().toString(),
+      name: `${originalStage.name} (копія)`,
+    };
+
+    const newStages = [...localSettings.intervalStages];
+    newStages.splice(stageIndex + 1, 0, duplicatedStage);
+    updateSettings({ intervalStages: newStages });
+  };
+
+  const moveIntervalStageUp = (id: string) => {
+    if (!localSettings.intervalStages) return;
+    const stageIndex = localSettings.intervalStages.findIndex(
+      (stage) => stage.id === id
+    );
+    if (stageIndex <= 0) return; // Already at the top or not found
+
+    const newStages = [...localSettings.intervalStages];
+    [newStages[stageIndex - 1], newStages[stageIndex]] = [
+      newStages[stageIndex],
+      newStages[stageIndex - 1],
+    ];
+    updateSettings({ intervalStages: newStages });
+  };
+
+  const moveIntervalStageDown = (id: string) => {
+    if (!localSettings.intervalStages) return;
+    const stageIndex = localSettings.intervalStages.findIndex(
+      (stage) => stage.id === id
+    );
+    if (
+      stageIndex === -1 ||
+      stageIndex >= localSettings.intervalStages.length - 1
+    )
+      return; // Already at the bottom or not found
+
+    const newStages = [...localSettings.intervalStages];
+    [newStages[stageIndex], newStages[stageIndex + 1]] = [
+      newStages[stageIndex + 1],
+      newStages[stageIndex],
+    ];
+    updateSettings({ intervalStages: newStages });
+  };
+
   const toggleGenre = (genre: string) => {
     const genres = localSettings.genres.includes(genre)
       ? localSettings.genres.filter((g) => g !== genre)
@@ -194,7 +247,13 @@ export function SettingsSidebar({
       className={`bg-app-surface border-l border-app-border flex flex-col h-full transition-all duration-300 ease-in-out ${sidebarWidthClass}`}
     >
       {/* Header */}
-      <div className={`${collapsed ? 'p-2' : 'p-4'} border-b border-app-border flex ${collapsed ? 'justify-center' : 'justify-between'} items-center flex-shrink-0 relative`}>
+      <div
+        className={`${
+          collapsed ? 'p-2' : 'p-4'
+        } border-b border-app-border flex ${
+          collapsed ? 'justify-center' : 'justify-between'
+        } items-center flex-shrink-0 relative`}
+      >
         {!collapsed && (
           <h2
             className={`text-title-2 font-display font-bold text-app-text transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
@@ -204,11 +263,15 @@ export function SettingsSidebar({
         )}
         <button
           onClick={onToggleCollapse}
-          className={`${collapsed ? 'p-2 w-full flex justify-center' : 'p-2'} hover:bg-app-surface-light rounded-full transition-all duration-300 ease-in-out flex-shrink-0 z-10`}
+          className={`${
+            collapsed ? 'p-2 w-full flex justify-center' : 'p-2'
+          } hover:bg-app-surface-light rounded-full transition-all duration-300 ease-in-out flex-shrink-0 z-10`}
           title={collapsed ? 'Розгорнути' : 'Згорнути'}
         >
           <svg
-            className={`${collapsed ? 'w-6 h-6' : 'w-5 h-5'} text-app-text-secondary transform transition-transform duration-300 ${
+            className={`${
+              collapsed ? 'w-6 h-6' : 'w-5 h-5'
+            } text-app-text-secondary transform transition-transform duration-300 ${
               collapsed ? 'rotate-0' : 'rotate-180'
             }`}
             fill='none'
@@ -284,7 +347,8 @@ export function SettingsSidebar({
               />
             </div>
             <p className='text-subhead text-app-text-secondary'>
-              Всього: {convertDurationToMinutes(durationHours, durationMinutes)} хв
+              Всього: {convertDurationToMinutes(durationHours, durationMinutes)}{' '}
+              хв
             </p>
           </div>
         </div>
@@ -358,7 +422,8 @@ export function SettingsSidebar({
               />
             </div>
             <p className='text-subhead text-app-text-secondary'>
-              Діапазон: {localSettings.hrZones[0]} - {localSettings.hrZones[1]} уд/хв
+              Діапазон: {localSettings.hrZones[0]} - {localSettings.hrZones[1]}{' '}
+              уд/хв
             </p>
           </div>
         </div>
@@ -378,7 +443,7 @@ export function SettingsSidebar({
               </button>
             </div>
             <div className='space-y-3'>
-              {localSettings.intervalStages?.map((stage) => (
+              {localSettings.intervalStages?.map((stage, index, array) => (
                 <div
                   key={stage.id}
                   className='p-4 bg-app-surface-light rounded-xl border border-app-border'
@@ -395,24 +460,94 @@ export function SettingsSidebar({
                       className='flex-1 text-body font-medium bg-transparent border-b border-app-border focus:outline-none focus:border-app-accent text-app-text placeholder-app-text-tertiary'
                       placeholder='Назва етапу'
                     />
-                    <button
-                      onClick={() => removeIntervalStage(stage.id)}
-                      className='ml-3 text-red-500 hover:text-red-400 transition-colors'
-                    >
-                      <svg
-                        className='w-5 h-5'
-                        fill='none'
-                        stroke='currentColor'
-                        viewBox='0 0 24 24'
+                    <div className='flex items-center gap-2'>
+                      <button
+                        onClick={() => moveIntervalStageUp(stage.id)}
+                        disabled={index === 0}
+                        className={`transition-colors ${
+                          index === 0
+                            ? 'text-app-text-tertiary cursor-not-allowed'
+                            : 'text-app-text-secondary hover:text-app-accent'
+                        }`}
+                        title='Перемістити вгору'
                       >
-                        <path
-                          strokeLinecap='round'
-                          strokeLinejoin='round'
-                          strokeWidth={2}
-                          d='M6 18L18 6M6 6l12 12'
-                        />
-                      </svg>
-                    </button>
+                        <svg
+                          className='w-5 h-5'
+                          fill='none'
+                          stroke='currentColor'
+                          viewBox='0 0 24 24'
+                        >
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            strokeWidth={2}
+                            d='M5 15l7-7 7 7'
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => moveIntervalStageDown(stage.id)}
+                        disabled={index === array.length - 1}
+                        className={`transition-colors ${
+                          index === array.length - 1
+                            ? 'text-app-text-tertiary cursor-not-allowed'
+                            : 'text-app-text-secondary hover:text-app-accent'
+                        }`}
+                        title='Перемістити вниз'
+                      >
+                        <svg
+                          className='w-5 h-5'
+                          fill='none'
+                          stroke='currentColor'
+                          viewBox='0 0 24 24'
+                        >
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            strokeWidth={2}
+                            d='M19 9l-7 7-7-7'
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => duplicateIntervalStage(stage.id)}
+                        className='text-app-accent hover:text-app-accent-hover transition-colors'
+                        title='Копіювати етап'
+                      >
+                        <svg
+                          className='w-5 h-5'
+                          fill='none'
+                          stroke='currentColor'
+                          viewBox='0 0 24 24'
+                        >
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            strokeWidth={2}
+                            d='M12 4v16m8-8H4'
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => removeIntervalStage(stage.id)}
+                        className='text-red-500 hover:text-red-400 transition-colors'
+                        title='Видалити етап'
+                      >
+                        <svg
+                          className='w-5 h-5'
+                          fill='none'
+                          stroke='currentColor'
+                          viewBox='0 0 24 24'
+                        >
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            strokeWidth={2}
+                            d='M6 18L18 6M6 6l12 12'
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   <div className='space-y-4 text-subhead'>
                     <div>
