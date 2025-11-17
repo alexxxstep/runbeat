@@ -238,6 +238,33 @@ export function SettingsSidebar({
     }
   }, [durationHours, durationMinutes]);
 
+  useEffect(() => {
+    if (
+      localSettings.type !== 'intervals' ||
+      !localSettings.intervalStages ||
+      localSettings.intervalStages.length === 0
+    ) {
+      return;
+    }
+
+    const totalFromStages = localSettings.intervalStages.reduce(
+      (sum, stage) => sum + stage.durationMinutes,
+      0
+    );
+    const currentTotal = convertDurationToMinutes(
+      durationHours,
+      durationMinutes
+    );
+
+    if (totalFromStages === currentTotal) {
+      return;
+    }
+
+    const { hours, minutes } = convertMinutesToHoursMinutes(totalFromStages);
+    setDurationHours(hours);
+    setDurationMinutes(minutes);
+  }, [localSettings.type, localSettings.intervalStages]);
+
   const sidebarWidthClass = collapsed ? 'w-12' : 'w-full';
   const contentOpacityClass = collapsed ? 'opacity-0' : 'opacity-100';
   const contentVisibilityClass = collapsed ? 'invisible' : 'visible';
