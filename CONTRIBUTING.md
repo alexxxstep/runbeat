@@ -1,16 +1,28 @@
 # Contributing to RunBeat
 
-Thank you for considering contributing to RunBeat! This document provides guidelines and information for contributors.
+Thank you for considering contributing to RunBeat! 🎉
+
+RunBeat - це open-source проект, і ми вітаємо внески від спільноти. Цей документ містить всю необхідну інформацію для контриб'юторів.
+
+**Project Status:** ✅ Production Ready (v3.3)
+**Tech Stack:** Python 3.11 + FastAPI, React 18 + TypeScript, LangChain, Supabase
+**Architecture:** Multi-agent AI system
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- Git
-- Supabase account (for database)
-- Spotify Developer account
-- OpenAI API key
+
+#### Required
+- **Python 3.11+** - Backend development
+- **Node.js 18+** - Frontend development
+- **Git** - Version control
+- **Code Editor** - VSCode recommended
+
+#### For Full Development
+- **Supabase account** - Database (free tier available)
+- **Spotify Developer account** - Music API (free)
+- **OpenAI API key** - AI features (paid, ~$5-10 for testing)
+- **Railway account** - Deployment (optional, free tier available)
 
 ### Local Development Setup
 

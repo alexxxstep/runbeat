@@ -300,4 +300,4 @@ For issues or questions:
 
 ---
 
-**Last Updated:** Січень 2025
+**Last Updated:** Листопад 2025

@@ -1,6 +1,6 @@
 # RunBeat Changelog
 
-## Version 3.3 - AI Learning & Personalization (November 2024)
+## Version 3.3 - AI Learning & Personalization (November 2025)
 
 ### ✨ Major Features
 
@@ -100,7 +100,7 @@
 
 ---
 
-## Version 3.2 - Agent Fixes & Optimization (November 2024)
+## Version 3.2 - Agent Fixes & Optimization (November 2025)
 
 ### 🐛 Critical Bug Fixes
 - Fixed tool invocation error in `SupervisorAgent`
@@ -116,7 +116,7 @@
 
 ---
 
-## Version 3.1 - Core Features (November 2024)
+## Version 3.1 - Core Features (November 2025)
 
 ### ✨ Features
 - AI chat interface with natural language processing
@@ -128,7 +128,7 @@
 
 ---
 
-## Version 3.0 - Multi-Agent Architecture (October 2024)
+## Version 3.0 - Multi-Agent Architecture (October 2025)
 
 ### 🏗️ Architecture
 - LangChain-based multi-agent system
@@ -138,7 +138,7 @@
 
 ---
 
-## Version 2.0 - MVP Foundation (September 2024)
+## Version 2.0 - MVP Foundation (September 2025)
 
 ### 🎯 Initial MVP
 - Basic FastAPI backend

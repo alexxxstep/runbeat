@@ -288,6 +288,123 @@ Content-Type: application/json
 
 ---
 
+## Analytics Endpoints
+
+### Get Conversation Insights
+
+```http
+GET /analytics/conversation-insights?days=30
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "insights": {
+    "total_analyzed": 150,
+    "completion_rate": 82.5,
+    "abandonment_rate": 12.3,
+    "most_common_genres": {
+      "electronic": 45,
+      "rock": 38,
+      "pop": 32
+    },
+    "average_messages_per_conversation": 6.2
+  }
+}
+```
+
+### Get User Patterns
+
+```http
+GET /analytics/user-patterns/{user_id}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "user_id": "user_uuid",
+  "patterns": {
+    "has_history": true,
+    "total_conversations": 25,
+    "favorite_genres": ["electronic", "rock", "pop"],
+    "typical_duration": 45,
+    "preferred_type": "fartlek",
+    "common_intensity": "moderate"
+  }
+}
+```
+
+### Get Recommendations
+
+```http
+GET /analytics/recommendations?days=30
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "insights": {
+    "total_analyzed": 150,
+    "completion_rate": 82.5,
+    "abandonment_rate": 12.3
+  },
+  "recommendations": [
+    {
+      "type": "healthy",
+      "severity": "success",
+      "message": "Conversation flow is healthy! Keep up the good work."
+    },
+    {
+      "type": "popular_genres",
+      "severity": "info",
+      "message": "Most popular genres: electronic, rock, pop. Ensure these are well-supported."
+    }
+  ],
+  "analyzed_days": 30
+}
+```
+
+---
+
+## Error Logging Endpoints
+
+### Log Error
+
+```http
+POST /error-logs/
+Content-Type: application/json
+
+{
+  "level": "ERROR",
+  "message": "Failed to generate playlist",
+  "error_type": "ValueError",
+  "error_details": {},
+  "stack_trace": "...",
+  "user_id": "user_uuid",
+  "request_path": "/api/v1/playlists/generate",
+  "request_method": "POST",
+  "request_body": {},
+  "response_status": 500
+}
+```
+
+### Get Error Logs
+
+```http
+GET /error-logs/?level=ERROR&limit=100&offset=0
+```
+
+### Get Error Statistics
+
+```http
+GET /error-logs/statistics?days=7
+```
+
+---
+
 ## Health Endpoints
 
 ### Health Check
@@ -354,9 +471,9 @@ Currently, there are no rate limits implemented. This will be added in future ve
 
 ## API Versioning
 
-Current API version: `2.0.0`
+Current API version: `3.3.0`
 
-API versioning will be implemented in future releases.
+All API endpoints are prefixed with `/api/v1/` in the current implementation.
 
 ---
 
