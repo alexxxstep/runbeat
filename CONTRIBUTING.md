@@ -38,15 +38,6 @@ cp .env.example .env
 npm run dev
 ```
 
-4. **Mobile App Setup** (optional)
-```bash
-cd apps/mobile
-npm install
-cp .env.example .env
-# Fill in .env
-npx expo start
-```
-
 ## 📁 Project Structure
 
 ```
@@ -59,13 +50,11 @@ runbeat/
 │   │   │   ├── services/ # Business logic
 │   │   │   └── models/   # Data models
 │   │   └── tests/        # Backend tests
-│   ├── web/              # React + Vite web app
-│   │   └── src/
-│   │       ├── components/
-│   │       ├── pages/
-│   │       └── services/
-│   └── mobile/           # React Native + Expo app
+│   └── web/              # React + Vite web app
 │       └── src/
+│           ├── components/
+│           ├── pages/
+│           └── services/
 ├── docs/                 # Documentation
 └── README.md
 ```

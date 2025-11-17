@@ -8,10 +8,9 @@
 
 1. [Backend Deployment (Railway)](#backend-deployment-railway)
 2. [Web App Deployment (Railway)](#web-app-deployment-railway)
-3. [Mobile App Deployment (Expo EAS)](#mobile-app-deployment-expo-eas)
-4. [Database Setup (Supabase)](#database-setup-supabase)
-5. [Environment Variables](#environment-variables)
-6. [Post-Deployment Checklist](#post-deployment-checklist)
+3. [Database Setup (Supabase)](#database-setup-supabase)
+4. [Environment Variables](#environment-variables)
+5. [Post-Deployment Checklist](#post-deployment-checklist)
 
 ---
 
@@ -51,7 +50,7 @@
    OPENAI_MODEL=gpt-4
    ENVIRONMENT=production
    LOG_LEVEL=INFO
-   CORS_ORIGINS=["https://your-web-railway-domain.up.railway.app","https://your-mobile-app.expo.dev"]
+   CORS_ORIGINS=["https://your-web-railway-domain.up.railway.app"]
    ```
 
 4. **Deploy**
@@ -121,86 +120,12 @@
    - Add Railway Web App domain to `CORS_ORIGINS` in Backend service environment variables:
 
    ```bash
-   CORS_ORIGINS=["https://your-web-railway-domain.up.railway.app","https://your-mobile-app.expo.dev"]
+   CORS_ORIGINS=["https://your-web-railway-domain.up.railway.app"]
    ```
 
 ### Railway Configuration
 
 The project includes `railway.json` in `apps/web` directory with proper configuration for static file serving using the `serve` package.
-
----
-
-## Mobile App Deployment (Expo EAS)
-
-### Prerequisites
-
-- Expo account (https://expo.dev)
-- Expo CLI: `npm install -g eas-cli`
-- Apple Developer account (for iOS)
-- Google Play Console account (for Android)
-
-### Steps
-
-1. **Install EAS CLI**
-
-   ```bash
-   npm install -g eas-cli
-   ```
-
-2. **Login to Expo**
-
-   ```bash
-   eas login
-   ```
-
-3. **Configure Project**
-
-   ```bash
-   cd apps/mobile
-   eas build:configure
-   ```
-
-4. **Set Environment Variables**
-
-   - Create `eas.json` or use environment variables in EAS dashboard
-
-   ```json
-   {
-     "build": {
-       "production": {
-         "env": {
-           "EXPO_PUBLIC_API_URL": "https://your-railway-domain.up.railway.app",
-           "EXPO_PUBLIC_SUPABASE_URL": "https://your-project.supabase.co",
-           "EXPO_PUBLIC_SUPABASE_ANON_KEY": "your_anon_key"
-         }
-       }
-     }
-   }
-   ```
-
-5. **Build for iOS**
-
-   ```bash
-   eas build --platform ios --profile production
-   ```
-
-6. **Build for Android**
-
-   ```bash
-   eas build --platform android --profile production
-   ```
-
-7. **Submit to App Stores**
-
-   ```bash
-   # iOS
-   eas submit --platform ios
-
-   # Android
-   eas submit --platform android
-   ```
-
-**Note:** First-time setup requires additional configuration for app signing.
 
 ---
 
@@ -221,9 +146,9 @@ The project includes `railway.json` in `apps/web` directory with proper configur
 
 2. **Run Migrations**
 
-   - Go to SQL Editor
-   - Copy SQL from [PRD_CURSOR_AI.md](../PRD_CURSOR_AI.md) (Database Schema section)
-   - Execute the migration SQL
+   - Go to SQL Editor in Supabase dashboard
+   - Open [DATABASE_MIGRATION_COMPLETE_v2.sql](../apps/backend/DATABASE_MIGRATION_COMPLETE_v2.sql)
+   - Copy and execute the migration SQL
 
 3. **Configure Row Level Security (RLS)**
 
@@ -265,14 +190,6 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### Mobile App (.env)
-
-```env
-EXPO_PUBLIC_API_URL=https://your-railway-domain.up.railway.app
-EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
 ---
 
 ## Post-Deployment Checklist
@@ -292,14 +209,6 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - [ ] Spotify OAuth flow works
 - [ ] Chat interface functional
 - [ ] Playlist generation works
-
-### Mobile App
-
-- [ ] App builds successfully
-- [ ] App installs on test devices
-- [ ] API connection works
-- [ ] Spotify OAuth flow works
-- [ ] All features functional
 
 ### Database
 
@@ -349,14 +258,6 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - Ensure all dependencies are in package.json
 - Check that build command completes successfully
 
-### Mobile App Issues
-
-**Problem:** Build fails
-
-- Check EAS build logs
-- Verify environment variables
-- Check app.json configuration
-
 ---
 
 ## Monitoring
@@ -373,12 +274,6 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - Set up error tracking (Sentry recommended)
 - Monitor page load times
 - Check Railway dashboard for deployment status
-
-### Mobile App Monitoring
-
-- Use Expo's built-in analytics
-- Set up crash reporting
-- Monitor app performance
 
 ---
 
@@ -405,4 +300,4 @@ For issues or questions:
 
 ---
 
-**Last Updated:** 12.11.2025
+**Last Updated:** Січень 2025

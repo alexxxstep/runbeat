@@ -37,11 +37,11 @@ User: Selects & saves to Spotify 🎵
 ## 🏗️ Tech Stack
 
 - **Backend:** FastAPI + Python 3.11
-- **Mobile:** React Native + Expo
-- **Web:** React + Vite
+- **Web:** React + Vite + TypeScript
 - **Database:** Supabase PostgreSQL
-- **AI:** OpenAI GPT-4
+- **AI:** OpenAI GPT-4 (LangChain multi-agent system)
 - **Music:** Spotify API
+- **Deployment:** Railway
 
 ## 📁 Project Structure
 
@@ -49,11 +49,16 @@ User: Selects & saves to Spotify 🎵
 runbeat/
 ├── apps/
 │   ├── backend/          # FastAPI Backend
-│   ├── mobile/           # React Native (Expo)
+│   │   ├── app/          # Application code
+│   │   │   ├── agents/   # LangChain AI agents
+│   │   │   ├── api/      # API routes
+│   │   │   ├── services/ # Business logic
+│   │   │   └── models/   # Data models
+│   │   └── tests/        # Backend tests
 │   └── web/              # React Web (Vite)
-├── packages/
-│   └── shared-types/     # TypeScript types
-└── docs/                 # Documentation
+│       └── src/          # Frontend source code
+├── docs/                 # Documentation
+└── scripts/              # Utility scripts
 ```
 
 ## 🚀 Quick Start
@@ -74,16 +79,6 @@ pip install -r requirements.txt
 cp .env.example .env
 # Fill in .env with your keys
 uvicorn app.main:app --reload
-```
-
-### Mobile Setup
-
-```bash
-cd apps/mobile
-npm install
-cp .env.example .env
-# Fill in .env
-npx expo start
 ```
 
 ### Web Setup
@@ -107,14 +102,14 @@ npm run dev
 ### Setup Guides
 - 🔌 [Backend README](./apps/backend/README.md) - Backend setup & deployment
 - 🌐 [Web README](./apps/web/README.md) - Web app setup
-- 📱 [Mobile README](./apps/mobile/README.md) - Mobile app setup
 
 ### Technical Guides
 - 🗄️ [Database Migration](./apps/backend/DATABASE_MIGRATION_COMPLETE_v2.sql) - Complete DB schema
-- 🎼 [Playlist Algorithm](./docs/PLAYLIST_GENERATION_ALGORITHM.md) - How playlists are generated
 - 🤖 [OpenAI Models Usage](./apps/backend/OPENAI_MODELS_USAGE.md) - AI integration details
 - ⚙️ [Environment Setup](./apps/backend/ENV_SETUP_GUIDE.md) - Configuration guide
 - 🚂 [Railway Deployment](./apps/backend/RAILWAY_QUICK_START.md) - Deploy to Railway
+- 📚 [API Documentation](./docs/API.md) - Complete API reference
+- 🚀 [Deployment Guide](./docs/DEPLOYMENT.md) - Full deployment instructions
 
 ## 🎯 Feature Status
 
@@ -129,11 +124,11 @@ npm run dev
 - ✅ Responsive web interface
 
 ### 🚧 In Progress
-- 🚧 Mobile app (React Native)
 - 🚧 Advanced analytics dashboard
 - 🚧 Social sharing features
 
 ### 📋 Planned
+- 📋 Mobile app (React Native + Expo)
 - 📋 Voice commands
 - 📋 Offline mode
 - 📋 Apple Music integration
@@ -144,4 +139,4 @@ See [ARCHITECTURE_REPORT.md](./docs/ARCHITECTURE_REPORT.md) for detailed system 
 
 **Status:** ✅ MVP Complete, actively adding features
 **Version:** 3.3 (AI Learning & Personalization)
-**Last Updated:** November 2024
+**Last Updated:** January 2025

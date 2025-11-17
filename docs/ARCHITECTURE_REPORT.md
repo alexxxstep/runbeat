@@ -1,9 +1,9 @@
 # 📊 RunBeat - Детальний звіт по архітектурі проекту
 
-**Дата:** 2025-11-15
+**Дата:** Січень 2025
 **Версія:** 3.3
 **Статус:** Production Ready
-**Останнє оновлення:** 2025-11-15 (AI Learning & Personalization)
+**Останнє оновлення:** Січень 2025 (AI Learning & Personalization)
 
 ---
 
@@ -13,7 +13,7 @@
 2. [Архітектура системи](#архітектура-системи)
 3. [Backend архітектура](#backend-архітектура)
 4. [Frontend архітектура (Web)](#frontend-архітектура)
-5. [Mobile App архітектура](#mobile-app-архітектура)
+5. [Mobile App архітектура (Planned)](#mobile-app-архітектура-planned)
 6. [База даних](#база-даних)
 7. [Потоки даних](#потоки-даних)
 8. [Multi-Agent система](#multi-agent-система)
@@ -52,18 +52,18 @@ RunBeat - це AI-powered система для генерації персон�
                              │
                 ┌────────────┴────────────┐
                 │                         │
-                v                         v
-┌───────────────────────────┐  ┌──────────────────────────────┐
-│   Web App (React + Vite)  │  │  Mobile App (React Native)   │
-│  • Tailwind CSS           │  │  • Expo                      │
-│  • React Router           │  │  • React Navigation          │
-│  • Lazy Loading           │  │  • Cross-platform            │
-└────────────┬──────────────┘  └─────────────┬────────────────┘
-             │                               │
-             │ REST API (/api/v1/*)          │
-             └───────────────┬───────────────┘
-                             │ HTTPS
-                             v
+                v
+┌───────────────────────────┐
+│   Web App (React + Vite)  │
+│  • Tailwind CSS           │
+│  • React Router           │
+│  • Lazy Loading           │
+│  • Responsive Design      │
+└────────────┬──────────────┘
+             │
+             │ REST API (/api/v1/*)
+             │ HTTPS
+             v
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Backend (FastAPI)                             │
 │  ┌──────────────────────────────────────────────────────────┐   │
@@ -810,73 +810,39 @@ App (React Router)
 
 ---
 
-## 📱 Mobile App архітектура
+## 📱 Mobile App архітектура (Planned)
 
-### Mobile технологічний стек
+> **Статус:** 📋 Заплановано (не реалізовано)
 
-- **Framework**: React Native 0.73
-- **Platform**: Expo ~50.0
+Mobile додаток для RunBeat запланований для майбутньої розробки. Web додаток вже має адаптивний дизайн і працює на мобільних пристроях через браузер.
+
+### Плановий Mobile технологічний стек
+
+- **Framework**: React Native 0.73+
+- **Platform**: Expo ~50.0+
 - **Language**: TypeScript
-- **State Management**: Zustand
+- **State Management**: Zustand (спільний з web)
 - **Navigation**: React Navigation v6 (Stack + Bottom Tabs)
 - **HTTP Client**: Axios
 - **Backend**: Supabase client
 
-### Mobile структура проекту
+### Планові можливості
 
-```
-apps/mobile/
-├── App.tsx                    # Main app entry point
-├── src/
-│   ├── components/
-│   │   ├── Chat/             # Chat UI components
-│   │   │   ├── MessageBubble.tsx
-│   │   │   ├── InputBar.tsx
-│   │   │   └── TypingIndicator.tsx
-│   │   ├── Player/           # Player components
-│   │   └── Shared/           # Shared components
-│   │       ├── Button.tsx
-│   │       └── LoadingSpinner.tsx
-│   ├── navigation/
-│   │   └── index.tsx         # Navigation setup (Stack + Tabs)
-│   ├── screens/
-│   │   ├── ChatScreen.tsx    # Main chat interface
-│   │   ├── HistoryScreen.tsx # Workout history
-│   │   └── PlayerScreen.tsx  # Music player
-│   ├── hooks/
-│   │   ├── useAuth.ts        # Authentication hook
-│   │   ├── useChat.ts        # Chat logic
-│   │   ├── usePlaylist.ts    # Playlist operations
-│   │   └── useSpotify.ts     # Spotify integration
-│   ├── services/
-│   │   ├── api.ts            # Backend API client
-│   │   ├── spotify.ts        # Spotify service
-│   │   └── supabase.ts       # Supabase client
-│   ├── store/                # Zustand state management
-│   └── types/
-│       └── index.ts          # TypeScript types
-└── app.json                  # Expo configuration
-```
+- 📋 **Cross-platform**: iOS, Android через Expo
+- 📋 **Native Navigation**: React Navigation для smooth transitions
+- 📋 **Spotify Integration**: Native SDK для програвання
+- 📋 **Offline Support**: Можливість роботи офлайн
+- 📋 **Push Notifications**: Сповіщення про нові плейлисти
+- 📋 **Shared Codebase**: Спільна логіка з web app (hooks, types, services)
 
-### Ключові можливості
+### Поточна альтернатива
 
-- ✅ **Cross-platform**: iOS, Android, Web через Expo
-- ✅ **Native Navigation**: React Navigation для smooth transitions
-- ✅ **Spotify Integration**: OAuth та playlist playback
-- ✅ **Offline Support**: Можливість роботи офлайн
-- ✅ **Push Notifications**: Сповіщення про нові плейлисти (planned)
-- ✅ **Shared Codebase**: Спільна логіка з web app (hooks, types)
+Web додаток повністю адаптивний і працює на мобільних пристроях:
 
-### Відмінності від Web App
-
-| Feature            | Web App          | Mobile App                   |
-| ------------------ | ---------------- | ---------------------------- |
-| **UI Framework**   | React + Tailwind | React Native + Custom styles |
-| **Navigation**     | React Router     | React Navigation             |
-| **Build Tool**     | Vite             | Expo                         |
-| **Platform**       | Browser only     | iOS, Android, Web            |
-| **Storage**        | localStorage     | AsyncStorage                 |
-| **Spotify Player** | Web Playback SDK | Native SDK (planned)         |
+- ✅ Responsive design з Tailwind CSS
+- ✅ Mobile-оптимізовані sidebar та навігація
+- ✅ Touch-friendly інтерфейс
+- ✅ PWA support (може бути додано)
 
 ---
 
@@ -1294,16 +1260,19 @@ User Message
 🔧 **Виправлення розуміння контексту розмови:**
 
 - **Збільшено ліміти для повної обробки**:
+
   - `max_iterations`: 5 → 8 (достатньо для витягування параметрів з контексту)
   - `max_execution_time`: 15 → 25 секунд (агент встигає обробити історію)
 
 - **Покращено fallback-логіку**:
+
   - Fallback тепер **витягує параметри** з поточного повідомлення
   - Fallback **аналізує історію розмови** (останні 3 повідомлення)
   - Fallback **оновлює collected_parameters** перед генерацією відповіді
   - Агент більше НЕ втрачає контекст при досягненні iteration limit
 
 - **Оновлено інструкції в промпті**:
+
   - Видалено посилання на неіснуючий `rule_based_parse` tool
   - Додано явні інструкції для витягування параметрів
   - Додано нагадування перевіряти chat_history
