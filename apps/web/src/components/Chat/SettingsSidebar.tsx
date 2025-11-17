@@ -83,8 +83,17 @@ export function SettingsSidebar({
       hrZone: [130, 150],
       bpmRange: [140, 160],
     };
+    const updatedStages = [...(localSettings.intervalStages || []), newStage];
+
+    // Calculate total duration from all stages
+    const totalDuration = updatedStages.reduce(
+      (sum, stage) => sum + stage.durationMinutes,
+      0
+    );
+
     updateSettings({
-      intervalStages: [...(localSettings.intervalStages || []), newStage],
+      intervalStages: updatedStages,
+      durationMinutes: totalDuration,
     });
   };
 
@@ -93,7 +102,17 @@ export function SettingsSidebar({
     const updated = localSettings.intervalStages.map((stage) =>
       stage.id === id ? { ...stage, ...updates } : stage
     );
-    updateSettings({ intervalStages: updated });
+
+    // Calculate total duration from all stages
+    const totalDuration = updated.reduce(
+      (sum, stage) => sum + stage.durationMinutes,
+      0
+    );
+
+    updateSettings({
+      intervalStages: updated,
+      durationMinutes: totalDuration,
+    });
   };
 
   const removeIntervalStage = (id: string) => {
@@ -101,7 +120,17 @@ export function SettingsSidebar({
     const filtered = localSettings.intervalStages.filter(
       (stage) => stage.id !== id
     );
-    updateSettings({ intervalStages: filtered });
+
+    // Calculate total duration from remaining stages
+    const totalDuration = filtered.reduce(
+      (sum, stage) => sum + stage.durationMinutes,
+      0
+    );
+
+    updateSettings({
+      intervalStages: filtered,
+      durationMinutes: totalDuration,
+    });
   };
 
   const duplicateIntervalStage = (id: string) => {
@@ -120,7 +149,17 @@ export function SettingsSidebar({
 
     const newStages = [...localSettings.intervalStages];
     newStages.splice(stageIndex + 1, 0, duplicatedStage);
-    updateSettings({ intervalStages: newStages });
+
+    // Calculate total duration from all stages
+    const totalDuration = newStages.reduce(
+      (sum, stage) => sum + stage.durationMinutes,
+      0
+    );
+
+    updateSettings({
+      intervalStages: newStages,
+      durationMinutes: totalDuration,
+    });
   };
 
   const moveIntervalStageUp = (id: string) => {
@@ -231,39 +270,21 @@ export function SettingsSidebar({
     convertMinutesToHoursMinutes(localSettings.durationMinutes).minutes
   );
 
+  // Update duration sliders when total duration changes (e.g., from interval stages)
+  useEffect(() => {
+    const { hours, minutes } = convertMinutesToHoursMinutes(
+      localSettings.durationMinutes
+    );
+    setDurationHours(hours);
+    setDurationMinutes(minutes);
+  }, [localSettings.durationMinutes]);
+
   useEffect(() => {
     const total = convertDurationToMinutes(durationHours, durationMinutes);
     if (total !== localSettings.durationMinutes) {
       updateSettings({ durationMinutes: total });
     }
   }, [durationHours, durationMinutes]);
-
-  useEffect(() => {
-    if (
-      localSettings.type !== 'intervals' ||
-      !localSettings.intervalStages ||
-      localSettings.intervalStages.length === 0
-    ) {
-      return;
-    }
-
-    const totalFromStages = localSettings.intervalStages.reduce(
-      (sum, stage) => sum + stage.durationMinutes,
-      0
-    );
-    const currentTotal = convertDurationToMinutes(
-      durationHours,
-      durationMinutes
-    );
-
-    if (totalFromStages === currentTotal) {
-      return;
-    }
-
-    const { hours, minutes } = convertMinutesToHoursMinutes(totalFromStages);
-    setDurationHours(hours);
-    setDurationMinutes(minutes);
-  }, [localSettings.type, localSettings.intervalStages]);
 
   const sidebarWidthClass = collapsed ? 'w-12' : 'w-full';
   const contentOpacityClass = collapsed ? 'opacity-0' : 'opacity-100';
@@ -459,9 +480,22 @@ export function SettingsSidebar({
         {localSettings.type === 'intervals' && (
           <div>
             <div className='flex justify-between items-center mb-3'>
-              <label className='block text-subhead font-semibold text-app-text'>
-                Етапи тренування
-              </label>
+              <div>
+                <label className='block text-subhead font-semibold text-app-text'>
+                  Етапи тренування
+                </label>
+                {localSettings.intervalStages &&
+                  localSettings.intervalStages.length > 0 && (
+                    <p className='text-caption text-app-text-secondary mt-1'>
+                      Загальна тривалість:{' '}
+                      {localSettings.intervalStages.reduce(
+                        (sum, stage) => sum + stage.durationMinutes,
+                        0
+                      )}{' '}
+                      хв
+                    </p>
+                  )}
+              </div>
               <button
                 onClick={addIntervalStage}
                 className='text-caption px-3 py-1.5 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors'
