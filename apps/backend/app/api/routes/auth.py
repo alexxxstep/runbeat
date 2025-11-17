@@ -95,11 +95,14 @@ async def spotify_callback(
     Exchanges authorization code for access token and saves to database.
     """
     try:
+        # Use FRONTEND_URL if set, otherwise fallback to first CORS origin
+        frontend_url = settings.FRONTEND_URL or settings.CORS_ORIGINS[0]
+
         # Check for errors
         if error:
             logger.error(f"Spotify OAuth error: {error}")
             error_url = (
-                f"{settings.CORS_ORIGINS[0]}/auth/error?"
+                f"{frontend_url}/auth/error?"
                 f"error={urllib.parse.quote(error)}"
             )
             return RedirectResponse(url=error_url)
@@ -108,7 +111,7 @@ async def spotify_callback(
         if state not in oauth_states:
             logger.error(f"Invalid OAuth state: {state[:8]}...")
             error_url = (
-                f"{settings.CORS_ORIGINS[0]}/auth/error?error=invalid_state"
+                f"{frontend_url}/auth/error?error=invalid_state"
             )
             return RedirectResponse(url=error_url)
 
@@ -116,7 +119,7 @@ async def spotify_callback(
         if state_data["used"]:
             logger.error(f"OAuth state already used: {state[:8]}...")
             error_url = (
-                f"{settings.CORS_ORIGINS[0]}/auth/error?"
+                f"{frontend_url}/auth/error?"
                 f"error=state_already_used"
             )
             return RedirectResponse(url=error_url)
@@ -126,7 +129,7 @@ async def spotify_callback(
             logger.error(f"OAuth state expired: {state[:8]}...")
             del oauth_states[state]
             error_url = (
-                f"{settings.CORS_ORIGINS[0]}/auth/error?error=state_expired"
+                f"{frontend_url}/auth/error?error=state_expired"
             )
             return RedirectResponse(url=error_url)
 
@@ -270,15 +273,17 @@ async def spotify_callback(
 
         # Redirect to frontend callback with success params
         success_url = (
-            f"{settings.CORS_ORIGINS[0]}/auth/callback?"
+            f"{frontend_url}/auth/callback?"
             f"user_id={user_id}&spotify_user_id={spotify_user_id}"
         )
         return RedirectResponse(url=success_url)
 
     except Exception as e:
         logger.error(f"Failed to handle Spotify callback: {e}")
+        # Use FRONTEND_URL if set, otherwise fallback to first CORS origin
+        frontend_url = settings.FRONTEND_URL or settings.CORS_ORIGINS[0]
         error_url = (
-            f"{settings.CORS_ORIGINS[0]}/auth/callback?"
+            f"{frontend_url}/auth/callback?"
             f"error={urllib.parse.quote(str(e))}"
         )
         return RedirectResponse(url=error_url)

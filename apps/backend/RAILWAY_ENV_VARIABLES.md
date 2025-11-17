@@ -25,7 +25,8 @@ OPENAI_MODEL=gpt-4
 # Optional: OPENAI_MODEL_SUPERVISOR=gpt-4
 ENVIRONMENT=production
 LOG_LEVEL=INFO
-CORS_ORIGINS=["https://ваш-web-app.vercel.app"]
+CORS_ORIGINS=["https://runbeatweb-production.up.railway.app"]
+FRONTEND_URL=https://runbeatweb-production.up.railway.app
 ```
 
 ### Крок 3: Вставте в Raw Editor
@@ -45,12 +46,15 @@ CORS_ORIGINS=["https://ваш-web-app.vercel.app"]
 ### Покрокова інструкція:
 
 1. **Відкрийте Variables**
+
    - Railway Dashboard → ваш проект → **Variables**
 
 2. **Натисніть "New Variable"**
+
    - Кнопка з `+` та текстом "New Variable"
 
 3. **Заповніть форму:**
+
    - **Key:** `SUPABASE_URL`
    - **Value:** `https://ваш-проект.supabase.co`
    - Натисніть **"Add"** або **"Save"**
@@ -59,22 +63,22 @@ CORS_ORIGINS=["https://ваш-web-app.vercel.app"]
 
 ### Приклад заповнення:
 
-| Key | Value |
-|-----|-------|
-| `SUPABASE_URL` | `https://ваш-проект.supabase.co` |
-| `SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
-| `SUPABASE_SERVICE_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
-| `SPOTIFY_CLIENT_ID` | `ваш_client_id` |
-| `SPOTIFY_CLIENT_SECRET` | `ваш_client_secret` |
-| `SPOTIFY_REDIRECT_URI` | `https://ваш-проект.railway.app/auth/spotify/callback` |
-| `OPENAI_API_KEY` | `sk-proj-ваш_ключ` |
-| `OPENAI_MODEL` | `gpt-4` | Default model for all agents |
-| `OPENAI_MODEL_PARSER` | (optional) | Model for parser tools (falls back to OPENAI_MODEL) |
-| `OPENAI_MODEL_CONVERSATION` | (optional) | Model for WorkoutBuilder (falls back to OPENAI_MODEL) |
-| `OPENAI_MODEL_SUPERVISOR` | (optional) | Model for SupervisorAgent (falls back to OPENAI_MODEL) |
-| `ENVIRONMENT` | `production` |
-| `LOG_LEVEL` | `INFO` |
-| `CORS_ORIGINS` | `["https://ваш-web-app.vercel.app"]` |
+| Key                         | Value                                                  |
+| --------------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
+| `SUPABASE_URL`              | `https://ваш-проект.supabase.co`                       |
+| `SUPABASE_ANON_KEY`         | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`              |
+| `SUPABASE_SERVICE_KEY`      | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`              |
+| `SPOTIFY_CLIENT_ID`         | `ваш_client_id`                                        |
+| `SPOTIFY_CLIENT_SECRET`     | `ваш_client_secret`                                    |
+| `SPOTIFY_REDIRECT_URI`      | `https://ваш-проект.railway.app/auth/spotify/callback` |
+| `OPENAI_API_KEY`            | `sk-proj-ваш_ключ`                                     |
+| `OPENAI_MODEL`              | `gpt-4`                                                | Default model for all agents                           |
+| `OPENAI_MODEL_PARSER`       | (optional)                                             | Model for parser tools (falls back to OPENAI_MODEL)    |
+| `OPENAI_MODEL_CONVERSATION` | (optional)                                             | Model for WorkoutBuilder (falls back to OPENAI_MODEL)  |
+| `OPENAI_MODEL_SUPERVISOR`   | (optional)                                             | Model for SupervisorAgent (falls back to OPENAI_MODEL) |
+| `ENVIRONMENT`               | `production`                                           |
+| `LOG_LEVEL`                 | `INFO`                                                 |
+| `CORS_ORIGINS`              | `["https://ваш-web-app.vercel.app"]`                   |
 
 ---
 
@@ -119,6 +123,7 @@ railway variables set SUPABASE_ANON_KEY=ваш_ключ
 ## 📋 Повний список змінних для Railway
 
 ### Supabase (1-3):
+
 ```env
 SUPABASE_URL=https://ваш-проект.supabase.co
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -126,6 +131,7 @@ SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 ### Spotify (4-6):
+
 ```env
 SPOTIFY_CLIENT_ID=ваш_client_id
 SPOTIFY_CLIENT_SECRET=ваш_client_secret
@@ -133,31 +139,43 @@ SPOTIFY_REDIRECT_URI=https://ваш-проект.railway.app/auth/spotify/callba
 ```
 
 **⚠️ Важливо:** `SPOTIFY_REDIRECT_URI` має бути production URL з Railway!
+
 - Отримайте Railway URL: Settings → Domains → Default Domain
 - Формат: `https://ваш-проект.railway.app/auth/spotify/callback`
 
 ### OpenAI (7-8):
+
 ```env
 OPENAI_API_KEY=sk-proj-ваш_ключ
 OPENAI_MODEL=gpt-4
 ```
 
-### App Settings (9-11):
+### App Settings (9-12):
+
 ```env
 ENVIRONMENT=production
 LOG_LEVEL=INFO
-CORS_ORIGINS=["https://ваш-web-app.vercel.app"]
+CORS_ORIGINS=["https://runbeatweb-production.up.railway.app"]
+FRONTEND_URL=https://runbeatweb-production.up.railway.app
 ```
+
+**⚠️ Важливо:** `FRONTEND_URL` має бути URL вашого frontend додатку!
+
+- Це URL, куди користувач буде перенаправлений після авторизації Spotify
+- Для production: `https://runbeatweb-production.up.railway.app`
+- Для локальної розробки: `http://localhost:3000`
 
 ---
 
 ## ✅ Перевірка після додавання
 
 1. **Перевірте що всі змінні додані:**
+
    - Railway Dashboard → Variables
-   - Повинно бути 11 змінних (або більше якщо додали додаткові)
+   - Повинно бути 12 змінних (або більше якщо додали додаткові)
 
 2. **Перевірте формат:**
+
    - Ключі мають бути в UPPER_CASE
    - Значення без лапок (якщо не JSON масив)
 
@@ -181,6 +199,7 @@ CORS_ORIGINS=["https://ваш-web-app.vercel.app"]
 ### Проблема: Змінні не застосовуються
 
 **Рішення:**
+
 1. Перевірте що змінні збережені (натисніть Save)
 2. Перезапустіть deployment вручну
 3. Перевірте логи на помилки
@@ -188,6 +207,7 @@ CORS_ORIGINS=["https://ваш-web-app.vercel.app"]
 ### Проблема: SPOTIFY_REDIRECT_URI не працює
 
 **Рішення:**
+
 1. Перевірте що URL точно відповідає Railway Domain
 2. Переконайтесь що URL починається з `https://`
 3. Перевірте що URL додано в Spotify Dashboard
@@ -195,6 +215,7 @@ CORS_ORIGINS=["https://ваш-web-app.vercel.app"]
 ### Проблема: CORS_ORIGINS не працює
 
 **Рішення:**
+
 1. Перевірте формат: `["https://domain.com"]` (JSON масив)
 2. Переконайтесь що немає пробілів після ком
 3. Використовуйте подвійні лапки для JSON
@@ -211,4 +232,3 @@ CORS_ORIGINS=["https://ваш-web-app.vercel.app"]
 ---
 
 **Готово!** Після додавання всіх змінних ваш Backend буде готовий до роботи! 🎉
-
