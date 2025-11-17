@@ -107,6 +107,10 @@ class WorkoutBuilder(BaseAgent):
         # Add user message to history
         state.history.append({"role": "user", "content": user_message})
 
+        # CRITICAL: Extract and update parameters BEFORE building context
+        # This ensures the agent always sees up-to-date collected_parameters
+        self._update_collected_parameters_from_message(state, user_message)
+
         # Build comprehensive context for the AI agent (with user patterns)
         conversation_context = await self._build_conversation_context(state, user_message)
 
@@ -174,7 +178,15 @@ class WorkoutBuilder(BaseAgent):
                 response_message = self._get_fallback_response(state, user_message)
 
             # AI agent extracts parameters through prompt
-            # No fallback parsing needed - agent handles everything
+            # Parameters are already extracted and saved in _update_collected_parameters_from_message()
+            # But we do a final check to ensure nothing was missed
+
+            # Final safety check: ensure parameters are still up-to-date
+            # (This is a backup in case the message wasn't processed correctly earlier)
+            if not state.collected_parameters.get("duration_minutes") or not state.collected_parameters.get("intensity"):
+                # Re-extract if missing (shouldn't happen, but safety net)
+                logger.debug(f"Re-extracting parameters for user {state.user_id} as safety check")
+                self._update_collected_parameters_from_message(state, user_message)
 
             # Determine question type based on response content
             state.last_question = self._determine_question_type_from_response(response_message, state)
@@ -309,6 +321,67 @@ class WorkoutBuilder(BaseAgent):
 
         return "\n".join(context_parts)
 
+    def _update_collected_parameters_from_message(
+        self, state: ConversationState, user_message: str
+    ) -> None:
+        """
+        Extract parameters from user message and update state.collected_parameters.
+        This ensures the agent always sees up-to-date collected parameters.
+
+        Args:
+            state: Conversation state to update
+            user_message: Current user message to extract parameters from
+        """
+        collected = state.collected_parameters
+
+        # Extract parameters from current message
+        extracted_params = self._extract_parameters_from_user_message(user_message)
+
+        # Also check recent history for missed parameters (last 3 user messages)
+        if len(state.history) > 1:
+            recent_user_messages = [
+                msg["content"] for msg in state.history[-6:]
+                if msg.get("role") == "user"
+            ][-3:]  # Last 3 user messages
+
+            for hist_msg in recent_user_messages:
+                if hist_msg != user_message:  # Don't process current message twice
+                    hist_params = self._extract_parameters_from_user_message(hist_msg)
+                    # Merge with extracted params (don't overwrite existing)
+                    for key, value in hist_params.items():
+                        if key not in extracted_params:
+                            extracted_params[key] = value
+                        elif key == "genres":
+                            # Accumulate genres
+                            existing = extracted_params.get("genres", [])
+                            new_genres = hist_params.get("genres", [])
+                            if isinstance(existing, list) and isinstance(new_genres, list):
+                                extracted_params["genres"] = list(set(existing + new_genres))
+
+        # Update collected_parameters by merging (never overwrite existing values)
+        for key, value in extracted_params.items():
+            if key == "genres":
+                # Accumulate genres (don't replace)
+                existing_genres = collected.get("genres", [])
+                new_genres = value if isinstance(value, list) else [value]
+                if isinstance(existing_genres, list):
+                    all_genres = list(set(existing_genres + new_genres))
+                    collected["genres"] = all_genres
+                else:
+                    collected["genres"] = new_genres
+            else:
+                # Update other params if not already set, or if new value is more specific
+                if key not in collected or not collected[key]:
+                    collected[key] = value
+                # For workout type, prefer more specific types (intervals > steady)
+                elif key == "type" and value in ["intervals", "fartlek"] and collected.get("type") == "steady":
+                    collected[key] = value
+
+        logger.debug(
+            f"Updated collected_parameters for user {state.user_id}: "
+            f"extracted={extracted_params}, final={collected}"
+        )
+
     def _extract_parameters_from_user_message(self, user_message: str) -> Dict:
         """
         Extract workout parameters from user message using simple rule-based parsing.
@@ -336,27 +409,29 @@ class WorkoutBuilder(BaseAgent):
             params["intensity"] = "high"
 
         # Parse workout type
-        workout_type = "steady"  # default
-        if any(k in message_lower for k in ["інтервал", "interval"]):
+        workout_type = None  # Don't set default yet
+        if any(k in message_lower for k in ["інтервал", "interval", "інтервальн"]):
             workout_type = "intervals"
         elif any(k in message_lower for k in ["фартлек", "fartlek"]):
             workout_type = "fartlek"
         elif any(k in message_lower for k in ["відновлен", "recovery"]):
             workout_type = "steady"  # recovery maps to steady
-        elif any(k in message_lower for k in ["біг", "пробіжк", "run", "steady", "стабільн", "постійн"]):
+        elif any(k in message_lower for k in ["біг", "пробіжк", "run", "running", "steady", "стабільн", "постійн"]):
             workout_type = "steady"
 
-        # Only set type if we have some workout parameters
-        if params.get("duration_minutes") or params.get("intensity"):
+        # Set type if found, or if we have other workout parameters (use steady as default)
+        if workout_type:
             params["type"] = workout_type
+        elif params.get("duration_minutes") or params.get("intensity"):
+            params["type"] = "steady"  # Default for regular runs
 
         # Parse genres with fuzzy matching
         genre_mapping = {
             # English genres
-            "rock": ["rock", "рок"],
+            "rock": ["rock", "рок", "рок-музик", "рок музик"],
             "pop": ["pop", "поп"],
-            "electronic": ["electronic", "electric", "electro", "електро", "електронн"],
-            "classical": ["classic", "classical", "класик"],
+            "electronic": ["electronic", "electric", "electro", "електро", "електронн", "електронну", "електроніка"],
+            "classical": ["classic", "classical", "класик", "класична", "класичну"],
             "hip-hop": ["hip-hop", "hip hop", "хіп-хоп", "хіп хоп", "rap", "реп"],
             "jazz": ["jazz", "джаз"],
             "metal": ["metal", "метал"],
@@ -364,14 +439,14 @@ class WorkoutBuilder(BaseAgent):
             "alternative": ["alternative", "альтернатив"],
             "dance": ["dance", "данс"],
             "house": ["house", "хаус"],
-            "techno": ["techno", "техно"],
+            "techno": ["techno", "техно", "в стилі техно", "техно стиль"],
             "trance": ["trance", "транс"],
             "reggae": ["reggae", "регі"],
             "country": ["country", "кантрі"],
             "r&b": ["r&b", "rnb", "r'n'b"],
             "blues": ["blues", "блюз"],
             "folk": ["folk", "фолк"],
-            "ambient": ["ambient", "ембієнт"],
+            "ambient": ["ambient", "ембієнт", "chill"],
             "edm": ["edm", "едм"],
         }
 
@@ -379,6 +454,25 @@ class WorkoutBuilder(BaseAgent):
         for genre, variations in genre_mapping.items():
             if any(var in message_lower for var in variations):
                 found_genres.append(genre)
+
+        # Special handling for phrases like "релаксну музику в стилі техно"
+        # Check for "в стилі" or "in style" patterns
+        style_patterns = [
+            (r"в\s+стилі\s+(\w+)", "uk"),
+            (r"in\s+style\s+(\w+)", "en"),
+            (r"релаксну\s+музику\s+в\s+стилі\s+(\w+)", "uk"),
+            (r"музику\s+в\s+стилі\s+(\w+)", "uk"),
+        ]
+        for pattern, lang in style_patterns:
+            match = re.search(pattern, message_lower)
+            if match:
+                style_word = match.group(1).lower()
+                # Try to match style word to a genre
+                for genre, variations in genre_mapping.items():
+                    if any(var in style_word or style_word in var for var in variations):
+                        if genre not in found_genres:
+                            found_genres.append(genre)
+                        break
 
         if found_genres:
             params["genres"] = found_genres
