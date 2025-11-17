@@ -22,6 +22,61 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 oauth_states = {}
 
 
+def get_frontend_url() -> str:
+    """
+    Get frontend URL for redirects.
+    Priority: 1. FRONTEND_URL env var, 2. Find frontend URL in CORS_ORIGINS (not backend)
+    """
+    frontend_url = settings.FRONTEND_URL
+
+    if not frontend_url and settings.CORS_ORIGINS:
+        # Try to find frontend URL in CORS_ORIGINS
+        # Frontend URLs typically contain 'web' or 'frontend' or are not backend domains
+        backend_domains = ['runbeatbackend', 'backend', 'api']
+        backend_ports = [':8000', ':8001', ':8080']
+
+        # First pass: prefer URLs that contain 'web' or 'frontend'
+        for origin in settings.CORS_ORIGINS:
+            origin_lower = origin.lower()
+            # Skip if it's clearly a backend URL
+            if any(backend_domain in origin_lower for backend_domain in backend_domains):
+                continue
+            # Skip if it has backend port
+            if any(port in origin_lower for port in backend_ports):
+                continue
+            # Prefer URLs that contain 'web' or 'frontend' or are production web URLs
+            if 'web' in origin_lower or 'frontend' in origin_lower or 'runbeatweb' in origin_lower:
+                frontend_url = origin
+                break
+
+        # Second pass: use first non-backend URL
+        if not frontend_url:
+            for origin in settings.CORS_ORIGINS:
+                origin_lower = origin.lower()
+                # Skip backend URLs
+                if any(backend_domain in origin_lower for backend_domain in backend_domains):
+                    continue
+                # Skip backend ports
+                if any(port in origin_lower for port in backend_ports):
+                    continue
+                frontend_url = origin
+                break
+
+        # Last resort: use first CORS origin (but log warning)
+        if not frontend_url:
+            frontend_url = settings.CORS_ORIGINS[0]
+            logger.warning(
+                f"Could not determine frontend URL from CORS_ORIGINS, using first: {frontend_url}. "
+                f"Please set FRONTEND_URL environment variable."
+            )
+
+    logger.info(
+        f"Frontend URL determined: {frontend_url} "
+        f"(FRONTEND_URL={settings.FRONTEND_URL}, CORS_ORIGINS={settings.CORS_ORIGINS})"
+    )
+    return frontend_url
+
+
 def get_spotify_oauth() -> SpotifyOAuth:
     """Get Spotify OAuth manager."""
     return SpotifyOAuth(
@@ -95,8 +150,9 @@ async def spotify_callback(
     Exchanges authorization code for access token and saves to database.
     """
     try:
-        # Use FRONTEND_URL if set, otherwise fallback to first CORS origin
-        frontend_url = settings.FRONTEND_URL or settings.CORS_ORIGINS[0]
+        # Get frontend URL for redirect
+        frontend_url = get_frontend_url()
+        logger.info(f"Using frontend_url for redirect: {frontend_url}")
 
         # Check for errors
         if error:
@@ -276,16 +332,18 @@ async def spotify_callback(
             f"{frontend_url}/auth/callback?"
             f"user_id={user_id}&spotify_user_id={spotify_user_id}"
         )
+        logger.info(f"Redirecting to frontend callback: {success_url}")
         return RedirectResponse(url=success_url)
 
     except Exception as e:
         logger.error(f"Failed to handle Spotify callback: {e}")
-        # Use FRONTEND_URL if set, otherwise fallback to first CORS origin
-        frontend_url = settings.FRONTEND_URL or settings.CORS_ORIGINS[0]
+        # Get frontend URL for error redirect
+        frontend_url = get_frontend_url()
         error_url = (
             f"{frontend_url}/auth/callback?"
             f"error={urllib.parse.quote(str(e))}"
         )
+        logger.info(f"Redirecting to frontend error callback: {error_url}")
         return RedirectResponse(url=error_url)
 
 

@@ -127,6 +127,15 @@ settings = _settings
 # Log CORS settings on startup
 logger.info(f"CORS_ORIGINS configured: {settings.CORS_ORIGINS}")
 
+# Log FRONTEND_URL for debugging
+if settings.FRONTEND_URL:
+    logger.info(f"FRONTEND_URL configured: {settings.FRONTEND_URL}")
+else:
+    logger.warning(
+        "FRONTEND_URL not set! Will use CORS_ORIGINS[0] for redirects: "
+        f"{settings.CORS_ORIGINS[0] if settings.CORS_ORIGINS else 'N/A'}"
+    )
+
 # Log Spotify redirect URI for debugging
 if settings.SPOTIFY_REDIRECT_URI:
     logger.info(
