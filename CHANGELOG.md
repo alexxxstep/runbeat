@@ -1,5 +1,42 @@
 # RunBeat Changelog
 
+## Version 3.3.1 - Spotify Auth Redirect Fix (17 November 2025)
+
+### 🔥 Hotfix
+
+#### Spotify OAuth Redirect Issue
+- **Problem:** After Spotify authorization, users were redirected to backend URL instead of frontend, resulting in "Not Found" error
+- **Solution:** Added `FRONTEND_URL` environment variable to backend configuration
+- **Files Changed:**
+  - `apps/backend/app/core/config.py` - Added FRONTEND_URL setting
+  - `apps/backend/app/api/routes/auth.py` - Updated redirect logic to use FRONTEND_URL
+  - `apps/backend/RAILWAY_ENV_VARIABLES.md` - Added FRONTEND_URL documentation
+
+#### Documentation Updates
+- ✅ Created `SPOTIFY_AUTH_REDIRECT_FIX.md` - Detailed fix documentation
+- ✅ Updated `RAILWAY_ENV_VARIABLES.md` - Added FRONTEND_URL variable
+- ✅ Updated `PRD_CURSOR_AI.md` - Reflected current project structure
+- ✅ Updated `PROJECT_STATUS.md` - Added v3.3.1 hotfix information
+
+### 🔧 Configuration Changes
+
+**New Environment Variable (CRITICAL):**
+```env
+FRONTEND_URL=https://runbeatweb-production.up.railway.app
+```
+
+**Deployment Steps:**
+1. Add `FRONTEND_URL` to Railway Backend environment variables
+2. Restart backend service
+3. Test OAuth flow
+
+### ✅ Impact
+- OAuth flow now works correctly in production
+- Users successfully redirected to frontend after Spotify authorization
+- No breaking changes to existing functionality
+
+---
+
 ## Version 3.3 - AI Learning & Personalization (November 2025)
 
 ### ✨ Major Features

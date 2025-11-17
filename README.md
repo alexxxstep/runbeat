@@ -2,8 +2,8 @@
 
 **AI-powered music assistant for runners** that generates personalized workout playlists through natural chat conversation.
 
-[![Production Status](https://img.shields.io/badge/status-production-brightgreen)](https://github.com/yourusername/runbeat)
-[![Version](https://img.shields.io/badge/version-3.3-blue)](./CHANGELOG.md)
+[![Production Status](https://img.shields.io/badge/status-production-brightgreen)](https://github.com/alexxxstep/runbeat)
+[![Version](https://img.shields.io/badge/version-3.3.1-blue)](./CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
 [![React](https://img.shields.io/badge/react-18-blue)](https://reactjs.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
@@ -342,9 +342,10 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 ---
 
 **Status:** ✅ **Production Ready** - MVP Complete, actively adding features
-**Version:** 3.3 (AI Learning & Personalization)
-**Last Updated:** November 2025
+**Version:** 3.3.1 (AI Learning & Personalization + Spotify Auth Fix)
+**Last Updated:** 17 November 2025
 **Deployment:** [Railway](https://railway.app/)
+**Repository:** [GitHub](https://github.com/alexxxstep/runbeat)
 
 ---
 
