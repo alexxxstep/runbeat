@@ -1,6 +1,7 @@
 """
 RunBeat Backend - FastAPI Application Entry Point
 """
+
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,7 +9,16 @@ from loguru import logger
 
 from app.core.config import settings
 from app.api.routes import (
-    health, chat, playlists, auth, workouts, users, error_logs, spotify, analytics
+    health,
+    chat,
+    playlists,
+    auth,
+    workouts,
+    users,
+    error_logs,
+    spotify,
+    analytics,
+    test_error_logging,
 )
 
 # Configure logger
@@ -24,6 +34,7 @@ logger.add(
 # Add database log handler for errors
 try:
     from app.utils.database_log_handler import DatabaseLogHandler
+
     logger.add(
         DatabaseLogHandler(min_level="ERROR"),
         level="ERROR",
@@ -45,7 +56,11 @@ app = FastAPI(
 
 # CORS middleware
 # In production, also allow requests from known Railway domains
-cors_origins = list(settings.CORS_ORIGINS) if isinstance(settings.CORS_ORIGINS, list) else [settings.CORS_ORIGINS]
+cors_origins = (
+    list(settings.CORS_ORIGINS)
+    if isinstance(settings.CORS_ORIGINS, list)
+    else [settings.CORS_ORIGINS]
+)
 
 # Add production frontend URLs if in production
 if settings.ENVIRONMENT == "production":
@@ -88,6 +103,10 @@ app.include_router(error_logs.router, prefix=api_v1_prefix, tags=["error-logs"])
 app.include_router(spotify.router, prefix=api_v1_prefix, tags=["spotify"])
 app.include_router(analytics.router, prefix=f"{api_v1_prefix}/analytics", tags=["analytics"])
 
+# Test endpoints (only in development)
+if settings.ENVIRONMENT == "development":
+    app.include_router(test_error_logging.router, prefix=api_v1_prefix, tags=["test"])
+
 # Backward compatibility: also include without prefix for existing clients
 # TODO: Remove in future version
 app.include_router(chat.router, tags=["chat"])
@@ -107,6 +126,7 @@ async def startup_event():
     # Test error logging service
     try:
         from app.services.error_logging_service import error_logging_service
+
         logger.info("Error logging service is ready")
     except Exception as e:
         logger.error(f"Error logging service initialization failed: {e}")
