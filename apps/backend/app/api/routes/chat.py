@@ -31,7 +31,11 @@ async def send_message(request: ChatRequest) -> ChatResponse:
         workout_obj = None
         if created_workout:
             try:
-                workout_obj = Workout(**created_workout)
+                # Validate that workout has required fields before converting
+                if all(key in created_workout for key in ["type", "duration_minutes", "intensity"]):
+                    workout_obj = Workout(**created_workout)
+                else:
+                    logger.warning(f"Created workout missing required fields: {created_workout}")
             except Exception as e:
                 logger.error(f"Failed to convert workout dict to Workout model: {e}")
 
@@ -40,7 +44,7 @@ async def send_message(request: ChatRequest) -> ChatResponse:
             workout=workout_obj,  # Include created workout for frontend
             playlist=None,
             needs_clarification=False,  # Agent manages the flow
-            is_complete=bool(created_workout),  # Complete if workout was created
+            is_complete=bool(workout_obj),  # Complete if workout was successfully created
         )
 
     except HTTPException:

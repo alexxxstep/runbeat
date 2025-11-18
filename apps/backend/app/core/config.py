@@ -1,6 +1,7 @@
 """
 Application configuration using Pydantic Settings.
 """
+
 import os
 import json
 from pydantic_settings import BaseSettings
@@ -35,11 +36,14 @@ class Settings(BaseSettings):
     USE_LANGCHAIN_PARSER: bool = True  # Use LangChain parser tools (default: enabled)
     USE_LANGCHAIN_SUPERVISOR: bool = True  # Use LangChain Supervisor (default: enabled)
 
+    # LangChain Tracing (optional)
+    LANGCHAIN_TRACING_V2: Optional[str] = None
+    LANGCHAIN_API_KEY: Optional[str] = None
+
     # App Settings
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
-    CORS_ORIGINS: Union[List[str], str] = [
-        "http://localhost:3000", "http://localhost:19006"]
+    CORS_ORIGINS: Union[List[str], str] = ["http://localhost:3000", "http://localhost:19006"]
     FRONTEND_URL: Optional[str] = None  # Production frontend URL
 
     # Railway/Deployment
@@ -75,15 +79,17 @@ class Settings(BaseSettings):
 
 
 # Create settings instance
-_settings = Settings()
+try:
+    _settings = Settings()
+except Exception as e:
+    logger.error(f"Failed to load settings: {e}")
+    raise
 
 # Auto-detect and add production frontend URL to CORS if in production
 if _settings.ENVIRONMENT == "production":
     # Try to get frontend URL from environment or Railway
     frontend_url = (
-        _settings.FRONTEND_URL
-        or os.getenv("FRONTEND_URL")
-        or os.getenv("RAILWAY_STATIC_URL")
+        _settings.FRONTEND_URL or os.getenv("FRONTEND_URL") or os.getenv("RAILWAY_STATIC_URL")
     )
 
     # Ensure CORS_ORIGINS is a list
@@ -109,11 +115,12 @@ if _settings.ENVIRONMENT == "production":
 # Auto-detect Railway URL and set redirect URI if not provided
 if not _settings.SPOTIFY_REDIRECT_URI:
     if _settings.RAILWAY_PUBLIC_DOMAIN:
-        _settings.SPOTIFY_REDIRECT_URI = f"https://{_settings.RAILWAY_PUBLIC_DOMAIN}/auth/spotify/callback"
+        _settings.SPOTIFY_REDIRECT_URI = (
+            f"https://{_settings.RAILWAY_PUBLIC_DOMAIN}/auth/spotify/callback"
+        )
     elif _settings.ENVIRONMENT == "production":
         # Try to get from Railway environment variables
-        railway_domain = os.getenv(
-            "RAILWAY_PUBLIC_DOMAIN") or os.getenv("RAILWAY_STATIC_URL")
+        railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("RAILWAY_STATIC_URL")
         if railway_domain:
             _settings.SPOTIFY_REDIRECT_URI = f"https://{railway_domain}/auth/spotify/callback"
         else:
@@ -138,10 +145,8 @@ else:
 
 # Log Spotify redirect URI for debugging
 if settings.SPOTIFY_REDIRECT_URI:
-    logger.info(
-        f"SPOTIFY_REDIRECT_URI configured: {settings.SPOTIFY_REDIRECT_URI}")
+    logger.info(f"SPOTIFY_REDIRECT_URI configured: {settings.SPOTIFY_REDIRECT_URI}")
 else:
     logger.warning(
-        "SPOTIFY_REDIRECT_URI not set! "
-        "Please set it in Railway Variables or .env file"
+        "SPOTIFY_REDIRECT_URI not set! " "Please set it in Railway Variables or .env file"
     )

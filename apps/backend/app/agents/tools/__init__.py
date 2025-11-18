@@ -20,6 +20,9 @@ from app.agents.tools.workout_tools import (
     activate_workout,
     get_active_workout,
 )
+from app.agents.tools.parameter_extraction_tools import (
+    extract_workout_parameters,
+)
 
 __all__ = [
     "rule_based_parse",
@@ -34,4 +37,5 @@ __all__ = [
     "create_workout",
     "activate_workout",
     "get_active_workout",
+    "extract_workout_parameters",
 ]
