@@ -1,6 +1,7 @@
 """
 Spotify Service for API integration.
 """
+
 from typing import Dict, List, Optional
 import time
 import hashlib
@@ -22,31 +23,21 @@ import asyncio
 
 
 class SpotifyService(
-    SearchMixin,
-    RecommendationsMixin,
-    UserProfileMixin,
-    PlaylistMixin,
-    AudioFeaturesMixin
+    SearchMixin, RecommendationsMixin, UserProfileMixin, PlaylistMixin, AudioFeaturesMixin
 ):
     """Service for Spotify API operations."""
 
     def __init__(self):
         """Initialize Spotify client credentials."""
         # Validate credentials are set
-        if (not settings.SPOTIFY_CLIENT_ID or
-                not settings.SPOTIFY_CLIENT_SECRET):
+        if not settings.SPOTIFY_CLIENT_ID or not settings.SPOTIFY_CLIENT_SECRET:
             logger.error("Spotify credentials are missing!")
-            raise ValueError(
-                "SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set"
-            )
+            raise ValueError("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set")
 
         # Log partial credentials for debugging (first 10 chars only)
-        secret_display = (
-            "*" * 10 if settings.SPOTIFY_CLIENT_SECRET else "MISSING"
-        )
+        secret_display = "*" * 10 if settings.SPOTIFY_CLIENT_SECRET else "MISSING"
         logger.debug(
-            f"Spotify Client ID: {settings.SPOTIFY_CLIENT_ID[:10]}... "
-            f"Secret: {secret_display}"
+            f"Spotify Client ID: {settings.SPOTIFY_CLIENT_ID[:10]}... " f"Secret: {secret_display}"
         )
         self.client_credentials = SpotifyClientCredentials(
             client_id=settings.SPOTIFY_CLIENT_ID,
@@ -58,6 +49,15 @@ class SpotifyService(
         self._cache_ttl = 3600  # 1 hour
 
         logger.info("SpotifyService initialized")
+        logger.info(
+            "⚠️ IMPORTANT: If you see 403 errors, your Spotify app is in Development Mode. "
+            "To fix this:\n"
+            "1. Go to https://developer.spotify.com/dashboard\n"
+            "2. Select your app\n"
+            "3. Click 'Settings'\n"
+            "4. Request 'Extended Quota Mode' or switch to 'Production Mode'\n"
+            "5. Wait for approval (usually 1-2 business days)"
+        )
 
     def get_user_client(self, access_token: str) -> spotipy.Spotify:
         """
@@ -87,9 +87,7 @@ class SpotifyService(
             List of track dictionaries
         """
         try:
-            results = user_client.current_user_top_tracks(
-                limit=limit, time_range="medium_term"
-            )
+            results = user_client.current_user_top_tracks(limit=limit, time_range="medium_term")
             return results.get("items", [])
         except Exception as e:
             logger.error(f"Failed to get user top tracks: {e}")
@@ -111,9 +109,7 @@ class SpotifyService(
             List of artist dictionaries
         """
         try:
-            results = user_client.current_user_top_artists(
-                limit=limit, time_range="medium_term"
-            )
+            results = user_client.current_user_top_artists(limit=limit, time_range="medium_term")
             return results.get("items", [])
         except Exception as e:
             logger.error(f"Failed to get user top artists: {e}")
@@ -152,7 +148,7 @@ class SpotifyService(
             # Add tracks in batches (max 100 per request)
             if tracks:
                 for i in range(0, len(tracks), 100):
-                    batch = tracks[i: i + 100]
+                    batch = tracks[i : i + 100]
                     user_client.playlist_add_items(
                         playlist_id=playlist["id"],
                         items=batch,
@@ -178,7 +174,7 @@ class SpotifyService(
         min_tempo: int,
         max_tempo: int,
         target_energy: float,
-        user_token: Optional[str] = None
+        user_token: Optional[str] = None,
     ) -> str:
         """Generate cache key from parameters."""
         key_data = {
@@ -186,16 +182,13 @@ class SpotifyService(
             "min_tempo": min_tempo,
             "max_tempo": max_tempo,
             "target_energy": target_energy,
-            "user_token": bool(user_token)  # Don't cache token itself
+            "user_token": bool(user_token),  # Don't cache token itself
         }
         key_str = json.dumps(key_data, sort_keys=True)
         return hashlib.md5(key_str.encode()).hexdigest()
 
     async def get_seed_tracks_from_genres(
-        self,
-        genres: List[str],
-        limit_per_genre: int = 5,
-        user_token: Optional[str] = None
+        self, genres: List[str], limit_per_genre: int = 5, user_token: Optional[str] = None
     ) -> List[str]:
         """
         Отримати seed tracks з жанрів (оптимізовано з паралельними запитами).
@@ -226,9 +219,7 @@ class SpotifyService(
         if user_token:
             sp = spotipy.Spotify(auth=user_token)
         else:
-            sp = spotipy.Spotify(
-                client_credentials_manager=self.client_credentials
-            )
+            sp = spotipy.Spotify(client_credentials_manager=self.client_credentials)
 
         genre_map = {
             "pop": "pop music",
@@ -255,11 +246,8 @@ class SpotifyService(
                 search_results = await loop.run_in_executor(
                     None,
                     lambda: sp.search(
-                        q=search_term,
-                        type="track",
-                        limit=limit_per_genre,
-                        market="US"
-                    )
+                        q=search_term, type="track", limit=limit_per_genre, market="US"
+                    ),
                 )
                 tracks = search_results.get("tracks", {}).get("items", [])
                 return [track["id"] for track in tracks if track.get("id")]
@@ -284,18 +272,14 @@ class SpotifyService(
                 if len(seed_tracks) >= 5:
                     break
         except Exception as e:
-            logger.warning(
-                f"Parallel seed tracks search failed: {e}, falling back to sequential")
+            logger.warning(f"Parallel seed tracks search failed: {e}, falling back to sequential")
             # Fallback до послідовного пошуку
             seed_tracks = []
             for genre in genres:
                 try:
                     search_term = genre_map.get(genre.lower(), genre)
                     search_results = sp.search(
-                        q=search_term,
-                        type="track",
-                        limit=limit_per_genre,
-                        market="US"
+                        q=search_term, type="track", limit=limit_per_genre, market="US"
                     )
                     tracks = search_results.get("tracks", {}).get("items", [])
                     for track in tracks:
@@ -306,8 +290,7 @@ class SpotifyService(
                     if len(seed_tracks) >= 5:
                         break
                 except Exception as e:
-                    logger.warning(
-                        f"Failed to get seed tracks for {genre}: {e}")
+                    logger.warning(f"Failed to get seed tracks for {genre}: {e}")
                     continue
 
         result = seed_tracks[:5]  # Max 5 seeds
@@ -327,7 +310,7 @@ class SpotifyService(
         target_energy: float,
         limit: int = 20,
         user_token: Optional[str] = None,
-        use_cache: bool = True
+        use_cache: bool = True,
     ) -> List[Dict]:
         """
         Оптимізований метод отримання рекомендацій.
@@ -365,7 +348,7 @@ class SpotifyService(
                         "min_tempo": min_tempo,
                         "max_tempo": max_tempo,
                         "target_energy": target_energy,
-                        "limit": limit
+                        "limit": limit,
                     }
                 else:
                     rec_params = {
@@ -373,7 +356,7 @@ class SpotifyService(
                         "min_tempo": min_tempo,
                         "max_tempo": max_tempo,
                         "target_energy": target_energy,
-                        "limit": limit
+                        "limit": limit,
                     }
 
                 logger.debug(f"Using Recommendations API with User Auth")
@@ -400,8 +383,7 @@ class SpotifyService(
 
             except Exception as e:
                 logger.warning(
-                    f"Recommendations API with User Auth failed: {e}, "
-                    "falling back to Search API"
+                    f"Recommendations API with User Auth failed: {e}, " "falling back to Search API"
                 )
 
         # Strategy 2: Search API з Client Credentials (fallback)
@@ -411,7 +393,7 @@ class SpotifyService(
             min_tempo=min_tempo,
             max_tempo=max_tempo,
             target_energy=target_energy,
-            limit=limit
+            limit=limit,
         )
 
         # Зберегти в кеш
@@ -424,10 +406,7 @@ class SpotifyService(
         return tracks
 
     async def get_audio_features_batch_optimized(
-        self,
-        track_ids: List[str],
-        batch_size: int = 100,
-        user_token: Optional[str] = None
+        self, track_ids: List[str], batch_size: int = 100, user_token: Optional[str] = None
     ) -> List[Optional[Dict]]:
         """
         Оптимізований batch запит для audio features з паралельними запитами.
@@ -448,27 +427,21 @@ class SpotifyService(
         if cache_key in self._cache:
             cached_data, timestamp = self._cache[cache_key]
             if time.time() - timestamp < 3600:  # 1 година для audio features
-                logger.debug(
-                    f"Cache hit for audio features: {len(track_ids)} tracks")
+                logger.debug(f"Cache hit for audio features: {len(track_ids)} tracks")
                 return cached_data
 
         # Використовуємо User Auth якщо доступний
         if user_token:
             sp = spotipy.Spotify(auth=user_token)
         else:
-            sp = spotipy.Spotify(
-                client_credentials_manager=self.client_credentials
-            )
+            sp = spotipy.Spotify(client_credentials_manager=self.client_credentials)
 
         # OPTIMIZATION: Паралельна обробка батчів
         async def fetch_batch(batch: List[str], batch_num: int) -> List[Optional[Dict]]:
             """Отримати audio features для одного батчу."""
             try:
                 loop = asyncio.get_event_loop()
-                batch_features = await loop.run_in_executor(
-                    None,
-                    lambda: sp.audio_features(batch)
-                )
+                batch_features = await loop.run_in_executor(None, lambda: sp.audio_features(batch))
                 if batch_features:
                     return batch_features
                 else:
@@ -481,27 +454,23 @@ class SpotifyService(
                         "This may indicate insufficient permissions."
                     )
                 elif "429" in error_str or "rate limit" in error_str:
-                    logger.warning(
-                        f"Rate limit hit for batch {batch_num}, waiting 1s...")
+                    logger.warning(f"Rate limit hit for batch {batch_num}, waiting 1s...")
                     await asyncio.sleep(1)
                     # Retry once
                     try:
                         loop = asyncio.get_event_loop()
                         batch_features = await loop.run_in_executor(
-                            None,
-                            lambda: sp.audio_features(batch)
+                            None, lambda: sp.audio_features(batch)
                         )
                         return batch_features if batch_features else [None] * len(batch)
                     except Exception as retry_error:
-                        logger.warning(
-                            f"Retry failed for batch {batch_num}: {retry_error}")
+                        logger.warning(f"Retry failed for batch {batch_num}: {retry_error}")
                 else:
                     logger.warning(f"Batch {batch_num} failed: {e}")
                 return [None] * len(batch)
 
         # Розбиваємо на батчі та виконуємо паралельно
-        batches = [track_ids[i:i + batch_size]
-                   for i in range(0, len(track_ids), batch_size)]
+        batches = [track_ids[i : i + batch_size] for i in range(0, len(track_ids), batch_size)]
 
         try:
             # Виконуємо всі батчі паралельно (але обмежуємо до 3 одночасно для rate limits)
@@ -512,17 +481,15 @@ class SpotifyService(
                 async with semaphore:
                     return await fetch_batch(batch, batch_num)
 
-            results = await asyncio.gather(*[
-                fetch_with_semaphore(batch, i)
-                for i, batch in enumerate(batches)
-            ])
+            results = await asyncio.gather(
+                *[fetch_with_semaphore(batch, i) for i, batch in enumerate(batches)]
+            )
 
             # Об'єднуємо результати
             for result in results:
                 features.extend(result)
         except Exception as e:
-            logger.warning(
-                f"Parallel batch fetch failed: {e}, falling back to sequential")
+            logger.warning(f"Parallel batch fetch failed: {e}, falling back to sequential")
             # Fallback до послідовної обробки
             features = []
             for i, batch in enumerate(batches):
@@ -562,5 +529,5 @@ class SpotifyService(
         return {
             "cache_size": len(self._cache),
             "cache_ttl": self._cache_ttl,
-            "cached_keys": list(self._cache.keys())[:10]
+            "cached_keys": list(self._cache.keys())[:10],
         }

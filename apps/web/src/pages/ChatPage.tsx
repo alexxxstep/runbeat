@@ -279,7 +279,7 @@ export function ChatPage() {
           variant2: variantsData.variant2,
         });
         throw new Error(
-          'Не вдалося знайти треки для воркауту. Спробуйте змінити параметри або додати жанри музики.'
+          'Не вдалося знайти треки для воркауту. Можливо, Spotify API недоступний або потрібно додати жанри музики.'
         );
       }
 
@@ -326,10 +326,29 @@ export function ChatPage() {
       console.log('Variants state set successfully');
     } catch (error) {
       console.error('Failed to generate variants:', error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Не вдалося згенерувати варіанти плейлисту';
+
+      // Extract user-friendly error message
+      let errorMessage = 'Не вдалося згенерувати варіанти плейлисту';
+
+      if (error instanceof Error) {
+        // Check for specific error patterns
+        if (
+          error.message.includes('режимі розробки') ||
+          error.message.includes('Development Mode')
+        ) {
+          errorMessage =
+            '⚠️ Spotify API тимчасово недоступний. Додаток знаходиться в режимі розробки. Будь ласка, зверніться до адміністратора.';
+        } else if (
+          error.message.includes('403') ||
+          error.message.includes('Forbidden')
+        ) {
+          errorMessage =
+            '⚠️ Spotify API недоступний через обмеження доступу. Будь ласка, зверніться до адміністратора.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
       setLocalError(errorMessage);
 
       // Log error to backend

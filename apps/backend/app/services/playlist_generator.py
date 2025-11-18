@@ -1,6 +1,7 @@
 """
 Playlist Generator - Core algorithm for generating workout playlists.
 """
+
 from typing import List, Dict, Optional, Any
 import asyncio
 import math
@@ -29,7 +30,6 @@ class PlaylistGenerator:
         self.spotify = spotify
         logger.info("PlaylistGenerator initialized with WorkoutProfiler method.")
 
-
     async def generate(
         self,
         workout: Workout,
@@ -38,7 +38,7 @@ class PlaylistGenerator:
         prompt: Optional[str] = None,
         user_token: Optional[str] = None,
         excluded_track_ids: Optional[List[str]] = None,
-        variant_strategy: str = "primary", # New parameter for variants
+        variant_strategy: str = "primary",  # New parameter for variants
     ) -> PlaylistData:
         """
         Main generation method using the new WorkoutProfiler.
@@ -60,9 +60,7 @@ class PlaylistGenerator:
 
         # 2. Fetch tracks for each segment in the profile
         all_tracks = await self._fetch_tracks_for_profile(
-            profile,
-            user_token=user_token,
-            excluded_track_ids=excluded_track_ids or []
+            profile, user_token=user_token, excluded_track_ids=excluded_track_ids or []
         )
 
         # 3. Assemble the final playlist from the fetched tracks
@@ -86,7 +84,7 @@ class PlaylistGenerator:
         self,
         profile: List[WorkoutSegment],
         user_token: Optional[str],
-        excluded_track_ids: List[str]
+        excluded_track_ids: List[str],
     ) -> Dict[str, List[Track]]:
         """Fetch all tracks for the entire profile, segment by segment."""
 
@@ -113,32 +111,32 @@ class PlaylistGenerator:
                         unique_tracks.append(track)
                         used_track_ids.add(track.id)
                 all_tracks[segment_name] = unique_tracks
-                logger.debug(f"Fetched {len(unique_tracks)} unique tracks for segment '{segment_name}'")
+                logger.debug(
+                    f"Fetched {len(unique_tracks)} unique tracks for segment '{segment_name}'"
+                )
 
         return all_tracks
 
     async def _fetch_tracks_for_segment(
-        self,
-        segment: WorkoutSegment,
-        user_token: Optional[str]
+        self, segment: WorkoutSegment, user_token: Optional[str]
     ) -> List[Track]:
         """Fetch candidate tracks for a single workout segment."""
 
         # Estimate number of tracks needed, with a buffer
         avg_track_duration_s = 210  # 3.5 minutes
         num_tracks_needed = math.ceil(segment.duration_seconds / avg_track_duration_s)
-        limit = int(num_tracks_needed * 3) + 10 # Fetch plenty of candidates
+        limit = int(num_tracks_needed * 3) + 10  # Fetch plenty of candidates
 
         try:
             spotify_tracks = await self.spotify.get_recommendations(
-            seed_genres=segment.genres[:2],
-            seed_artists=[], # Add missing seed_artists
-            target_tempo=int((segment.min_bpm + segment.max_bpm) / 2),
-            min_tempo=segment.min_bpm,
-            max_tempo=segment.max_bpm,
-            target_energy=segment.target_energy,
-            limit=limit,
-            user_token=user_token,
+                seed_genres=segment.genres[:2],
+                seed_artists=[],  # Add missing seed_artists
+                target_tempo=int((segment.min_bpm + segment.max_bpm) / 2),
+                min_tempo=segment.min_bpm,
+                max_tempo=segment.max_bpm,
+                target_energy=segment.target_energy,
+                limit=limit,
+                user_token=user_token,
             )
 
             if not spotify_tracks:
@@ -148,6 +146,17 @@ class PlaylistGenerator:
             return [self._spotify_to_track(t) for t in spotify_tracks if t]
 
         except Exception as e:
+            error_str = str(e)
+            # Check if it's a 403 error (Development Mode)
+            if (
+                "403" in error_str
+                or "режимі розробки" in error_str
+                or "Development Mode" in error_str
+            ):
+                logger.error(f"Spotify API 403 error for segment '{segment.name}': {e}")
+                # Re-raise 403 errors so they propagate to the user
+                raise
+
             logger.error(f"Failed to fetch tracks for segment '{segment.name}': {e}")
             return []
 
@@ -155,7 +164,7 @@ class PlaylistGenerator:
         self,
         all_tracks: Dict[str, List[Track]],
         profile: List[WorkoutSegment],
-        target_duration_seconds: int
+        target_duration_seconds: int,
     ) -> List[Track]:
         """Fill each segment with tracks until the target duration is met."""
         playlist = []
@@ -178,12 +187,14 @@ class PlaylistGenerator:
 
         # If total duration is still too short, add more from the highest energy segment
         if current_duration_ms < target_duration_seconds * 1000:
-             # Find the main segment with the most remaining candidates
-            main_segments = [s for s in profile if s.type == 'main']
+            # Find the main segment with the most remaining candidates
+            main_segments = [s for s in profile if s.type == "main"]
             if not main_segments:
-                 main_segments = profile # fallback to any segment
+                main_segments = profile  # fallback to any segment
 
-            best_segment_name = max(main_segments, key=lambda s: len(all_tracks.get(s.name, [])), default=profile[0]).name
+            best_segment_name = max(
+                main_segments, key=lambda s: len(all_tracks.get(s.name, [])), default=profile[0]
+            ).name
 
             extra_candidates = all_tracks.get(best_segment_name, [])
             for track in extra_candidates:
@@ -194,7 +205,6 @@ class PlaylistGenerator:
                     current_duration_ms += track.duration_ms
 
         return playlist
-
 
     def _spotify_to_track(self, spotify_track: Dict) -> Optional[Track]:
         """
