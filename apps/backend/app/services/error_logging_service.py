@@ -3,6 +3,7 @@ Error logging service for storing errors in database.
 """
 import traceback
 import sys
+import asyncio
 from typing import Optional, Dict, Any
 from loguru import logger
 from app.services.supabase_service import supabase_service
@@ -97,6 +98,118 @@ class ErrorLoggingService:
             logger.error(f"Failed to log error to database: {e}")
             # Also log to stderr to ensure it's not lost
             print(f"CRITICAL: Failed to log error to database: {e}", file=sys.stderr)
+            return None
+
+    async def log_error_async(
+        self,
+        level: str,
+        message: str,
+        exception: Optional[Exception] = None,
+        user_id: Optional[UUID] = None,
+        request_path: Optional[str] = None,
+        request_method: Optional[str] = None,
+        request_body: Optional[Dict[str, Any]] = None,
+        response_status: Optional[int] = None,
+        error_details: Optional[Dict[str, Any]] = None,
+    ) -> Optional[str]:
+        """
+        Log error to database asynchronously.
+
+        This method uses asyncio.run_in_executor to avoid blocking
+        the event loop when writing to Supabase.
+
+        Args:
+            level: Log level (ERROR, CRITICAL, WARNING)
+            message: Error message (max 5000 chars)
+            exception: Exception object (optional)
+            user_id: User ID if error is user-related
+            request_path: API request path
+            request_method: HTTP method
+            request_body: Request body
+            response_status: HTTP response status
+            error_details: Additional error details
+
+        Returns:
+            Error log ID if successful, None otherwise
+
+        Example:
+            >>> error_id = await error_logging_service.log_error_async(
+            ...     level="ERROR",
+            ...     message="Failed to generate playlist",
+            ...     exception=e,
+            ...     user_id=user.id,
+            ... )
+        """
+        try:
+            # Extract error information from exception
+            error_type = None
+            stack_trace = None
+            if exception:
+                error_type = type(exception).__name__
+                stack_trace = "".join(
+                    traceback.format_exception(
+                        type(exception), exception, exception.__traceback__
+                    )
+                )
+                # Limit stack trace size (max 10KB)
+                if stack_trace and len(stack_trace) > 10000:
+                    stack_trace = stack_trace[:10000] + "\n... (truncated)"
+
+            # Limit message size (max 5000 chars)
+            if message and len(message) > 5000:
+                message = message[:5000] + "... (truncated)"
+
+            # Limit request_body size (max 50KB)
+            if request_body:
+                body_str = str(request_body)
+                if len(body_str) > 50000:
+                    request_body = {
+                        "truncated": True,
+                        "size": len(body_str),
+                        "note": "Request body too large, truncated",
+                    }
+
+            # Prepare error log data
+            error_log_data = {
+                "level": level,
+                "message": message,
+                "error_type": error_type,
+                "error_details": error_details,
+                "stack_trace": stack_trace,
+                "user_id": str(user_id) if user_id else None,
+                "request_path": request_path,
+                "request_method": request_method,
+                "request_body": request_body,
+                "response_status": response_status,
+                "environment": self.environment,
+                "service_name": "runbeat-backend",
+            }
+
+            # Run sync Supabase call in executor to avoid blocking event loop
+            loop = asyncio.get_event_loop()
+
+            def _insert():
+                """Sync function to insert into database."""
+                return (
+                    self.supabase.table("error_logs")
+                    .insert(error_log_data)
+                    .execute()
+                )
+
+            response = await loop.run_in_executor(None, _insert)
+
+            if response.data and len(response.data) > 0:
+                error_log_id = response.data[0].get("id")
+                logger.debug(f"Error logged to database (async): {error_log_id}")
+                return error_log_id
+            else:
+                logger.warning("Failed to log error to database: empty response (async)")
+                return None
+
+        except Exception as e:
+            # Don't fail if error logging fails - just log to console
+            logger.error(f"Failed to log error to database (async): {e}")
+            print(f"CRITICAL: Failed to log error to database (async): {e}", file=sys.stderr)
             return None
 
     def get_error_logs(

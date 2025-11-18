@@ -2,7 +2,7 @@
 Custom loguru handler for logging errors to database.
 """
 import sys
-import threading
+import asyncio
 from typing import Dict, Any
 from loguru import logger
 from app.services.error_logging_service import error_logging_service
@@ -108,12 +108,11 @@ class DatabaseLogHandler:
             error_details = extra.get("error_details") if isinstance(extra, dict) else None
 
             # Log to database asynchronously (fire and forget)
-            # Use threading to avoid blocking the main event loop
-            def log_to_db():
-                """Log error to database in a separate thread."""
+            # Use asyncio.create_task to avoid blocking the event loop
+            async def log_to_db_async():
+                """Log error to database asynchronously."""
                 try:
-                    # error_logging_service.log_error is synchronous
-                    error_logging_service.log_error(
+                    await error_logging_service.log_error_async(
                         level=level,
                         message=message_text,
                         exception=exception,
@@ -126,11 +125,45 @@ class DatabaseLogHandler:
                     )
                 except Exception as e:
                     # Don't fail if database logging fails
-                    print(f"Failed to log to database: {e}", file=sys.stderr)
+                    print(f"Failed to log to database (async): {e}", file=sys.stderr)
 
-            # Start logging in a separate thread (fire and forget)
-            thread = threading.Thread(target=log_to_db, daemon=True)
-            thread.start()
+            # Create task in event loop (fire and forget)
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # If loop is running, create task
+                    asyncio.create_task(log_to_db_async())
+                else:
+                    # If loop is not running, run in executor
+                    # This shouldn't happen in FastAPI, but handle it gracefully
+                    def sync_log():
+                        error_logging_service.log_error(
+                            level=level,
+                            message=message_text,
+                            exception=exception,
+                            user_id=user_id,
+                            request_path=request_path,
+                            request_method=request_method,
+                            request_body=request_body,
+                            response_status=response_status,
+                            error_details=error_details,
+                        )
+                    import threading
+                    thread = threading.Thread(target=sync_log, daemon=True)
+                    thread.start()
+            except RuntimeError:
+                # No event loop available, fall back to sync
+                error_logging_service.log_error(
+                    level=level,
+                    message=message_text,
+                    exception=exception,
+                    user_id=user_id,
+                    request_path=request_path,
+                    request_method=request_method,
+                    request_body=request_body,
+                    response_status=response_status,
+                    error_details=error_details,
+                )
 
         except Exception as e:
             # Don't fail if handler fails - just log to stderr

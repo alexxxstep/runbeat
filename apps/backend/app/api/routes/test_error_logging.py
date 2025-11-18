@@ -125,7 +125,7 @@ async def direct_log_test(
     level: str = "ERROR",
 ):
     """
-    Directly log an error using error_logging_service.
+    Directly log an error using error_logging_service (sync version).
     This bypasses DatabaseLogHandler and calls the service directly.
     """
     try:
@@ -136,16 +136,46 @@ async def direct_log_test(
             user_id=uuid4(),
             request_path="/test-error-logging/direct-log",
             request_method="POST",
-            error_details={"test": True, "direct_call": True},
+            error_details={"test": True, "direct_call": True, "method": "sync"},
         )
 
         return {
             "status": "logged",
             "error_id": error_id,
-            "message": f"Error logged directly with ID: {error_id}",
+            "message": f"Error logged directly (sync) with ID: {error_id}",
         }
     except Exception as e:
         logger.error(f"Failed to log directly: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/direct-log-async")
+async def direct_log_async_test(
+    message: str = "Test direct async log",
+    level: str = "ERROR",
+):
+    """
+    Directly log an error using error_logging_service (async version).
+    This tests the new async logging method.
+    """
+    try:
+        error_id = await error_logging_service.log_error_async(
+            level=level,
+            message=message,
+            exception=None,
+            user_id=uuid4(),
+            request_path="/test-error-logging/direct-log-async",
+            request_method="POST",
+            error_details={"test": True, "direct_call": True, "method": "async"},
+        )
+
+        return {
+            "status": "logged",
+            "error_id": error_id,
+            "message": f"Error logged directly (async) with ID: {error_id}",
+        }
+    except Exception as e:
+        logger.error(f"Failed to log directly (async): {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
