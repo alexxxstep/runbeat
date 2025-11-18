@@ -396,3 +396,53 @@ async def spotify_auth_status(
             status_code=500,
             detail=f"Failed to check authentication status: {str(e)}",
         )
+
+
+@router.post("/logout")
+async def logout(
+    user_id: str = Query(..., description="User ID to logout")
+):
+    """
+    Logout user and revoke Spotify tokens.
+    Clears all Spotify authentication data for the user.
+    """
+    try:
+        supabase = SupabaseService().get_client()
+
+        # Check if user exists
+        user = (
+            supabase.table("users")
+            .select("id, spotify_user_id")
+            .eq("id", user_id)
+            .execute()
+        )
+
+        if not user.data:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Clear Spotify tokens and authentication data
+        supabase.table("users").update(
+            {
+                "spotify_access_token": None,
+                "spotify_refresh_token": None,
+                "spotify_token_expires_at": None,
+                "updated_at": datetime.now().isoformat(),
+            }
+        ).eq("id", user_id).execute()
+
+        logger.info(f"User {user_id} logged out successfully")
+
+        return {
+            "success": True,
+            "message": "Logged out successfully",
+            "user_id": user_id,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to logout user: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to logout: {str(e)}",
+        )

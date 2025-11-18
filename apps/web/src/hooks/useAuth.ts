@@ -1,8 +1,10 @@
 import { useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 
 export function useAuth() {
+  const navigate = useNavigate();
   const {
     user,
     loading,
@@ -61,11 +63,46 @@ export function useAuth() {
     }
   };
 
-  const signOut = () => {
-    localStorage.removeItem('spotify_user_id');
-    setUser(null);
-    setSpotifyAuthenticated(false);
-  };
+  const signOut = useCallback(async () => {
+    try {
+      // Get user ID before clearing state
+      const userId = user?.id || localStorage.getItem('spotify_user_id');
+
+      // Call backend logout endpoint to revoke tokens
+      if (userId) {
+        try {
+          await api.logout(userId);
+          console.log('Backend logout successful');
+        } catch (error) {
+          console.error(
+            'Backend logout failed, continuing with local cleanup:',
+            error
+          );
+        }
+      }
+
+      // Clear all localStorage data
+      localStorage.clear();
+
+      // Clear session storage as well
+      sessionStorage.clear();
+
+      // Reset auth state
+      setUser(null);
+      setSpotifyAuthenticated(false);
+
+      // Navigate to login
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Even if there's an error, clear local data and navigate
+      localStorage.clear();
+      sessionStorage.clear();
+      setUser(null);
+      setSpotifyAuthenticated(false);
+      navigate('/login', { replace: true });
+    }
+  }, [user, navigate, setUser, setSpotifyAuthenticated]);
 
   return {
     user,

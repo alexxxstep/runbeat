@@ -162,6 +162,13 @@ class ApiClient {
     return response.data;
   }
 
+  async logout(userId: string) {
+    const response = await this.client.post('/auth/logout', null, {
+      params: { user_id: userId },
+    });
+    return response.data;
+  }
+
   // Workout endpoints
   async createWorkout(
     workout: Workout,
