@@ -3,7 +3,7 @@ Workout management tools for LangChain agents.
 """
 
 from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict  # LangChain 0.1.0 uses Pydantic V2 internally
 from langchain.tools import tool
 from loguru import logger
 
@@ -311,7 +311,7 @@ def activate_workout(workout_id: str, user_id: str) -> str:
 
 # Pydantic schema for tool arguments - explicitly marks duration and intensity as Optional
 # This prevents LangChain from failing validation when agent calls tool without these params
-# NOTE: LangChain 0.1.0+ uses Pydantic V2 internally, so we use V2 syntax
+# NOTE: LangChain 0.1.0 uses Pydantic V2 internally, so we use V2 syntax
 class CreateWorkoutFromParamsInput(BaseModel):
     """Input schema for create_workout_from_params tool."""
     user_id: str = Field(..., description="User ID (required)")
