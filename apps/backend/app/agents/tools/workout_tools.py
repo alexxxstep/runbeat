@@ -340,18 +340,38 @@ def create_workout_from_params(
     Returns:
         Workout ID if created successfully, "error: <message>" if failed
     """
-    # Validate required parameters
-    if not duration_minutes:
-        return "error: duration_minutes is required. Please collect this information from the user first."
+    from loguru import logger
 
-    if not intensity:
-        return "error: intensity is required. Please collect this information from the user first."
+    # Log incoming parameters for debugging
+    logger.debug(
+        f"create_workout_from_params called: "
+        f"user_id={user_id}, type={workout_type}, "
+        f"duration={duration_minutes}, intensity={intensity}"
+    )
+
+    # Validate required parameters
+    if duration_minutes is None:
+        error_msg = (
+            "error: duration_minutes is required. "
+            "Please collect this information from the user first."
+        )
+        logger.warning(f"Validation failed: {error_msg}")
+        return error_msg
+
+    if intensity is None or intensity == "":
+        error_msg = (
+            "error: intensity is required. " "Please collect this information from the user first."
+        )
+        logger.warning(f"Validation failed: {error_msg}")
+        return error_msg
 
     if duration_minutes < 5 or duration_minutes > 180:
-        return f"error: duration_minutes must be between 5 and 180, got {duration_minutes}"
+        msg = f"error: duration_minutes must be between 5 and 180, " f"got {duration_minutes}"
+        return msg
 
     if intensity not in ["low", "moderate", "high"]:
-        return f"error: intensity must be 'low', 'moderate', or 'high', got '{intensity}'"
+        msg = f"error: intensity must be 'low', 'moderate', or 'high', " f"got '{intensity}'"
+        return msg
 
     # Call internal function
     return _create_workout_from_params_internal(

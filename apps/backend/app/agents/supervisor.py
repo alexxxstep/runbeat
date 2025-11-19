@@ -109,43 +109,55 @@ class SupervisorAgent:
                     workout_type = collected.get("type", "steady")
                     duration = collected.get("duration_minutes")
                     intensity = collected.get("intensity")
-                    genres_list = collected.get("genres", [])
-                    genres_str = None
-                    if genres_list:
-                        if isinstance(genres_list, list):
-                            genres_str = ",".join(genres_list)
-                        else:
-                            genres_str = str(genres_list)
 
-                    result = _create_workout_from_params_internal(
-                        user_id=user_id,
-                        workout_type=workout_type,
-                        duration_minutes=duration,
-                        intensity=intensity,
-                        genres=genres_str,
-                        prompt=None,
-                    )
-
-                    if "error" not in result.lower():
-                        # Parse workout object from result
-                        if result.startswith("workout_created:"):
-                            try:
-                                import json
-                                parts = result.split("|", 1)
-                                if len(parts) == 2:
-                                    created_workout = json.loads(parts[1])
-                            except Exception as e:
-                                logger.error(f"Failed to parse workout object: {e}")
-
-                        response_message = "✅ Воркаут успішно створено! Тепер ви можете згенерувати плейлист."
-                        logger.info(
-                            f"Workout created via supervisor fallback for user {user_id}"
+                    # Validate required parameters before calling
+                    if not duration or not intensity:
+                        logger.warning(
+                            f"Cannot create workout: missing parameters. "
+                            f"duration={duration}, intensity={intensity} for user {user_id}"
+                        )
+                        response_message = (
+                            "Вибачте, мені потрібно знати тривалість та інтенсивність. "
+                            "Можете повторити?"
                         )
                     else:
-                        response_message = f"Вибачте, не вдалося створити воркаут: {result}"
-                        logger.error(
-                            f"Failed to create workout via supervisor fallback: {result}"
+                        genres_list = collected.get("genres", [])
+                        genres_str = None
+                        if genres_list:
+                            if isinstance(genres_list, list):
+                                genres_str = ",".join(genres_list)
+                            else:
+                                genres_str = str(genres_list)
+
+                        result = _create_workout_from_params_internal(
+                            user_id=user_id,
+                            workout_type=workout_type,
+                            duration_minutes=duration,
+                            intensity=intensity,
+                            genres=genres_str,
+                            prompt=None,
                         )
+
+                        if "error" not in result.lower():
+                            # Parse workout object from result
+                            if result.startswith("workout_created:"):
+                                try:
+                                    import json
+                                    parts = result.split("|", 1)
+                                    if len(parts) == 2:
+                                        created_workout = json.loads(parts[1])
+                                except Exception as e:
+                                    logger.error(f"Failed to parse workout object: {e}")
+
+                            response_message = "✅ Воркаут успішно створено! Тепер ви можете згенерувати плейлист."
+                            logger.info(
+                                f"Workout created via supervisor fallback for user {user_id}"
+                            )
+                        else:
+                            response_message = f"Вибачте, не вдалося створити воркаут: {result}"
+                            logger.error(
+                                f"Failed to create workout via supervisor fallback: {result}"
+                            )
                 except Exception as e:
                     logger.error(
                         f"Error creating workout via supervisor fallback: {e}",

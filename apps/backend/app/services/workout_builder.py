@@ -52,12 +52,28 @@ class WorkoutBuilder(BaseAgent):
             prompt=self.prompt,
         )
 
+        # Custom error handler for tool validation errors
+        def handle_error(error: Exception) -> str:
+            """Handle parsing and validation errors gracefully."""
+            error_str = str(error).lower()
+            logger.warning(f"AgentExecutor error: {error}")
+
+            # Check if it's a Pydantic validation error related to workout parameters
+            if "duration" in error_str and "intensity" in error_str:
+                return (
+                    "I apologize, but I need more information before creating the workout. "
+                    "Please provide the duration and intensity first."
+                )
+
+            # Generic error handling
+            return f"I encountered an error: {str(error)}. Could you please rephrase your request?"
+
         # Agent executor
         self.agent_executor = AgentExecutor(
             agent=self.agent,
             tools=self.tools,
             verbose=True,  # Enable for debugging
-            handle_parsing_errors=True,
+            handle_parsing_errors=handle_error,
             max_iterations=5,  # Reduced - agent should be more efficient now
             max_execution_time=20,  # 20 seconds timeout
         )
@@ -130,10 +146,32 @@ class WorkoutBuilder(BaseAgent):
             from app.utils.openai_error_handler import OpenAIErrorHandler
 
             async def invoke_agent():
-                return await self.agent_executor.ainvoke({
-                    "input": conversation_context,
-                    "chat_history": temp_memory.chat_memory.messages,
-                })
+                try:
+                    return await self.agent_executor.ainvoke({
+                        "input": conversation_context,
+                        "chat_history": temp_memory.chat_memory.messages,
+                    })
+                except Exception as e:
+                    error_str = str(e)
+                    logger.error(
+                        f"Error in agent_executor.ainvoke for user {state.user_id}: {error_str}",
+                        exc_info=True
+                    )
+
+                    # Check if it's a validation error related to workout parameters
+                    if "duration" in error_str.lower() and "intensity" in error_str.lower():
+                        logger.warning(
+                            f"Validation error in agent execution - agent likely tried to create workout "
+                            f"without all parameters. User: {state.user_id}"
+                        )
+                        # Return a response that will trigger fallback
+                        return {
+                            "output": "Вибачте, мені потрібно спочатку зібрати всі параметри. "
+                                    "Повідомте тривалість та інтенсивність тренування."
+                        }
+
+                    # Re-raise other errors
+                    raise
 
             # Use retry logic for rate limits
             response = await OpenAIErrorHandler.handle_with_retry(
@@ -167,11 +205,23 @@ class WorkoutBuilder(BaseAgent):
             return ConversationUpdate(new_state=state, response_message=response_message)
 
         except Exception as e:
-            logger.error(f"Error in WorkoutBuilder.process_message: {e}", exc_info=True)
+            error_str = str(e)
+            logger.error(
+                f"Error in WorkoutBuilder.process_message for user {state.user_id}: {error_str}",
+                exc_info=True
+            )
 
             from app.utils.openai_error_handler import OpenAIErrorHandler
 
-            if OpenAIErrorHandler.is_api_error(e):
+            # Check if it's a Pydantic validation error related to workout parameters
+            if "duration" in error_str.lower() and "intensity" in error_str.lower():
+                logger.warning(
+                    f"Validation error detected - likely agent tried to create workout without all parameters. "
+                    f"User: {state.user_id}, Message: {user_message[:50]}"
+                )
+                # Use fallback response
+                error_message = self._get_fallback_response(state, user_message)
+            elif OpenAIErrorHandler.is_api_error(e):
                 error_message = OpenAIErrorHandler.get_error_message(e)
                 logger.warning(f"OpenAI API error in WorkoutBuilder: {type(e).__name__} - {e}")
             else:
