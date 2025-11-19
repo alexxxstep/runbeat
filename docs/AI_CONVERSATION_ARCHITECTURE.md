@@ -40,16 +40,59 @@ RunBeat використовує мультиагентну LangChain архіт
 
 ### Компоненти системи:
 
-```mermaid
-flowchart TD
-    U(User Input) --> SA[SupervisorAgent<br/>OPENAI_MODEL_SUPERVISOR]
-    SA --> WB[WorkoutBuilder<br/>OPENAI_MODEL_CONVERSATION]
-    WB --> T1[extract_workout_parameters]
-    WB --> T2[create_workout_from_params]
-    SA --> CS[ConversationService (Supabase)]
-    T2 --> DB[(workouts table)]
-    WB -->|ConversationUpdate| SA
-    SA -->|ChatResponse| UI[Frontend Chat]
+```
+👤 User Input
+  │
+  ▼
+┌────────────────────────────────────────┐
+│       SupervisorAgent                  │
+│  Model: OPENAI_MODEL_SUPERVISOR        │
+│  (gpt-3.5-turbo)                       │
+│                                        │
+│  • Керує ConversationState             │
+│  • Делегує WorkoutBuilder              │
+│  • Зберігає історію в Supabase         │
+└────────────┬───────────────────────────┘
+             │
+             ▼
+┌────────────────────────────────────────┐
+│       WorkoutBuilder                   │
+│  Model: OPENAI_MODEL_CONVERSATION      │
+│  (gpt-4-turbo / gpt-4o)                │
+│                                        │
+│  LangChain Tools:                      │
+│  ┌──────────────────────────────────┐ │
+│  │ 1. extract_workout_parameters    │ │
+│  │    • Витягує параметри           │ │
+│  │    • Нормалізує значення         │ │
+│  │                                  │ │
+│  │ 2. create_workout_from_params    │ │
+│  │    • Створює workout в БД        │ │
+│  │    • Повертає created_workout    │ │
+│  └──────────────────────────────────┘ │
+└────────────┬───────────────────────────┘
+             │
+             │ ConversationUpdate
+             │ (response + metadata + workout)
+             ▼
+┌────────────────────────────────────────┐
+│       SupervisorAgent                  │
+│  • Зберігає через ConversationService  │
+└────────────┬───────────────────────────┘
+             │
+             │ ChatResponse
+             ▼
+┌────────────────────────────────────────┐
+│       Frontend Chat                    │
+│  • Рендерить відповідь                 │
+│  • Показує CTA для плейлиста           │
+└────────────────────────────────────────┘
+             │
+             ▼
+        ┌──────────┐
+        │ Supabase │
+        │   DB     │
+        └──────────┘
 ```
 
 ---
@@ -103,19 +146,71 @@ apps/backend/app/
 
 ### 2. WorkoutBuilder
 
-```mermaid
-stateDiagram-v2
-    [*] --> goal_question
-    goal_question --> duration_received: duration parsed
-    duration_received --> intensity_received: intensity parsed
-    intensity_received --> genres_received: genres parsed
-    genres_received --> prompt_question: all core params collected
-    prompt_question --> prompt_recorded: user answered / skipped
-    prompt_recorded --> confirmation: summary sent
-    confirmation --> created: user says "так"
-    confirmation --> clarification: missing info
-    clarification --> goal_question
-    created --> [*]
+#### State Machine (Стани розмови):
+
+```
+                    [START]
+                       │
+                       ▼
+            ┌──────────────────────┐
+            │   goal_question      │
+            │  "Яке тренування?"   │
+            └──────────┬───────────┘
+                       │
+                       │ duration parsed
+                       ▼
+            ┌──────────────────────┐
+            │  duration_received   │
+            │  "30 хв ✓"           │
+            └──────────┬───────────┘
+                       │
+                       │ intensity parsed
+                       ▼
+            ┌──────────────────────┐
+            │  intensity_received  │
+            │  "легка ✓"           │
+            └──────────┬───────────┘
+                       │
+                       │ genres parsed
+                       ▼
+            ┌──────────────────────┐
+            │   genres_received    │
+            │  "rock ✓"            │
+            └──────────┬───────────┘
+                       │
+                       │ all core params collected
+                       ▼
+            ┌──────────────────────┐
+            │   prompt_question    │
+            │  "Побажання?"        │
+            └──────────┬───────────┘
+                       │
+                       │ user answered / skipped
+                       ▼
+            ┌──────────────────────┐
+            │   prompt_recorded    │
+            │  "нічний вайб ✓"     │
+            └──────────┬───────────┘
+                       │
+                       │ summary sent
+                       ▼
+            ┌──────────────────────┐
+            │    confirmation      │
+            │  "Створюємо?"        │
+            └──────┬───────┬───────┘
+                   │       │
+      user says    │       │ missing info
+      "так"        │       │
+                   ▼       ▼
+            ┌─────────┐  ┌──────────────┐
+            │ created │  │clarification │
+            │   ✅    │  │   ⚠️         │
+            └────┬────┘  └──────┬───────┘
+                 │              │
+                 │              └──────┐
+                 │                     │
+                 ▼                     ▼
+              [END]          [LOOP TO goal_question]
 ```
 
 **Файл**: `apps/backend/app/services/workout_builder.py`
@@ -229,18 +324,66 @@ stateDiagram-v2
 
 ## 🎵 Music Prompt / Atmosphere Flow
 
-```mermaid
-sequenceDiagram
-    participant WB as WorkoutBuilder
-    participant State as ConversationState
-    participant FE as Frontend
-    participant PG as PlaylistGenerator
-    WB->>State: store prompt/_prompt_checked
-    WB-->>FE: response + prompt summary
-    FE->>FE: sync WorkoutSettings.prompt
-    FE->>PG: generatePlaylist(prompt,...)
-    PG->>Spotify: request tracks with prompt bias
-    PG-->>FE: playlist payload (title includes prompt)
+```
+┌─────────────────────────────────────────┐
+│       WorkoutBuilder                    │
+│  Питає: "Маєш побажання до атмосфери?"  │
+└────────────┬────────────────────────────┘
+             │
+             │ User: "нічний драйв, synthwave"
+             ▼
+┌─────────────────────────────────────────┐
+│       ConversationState                 │
+│  collected_parameters:                  │
+│  {                                      │
+│    prompt: "нічний драйв, synthwave" ✨ │
+│    _prompt_checked: true                │
+│  }                                      │
+└────────────┬────────────────────────────┘
+             │
+             │ create_workout_from_params
+             ▼
+┌─────────────────────────────────────────┐
+│       Workout в БД                      │
+│  • prompt зберігається у workout        │
+└────────────┬────────────────────────────┘
+             │
+             │ ChatResponse
+             ▼
+┌─────────────────────────────────────────┐
+│       Frontend (ChatPage)               │
+│  • Отримує workout з prompt             │
+│  • Синхронізує:                         │
+│    workout.prompt → WorkoutSettings     │
+└────────────┬────────────────────────────┘
+             │
+             │ User клікає "Згенерувати плейлист"
+             ▼
+┌─────────────────────────────────────────┐
+│  generatePlaylist(workout, prompt, ...) │
+└────────────┬────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────┐
+│       PlaylistGenerator                 │
+│                                         │
+│  Інтерпретує prompt:                    │
+│  • "synthwave" → додає до genres        │
+│  • "нічний" → зміщує energy: 0.6→0.7    │
+│  • Формує назву з prompt snippet        │
+└────────────┬────────────────────────────┘
+             │
+             │ Spotify API
+             ▼
+┌─────────────────────────────────────────┐
+│  Spotify Playlist створено 🎵           │
+│  Назва: "RunBeat: Середня 💪 | 30 хв    │
+│         | 120-140 ЧСС | rock, synthwave │
+│         | (нічний драйв...)"            │
+└─────────────────────────────────────────┘
+             │
+             ▼
+👤 User бачить плейлист з треками
 ```
 
 1. **Збір у чаті**: WorkoutBuilder після жанрів ставить одне уточнююче питання про музичні побажання (атмосфера/жанри/виконавці). Відповідь зберігається в `ConversationState.collected_parameters.prompt`. Якщо побажань немає — поле очищується, а `_prompt_checked` стає `true`.

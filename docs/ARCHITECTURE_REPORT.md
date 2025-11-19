@@ -13,19 +13,51 @@
 
 ## 1. Загальна архітектура
 
-```mermaid
-flowchart LR
-    U(User) -->|Chat UI| W[React + Vite SPA]
-    W -->|REST /api/v1/*| B[FastAPI Backend]
-    B -->|Delegates| S[SupervisorAgent]
-    S -->|orchestrates| WB[WorkoutBuilder]
-    WB -->|LangChain Tools| T1[extract_workout_parameters]
-    WB -->|LangChain Tools| T2[create_workout_from_params]
-    B -->|Generates| PG[PlaylistGenerator]
-    PG --> SPOT[Spotify API]
-    B --> DB[Supabase (Postgres)]
-    S --> DB
-    PG --> DB
+```
+┌─────────────┐
+│    User     │ 👤
+│  (Browser)  │
+└──────┬──────┘
+       │ Chat UI
+       ▼
+┌─────────────────────────┐
+│   React + Vite SPA      │
+│   • Zustand (useChat)   │
+│   • Tailwind CSS        │
+│   • TypeScript          │
+└──────────┬──────────────┘
+           │ REST API
+           │ /api/v1/*
+           ▼
+┌──────────────────────────────────────────┐
+│         FastAPI Backend                  │
+│                                          │
+│  ┌────────────────────────────────────┐ │
+│  │      SupervisorAgent               │ │
+│  │  (Оркестратор розмови)             │ │
+│  └──────────┬─────────────────────────┘ │
+│             │                            │
+│             ▼                            │
+│  ┌────────────────────────────────────┐ │
+│  │      WorkoutBuilder                │ │
+│  │  (LangChain AI Agent)              │ │
+│  │                                    │ │
+│  │  Tools:                            │ │
+│  │  • extract_workout_parameters      │ │
+│  │  • create_workout_from_params      │ │
+│  └────────────────────────────────────┘ │
+│                                          │
+│  ┌────────────────────────────────────┐ │
+│  │      PlaylistGenerator             │ │
+│  │  (Spotify Integration)             │ │
+│  └────────────────────────────────────┘ │
+└──────────┬───────────────┬───────────────┘
+           │               │
+           ▼               ▼
+    ┌──────────┐    ┌──────────────┐
+    │ Supabase │    │  Spotify API │
+    │(Postgres)│    │   (OAuth)    │
+    └──────────┘    └──────────────┘
 ```
 
 **Ключові компоненти**:
@@ -54,30 +86,72 @@ flowchart LR
 
 ## 3. AI Conversation Stack
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Frontend
-    participant ChatAPI
-    participant Supervisor
-    participant WorkoutBuilder
-    participant Tools
-    participant DB as Supabase
-
-    User->>Frontend: message
-    Frontend->>ChatAPI: POST /api/v1/chat
-    ChatAPI->>Supervisor: handle_message()
-    Supervisor->>Supervisor: load ConversationState
-    Supervisor->>WorkoutBuilder: process_message(state, text)
-    WorkoutBuilder->>Tools: extract_workout_parameters
-    Tools-->>WorkoutBuilder: normalized params
-    WorkoutBuilder->>Tools: (optional) create_workout_from_params
-    Tools-->>WorkoutBuilder: created_workout / error
-    WorkoutBuilder-->>Supervisor: ConversationUpdate
-    Supervisor->>DB: save conversation snapshot
-    Supervisor-->>ChatAPI: response_message + metadata
-    ChatAPI-->>Frontend: ChatResponse
-    Frontend-->>User: render assistant reply
+```
+👤 User
+  │
+  │ 1. Вводить повідомлення: "хочу легку пробіжку 30 хв"
+  ▼
+┌─────────────────────────────────────────┐
+│          Frontend (React)               │
+│  • useChat hook                         │
+│  • sendMessage()                        │
+└────────────┬────────────────────────────┘
+             │
+             │ 2. POST /api/v1/chat/message
+             ▼
+┌─────────────────────────────────────────┐
+│         Chat API Endpoint               │
+└────────────┬────────────────────────────┘
+             │
+             │ 3. handle_message(user_id, text)
+             ▼
+┌─────────────────────────────────────────┐
+│        SupervisorAgent                  │
+│  • Завантажує ConversationState         │
+│  • Делегує WorkoutBuilder               │
+└────────────┬────────────────────────────┘
+             │
+             │ 4. process_message(state, text)
+             ▼
+┌─────────────────────────────────────────┐
+│        WorkoutBuilder                   │
+│  (LangChain AgentExecutor)              │
+│                                         │
+│  ┌───────────────────────────────────┐ │
+│  │ 5. Автовиклик Tools:              │ │
+│  │                                   │ │
+│  │ a) extract_workout_parameters     │ │
+│  │    → duration: 30, intensity: low │ │
+│  │                                   │ │
+│  │ b) create_workout_from_params     │ │
+│  │    (якщо підтверджено)            │ │
+│  │    → created_workout              │ │
+│  └───────────────────────────────────┘ │
+│                                         │
+│  6. Формує відповідь:                   │
+│     "Супер! 30 хв легка пробіжка.       │
+│      Яку музику?"                       │
+└────────────┬────────────────────────────┘
+             │
+             │ 7. ConversationUpdate
+             │    (response + metadata + workout)
+             ▼
+┌─────────────────────────────────────────┐
+│        SupervisorAgent                  │
+│  • Зберігає стан у Supabase             │
+│  • Повертає ChatResponse                │
+└────────────┬────────────────────────────┘
+             │
+             │ 8. ChatResponse
+             ▼
+┌─────────────────────────────────────────┐
+│          Frontend                       │
+│  • Рендерить відповідь AI               │
+│  • Показує CTA (якщо workout готовий)   │
+└─────────────────────────────────────────┘
+             │
+             ▼
+👤 User бачить відповідь + кнопку "Згенерувати плейлист"
 ```
 
 1. **SupervisorAgent**
@@ -112,18 +186,85 @@ sequenceDiagram
 
 ## 4. Playlist & Prompt Flow
 
-```mermaid
-flowchart TD
-    A[WorkoutBuilder] --> B{duration & intensity & genres?}
-    B -- no --> A
-    B -- yes --> C[Ask optional prompt]
-    C -->|user reply| D[store prompt in ConversationState]
-    D --> E[create workout]
-    E --> F[ChatResponse returns workout+prompt]
-    F --> G[Frontend syncs prompt to WorkoutSettings]
-    G --> H[generatePlaylist / previewVariants]
-    H --> I[PlaylistGenerator applies prompt bias]
-    I --> J[Spotify playlist + Supabase record]
+```
+┌─────────────────────────────────────────┐
+│        WorkoutBuilder                   │
+│  Збирає параметри:                      │
+│  • duration_minutes ✓                   │
+│  • intensity ✓                          │
+│  • genres ✓                             │
+└────────────┬────────────────────────────┘
+             │
+             │ Всі базові параметри зібрані?
+             ▼
+        ┌─────────┐
+        │   ТАК   │
+        └────┬────┘
+             │
+             │ Питає: "Маєш побажання до атмосфери?"
+             ▼
+┌─────────────────────────────────────────┐
+│  User відповідає:                       │
+│  "нічний драйв, synthwave"              │
+└────────────┬────────────────────────────┘
+             │
+             │ Зберігає у ConversationState
+             ▼
+┌─────────────────────────────────────────┐
+│  collected_parameters:                  │
+│  {                                      │
+│    duration: 30,                        │
+│    intensity: "moderate",               │
+│    genres: ["electronic", "rock"],      │
+│    prompt: "нічний драйв, synthwave" ✨ │
+│  }                                      │
+└────────────┬────────────────────────────┘
+             │
+             │ create_workout_from_params
+             ▼
+┌─────────────────────────────────────────┐
+│  Workout створено в БД                  │
+│  • prompt зберігається у workout        │
+└────────────┬────────────────────────────┘
+             │
+             │ ChatResponse → Frontend
+             ▼
+┌─────────────────────────────────────────┐
+│  Frontend (ChatPage)                    │
+│  • Синхронізує workout.prompt           │
+│    → WorkoutSettings.prompt             │
+│  • Показує CTA "Згенерувати плейлист"   │
+└────────────┬────────────────────────────┘
+             │
+             │ User клікає "Так, згенерувати"
+             ▼
+┌─────────────────────────────────────────┐
+│  generatePlaylist(workout, prompt, ...) │
+└────────────┬────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────┐
+│      PlaylistGenerator                  │
+│                                         │
+│  1. Інтерпретує prompt:                 │
+│     "нічний драйв, synthwave"           │
+│     → додає "synthwave" до genres       │
+│     → зміщує energy: 0.6 → 0.7          │
+│                                         │
+│  2. Будує сегменти workout              │
+│  3. Викликає Spotify API                │
+│  4. Формує назву плейлиста з prompt     │
+└────────────┬────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────┐
+│  Spotify Playlist створено 🎵           │
+│  • Зберігається в Supabase              │
+│  • Повертається у Frontend              │
+└─────────────────────────────────────────┘
+             │
+             ▼
+👤 User бачить плейлист з треками + посилання Spotify
 ```
 
 1. Після збирання базових параметрів WorkoutBuilder питає про додаткові музичні побажання (атмосфера, mood, виконавці). Відповідь зберігається у `collected_parameters["prompt"]` та маркер `_prompt_checked`.
@@ -149,23 +290,148 @@ flowchart TD
 
 ## 6. End-to-End Data Flow
 
-```mermaid
-sequenceDiagram
-    User->>Frontend: type message
-    Frontend->>Backend: sendMessage()
-    Backend->>Supervisor: delegate
-    Supervisor->>WorkoutBuilder: process_message
-    WorkoutBuilder->>Tools: extract params / create workout
-    Tools-->>WorkoutBuilder: result
-    WorkoutBuilder-->>Supervisor: ConversationUpdate
-    Supervisor-->>Frontend: ChatResponse (message + metadata + workout)
-    Frontend->>User: render reply + CTA
-    User->>Frontend: click “Так, згенерувати плейлист”
-    Frontend->>Backend: generatePlaylist(prompt, genres,…)
-    Backend->>PlaylistGenerator: generate
-    PlaylistGenerator->>Spotify: recommendations / playlist create
-    PlaylistGenerator-->>Frontend: playlist payload
-    Frontend->>User: render tracks + Spotify link
+### 🔄 Повний цикл: від повідомлення до плейлиста
+
+```
+КРОК 1: Створення Workout
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👤 User: "хочу легку пробіжку 30 хв під рок"
+  │
+  ▼
+┌──────────────────────────────────────┐
+│  Frontend (ChatPage)                 │
+│  • useChat.sendMessage()             │
+└──────────────┬───────────────────────┘
+               │
+               │ POST /api/v1/chat/message
+               │ { user_id, message }
+               ▼
+┌──────────────────────────────────────┐
+│  Backend API                         │
+│  • /chat/message endpoint            │
+└──────────────┬───────────────────────┘
+               │
+               ▼
+┌──────────────────────────────────────┐
+│  SupervisorAgent                     │
+│  • Завантажує ConversationState      │
+│  • Делегує WorkoutBuilder            │
+└──────────────┬───────────────────────┘
+               │
+               ▼
+┌──────────────────────────────────────┐
+│  WorkoutBuilder (LangChain)          │
+│  • extract_workout_parameters        │
+│    → duration: 30, intensity: low,   │
+│      genres: ["rock"]                │
+│  • Формує відповідь: "Супер! Маєш    │
+│    ще побажання до атмосфери?"       │
+└──────────────┬───────────────────────┘
+               │
+               │ ConversationUpdate
+               ▼
+┌──────────────────────────────────────┐
+│  SupervisorAgent                     │
+│  • Зберігає у Supabase               │
+│  • Повертає ChatResponse             │
+└──────────────┬───────────────────────┘
+               │
+               │ ChatResponse
+               │ { message, workout, needs_clarification }
+               ▼
+┌──────────────────────────────────────┐
+│  Frontend                            │
+│  • Рендерить відповідь AI            │
+│  • Зберігає activeWorkout            │
+└──────────────────────────────────────┘
+               │
+               ▼
+👤 User бачить: "Супер! Маєш ще побажання до атмосфери?"
+
+
+КРОК 2: Підтвердження та створення
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👤 User: "нічний вайб"
+  │
+  │ (повторюється процес з Кроку 1)
+  ▼
+WorkoutBuilder:
+  • Зберігає prompt: "нічний вайб"
+  • Питає: "Створюємо воркаут?"
+
+👤 User: "так"
+  │
+  ▼
+WorkoutBuilder:
+  • create_workout_from_params
+  • Workout створено в БД ✅
+  │
+  ▼
+Frontend:
+  • Показує: "✅ Воркаут створено!"
+  • Кнопка: "Так, згенерувати плейлист" 🎵
+
+
+КРОК 3: Генерація плейлиста
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👤 User: [клік "Так, згенерувати плейлист"]
+  │
+  ▼
+┌──────────────────────────────────────┐
+│  Frontend                            │
+│  • generatePlaylist()                │
+│  • Передає: workout, prompt, genres  │
+└──────────────┬───────────────────────┘
+               │
+               │ POST /api/v1/playlists/generate
+               │ { workout, user_preferences, prompt }
+               ▼
+┌──────────────────────────────────────┐
+│  Backend API                         │
+│  • /playlists/generate endpoint      │
+└──────────────┬───────────────────────┘
+               │
+               ▼
+┌──────────────────────────────────────┐
+│  PlaylistGenerator                   │
+│  • Будує workout profile (сегменти)  │
+│  • Застосовує prompt bias            │
+│  • Викликає Spotify API              │
+│    (recommendations + create)        │
+└──────────────┬───────────────────────┘
+               │
+               ▼
+┌──────────────────────────────────────┐
+│  Spotify API                         │
+│  • Recommendations (BPM, energy)     │
+│  • Create Playlist                   │
+│  • Add Tracks                        │
+└──────────────┬───────────────────────┘
+               │
+               │ Playlist створено
+               ▼
+┌──────────────────────────────────────┐
+│  Backend                             │
+│  • Зберігає playlist у Supabase      │
+│  • Повертає PlaylistResponse         │
+└──────────────┬───────────────────────┘
+               │
+               │ PlaylistResponse
+               │ { playlist_id, spotify_url, tracks }
+               ▼
+┌──────────────────────────────────────┐
+│  Frontend                            │
+│  • Додає playlist як нове повідомл.  │
+│  • Показує треки + Spotify link      │
+└──────────────────────────────────────┘
+               │
+               ▼
+👤 User бачить:
+   🎵 Плейлист готовий! (15 треків, 30 хв)
+   [Відкрити в Spotify] 🔗
 ```
 
 ---
