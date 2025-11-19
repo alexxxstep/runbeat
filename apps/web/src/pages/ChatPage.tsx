@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useChat } from '../hooks/useChat';
 import { useAuth } from '../hooks/useAuth';
 import { MessageBubble } from '../components/Chat/MessageBubble';
@@ -567,11 +567,13 @@ export function ChatPage() {
                         desc: 'Питаю тривалість, інтенсивність, музику максимум один раз, без повторів.',
                       },
                       {
-                        title: 'Після "так" створю workout і одразу показую кнопку плейлиста',
+                        title:
+                          'Після "так" створю workout і одразу показую кнопку плейлиста',
                         desc: 'Отримуєш готове тренування та CTA "Так, згенерувати плейлист" прямо в чаті.',
                       },
                       {
-                        title: 'Активний workout = можливість згенерувати новий плейлист',
+                        title:
+                          'Активний workout = можливість згенерувати новий плейлист',
                         desc: 'Вибери будь-який запис з історії — кнопка для плейлисту зʼявиться автоматично.',
                       },
                       {
@@ -625,60 +627,57 @@ export function ChatPage() {
             {/* Show buttons for workout confirmation or playlist generation */}
             {/* Hide buttons if playlist is already generated (variants exist or playlist in messages) */}
             {activeWorkout && showPlaylistQuestion && !variants && (
-                <div className='max-w-2xl mx-auto flex justify-start mb-4 px-2 md:px-0'>
-                  <div className='flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto'>
-                    {activeWorkoutId ? (
-                      // Workout already created - show button to generate playlist
+              <div className='max-w-2xl mx-auto flex justify-start mb-4 px-2 md:px-0'>
+                <div className='flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto'>
+                  {activeWorkoutId ? (
+                    // Workout already created - show button to generate playlist
+                    <button
+                      onClick={generateVariants}
+                      disabled={loadingVariants}
+                      className='px-6 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
+                    >
+                      {loadingVariants
+                        ? 'Генерація...'
+                        : 'Так, згенерувати плейлист'}
+                    </button>
+                  ) : (
+                    // Workout not created yet - show buttons to confirm creation
+                    <>
                       <button
-                        onClick={generateVariants}
-                        disabled={loadingVariants}
+                        onClick={async () => {
+                          // Send "Да" to chat to confirm workout creation
+                          const result = await sendMessage('Да', user?.id);
+                          if (result.workout && result.workout.id) {
+                            // Workout created, now show playlist generation option
+                            setActiveWorkoutId(result.workout.id);
+                            setActiveWorkout(result.workout);
+                            // Refresh workout history to show new workout
+                            setRefreshTrigger((prev) => prev + 1);
+                          }
+                        }}
+                        disabled={isLoading}
                         className='px-6 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
                       >
-                        {loadingVariants
-                          ? 'Генерація...'
-                          : 'Так, згенерувати плейлист'}
+                        {isLoading ? 'Створення...' : 'Так'}
                       </button>
-                    ) : (
-                      // Workout not created yet - show buttons to confirm creation
-                      <>
-                        <button
-                          onClick={async () => {
-                            // Send "Да" to chat to confirm workout creation
-                            const result = await sendMessage(
-                              'Да',
-                              user?.id
-                            );
-                            if (result.workout && result.workout.id) {
-                              // Workout created, now show playlist generation option
-                              setActiveWorkoutId(result.workout.id);
-                              setActiveWorkout(result.workout);
-                              // Refresh workout history to show new workout
-                              setRefreshTrigger((prev) => prev + 1);
-                            }
-                          }}
-                          disabled={isLoading}
-                          className='px-6 py-3 bg-app-accent text-white rounded-xl hover:bg-app-accent-hover transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
-                        >
-                          {isLoading ? 'Створення...' : 'Так'}
-                        </button>
-                        <button
-                          onClick={async () => {
-                            // Send "Ні" to chat to decline workout creation
-                            await sendMessage('Ні', user?.id);
-                            setShowPlaylistQuestion(false);
-                            setActiveWorkout(null);
-                            setActiveWorkoutId(null);
-                          }}
-                          disabled={isLoading}
-                          className='px-6 py-3 bg-app-surface text-app-text border border-app-border rounded-xl hover:bg-app-surface-light transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
-                        >
-                          Ні
-                        </button>
-                      </>
-                    )}
-                  </div>
+                      <button
+                        onClick={async () => {
+                          // Send "Ні" to chat to decline workout creation
+                          await sendMessage('Ні', user?.id);
+                          setShowPlaylistQuestion(false);
+                          setActiveWorkout(null);
+                          setActiveWorkoutId(null);
+                        }}
+                        disabled={isLoading}
+                        className='px-6 py-3 bg-app-surface text-app-text border border-app-border rounded-xl hover:bg-app-surface-light transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-body'
+                      >
+                        Ні
+                      </button>
+                    </>
+                  )}
                 </div>
-              )}
+              </div>
+            )}
 
             {/* Show track variants for selection */}
             {variants && (
