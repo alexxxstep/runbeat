@@ -166,7 +166,25 @@ class WorkoutBuilder(BaseAgent):
         # Auto-extract parameters every turn to keep state in sync
         self._auto_extract_parameters(state=state, user_message=user_message)
         # Capture optional prompt answers when applicable
-        self._capture_prompt_response_if_needed(state=state, user_message=user_message)
+        prompt_captured = self._capture_prompt_response_if_needed(
+            state=state, user_message=user_message
+        )
+
+        if prompt_captured:
+            response_message = self._build_prompt_ack_response(state)
+            state.last_question = "final_confirmation"
+            state.history.append({"role": "assistant", "content": response_message})
+            logger.info(
+                f"[Conversation] user={state.user_id} <- '{response_message[:120]}' "
+                "(needs_clarification=False, is_complete=False)"
+            )
+            return ConversationUpdate(
+                new_state=state,
+                response_message=response_message,
+                created_workout=None,
+                needs_clarification=False,
+                is_complete=False,
+            )
 
         # Build context for the agent
         conversation_context = self._build_conversation_context(state, user_message)
@@ -453,16 +471,16 @@ class WorkoutBuilder(BaseAgent):
 
     def _capture_prompt_response_if_needed(
         self, state: ConversationState, user_message: str
-    ) -> None:
+    ) -> bool:
         """
         Store optional music/style prompt when the previous assistant turn asked for it.
         """
         if state.last_question != "prompt":
-            return
+            return False
 
         cleaned = (user_message or "").strip()
         if not cleaned:
-            return
+            return False
 
         lower = cleaned.lower()
         negative_keywords = [
@@ -479,16 +497,38 @@ class WorkoutBuilder(BaseAgent):
         if any(keyword in lower for keyword in negative_keywords):
             state.collected_parameters.pop("prompt", None)
             state.collected_parameters["_prompt_checked"] = True
-            return
+            return True
 
         # If user rushed to confirmation words, do not treat as prompt but mark as checked
         if any(keyword in lower for keyword in confirmation_keywords):
             state.collected_parameters["_prompt_checked"] = True
-            return
+            return True
 
         # Save trimmed prompt (limit to avoid extremely long strings)
         state.collected_parameters["prompt"] = cleaned[:400]
         state.collected_parameters["_prompt_checked"] = True
+        return True
+
+    def _build_prompt_ack_response(self, state: ConversationState) -> str:
+        collected = state.collected_parameters
+        prompt_text = collected.get("prompt") or "без уточнень"
+        duration = collected.get("duration_minutes")
+        intensity = collected.get("intensity")
+        genres = collected.get("genres", [])
+
+        duration_part = f"{duration} хвилин" if duration else "обрану тривалість"
+        intensity_map = {"low": "легку 😊", "moderate": "середню 💪", "high": "високу ⚡️"}
+        intensity_part = intensity_map.get(intensity, "обрану інтенсивність")
+        genres_part = ""
+        if genres:
+            display_genres = ", ".join(self._display_genre_name(g) for g in genres)
+            genres_part = f" під {display_genres}"
+
+        return (
+            f"🎨 Записав атмосферу: {prompt_text}. "
+            f"Готові завершити {intensity_part} пробіжку на {duration_part}{genres_part}? "
+            "Створюємо воркаут?"
+        )
 
     @staticmethod
     def _merge_collected_parameters(current: Dict[str, Any], extracted: Dict[str, Any]) -> Dict[str, Any]:
@@ -606,6 +646,33 @@ class WorkoutBuilder(BaseAgent):
         return normalized
 
     @staticmethod
+    def _display_genre_name(genre: str) -> str:
+        display_map = {
+            "rock": "рок",
+            "pop": "поп",
+            "classical": "класика",
+            "hip-hop": "хіп-хоп",
+            "jazz": "джаз",
+            "metal": "метал",
+            "indie": "інді",
+            "alternative": "альтернатива",
+            "dance": "денс",
+            "house": "хаус",
+            "techno": "техно",
+            "trance": "транс",
+            "reggae": "реггі",
+            "country": "кантрі",
+            "blues": "блюз",
+            "folk": "фолк",
+            "ambient": "ембієнт",
+            "r&b": "R&B",
+            "drum-and-bass": "drum & bass",
+            "latin": "латина",
+            "electronic": "електроніка",
+        }
+        return display_map.get(genre, genre)
+
+    @staticmethod
     def _parse_workout_creation(observation: str) -> Optional[dict]:
         text = observation.strip()
         if text.startswith("error"):
@@ -688,25 +755,25 @@ class WorkoutBuilder(BaseAgent):
             elif any(word in message_lower for word in ["ні", "no", "не треба", "скасу"]):
                 return "Зрозуміло! Якщо потрібна допомога ще - звертайся. Успішного тренування! 🏃‍♂️"
 
-        missing_prompt = self._format_missing_prompt(collected)
+        missing_prompt = self._format_missing_prompt(collected, state)
         if missing_prompt:
-            if self._needs_optional_prompt(collected):
-                state.last_question = "prompt"
             return missing_prompt
 
         # We have everything, ask for confirmation
         duration = collected.get("duration_minutes", 30)
-        intensity_map = {"low": "легка", "moderate": "середня", "high": "висока"}
-        intensity_uk = intensity_map.get(collected.get("intensity", "moderate"), "середня")
+        intensity_map = {"low": "легка 😊", "moderate": "середня 💪", "high": "висока ⚡️"}
+        intensity_uk = intensity_map.get(collected.get("intensity", "moderate"), "середня 💪")
         genres_list = collected.get("genres", [])
-        genres_str = (
-            ", ".join(genres_list) if isinstance(genres_list, list) else str(genres_list)
-        )
+        if isinstance(genres_list, list):
+            genres_str = ", ".join(self._display_genre_name(g) for g in genres_list)
+        else:
+            genres_str = str(genres_list)
         prompt_text = collected.get("prompt")
         prompt_suffix = ""
         if isinstance(prompt_text, str) and prompt_text.strip():
             prompt_suffix = f" Атмосфера: {prompt_text.strip()}."
 
+        state.last_question = "final_confirmation"
         return (
             f"Супер! Отже, {intensity_uk} пробіжка на {duration} хвилин "
             f"під {genres_str}.{prompt_suffix} Створюємо воркаут?"
@@ -785,41 +852,70 @@ class WorkoutBuilder(BaseAgent):
 
         return not prompt_checked and not has_prompt_text
 
-    def _format_missing_prompt(self, collected: Dict[str, Any]) -> Optional[str]:
+    def _format_missing_prompt(
+        self, collected: Dict[str, Any], state: ConversationState
+    ) -> Optional[str]:
         missing = self._missing_parameters(collected)
 
         if missing["duration_invalid"]:
             invalid_value = collected.get("_duration_invalid")
+            state.last_question = "duration"
             return (
-                f"Тривалість тренування має бути від 5 до 180 хвилин. "
-                f"Вкажи, будь ласка, адекватний час (зараз: {invalid_value})."
+                f"⏱️ Тривалість має бути в межах 5–300 хвилин. Зараз вказано {invalid_value}. "
+                "Спробуй, будь ласка, 20, 30 чи 45 хв."
             )
 
         if missing["intensity_invalid"]:
-            return "Яку інтенсивність ти плануєш: легку, середню чи високу?"
+            state.last_question = "intensity"
+            return "💪 Яку інтенсивність оберемо? Легка 😊, середня 💪 чи висока ⚡️?"
 
-        prompts: List[str] = []
-        if missing["duration"]:
-            prompts.append("тривалість")
-        if missing["intensity"]:
-            prompts.append("інтенсивність")
-        if missing["genres"]:
-            prompts.append("музика (жанри)")
+        if self._needs_optional_prompt(collected):
+            state.last_question = "prompt"
+            return (
+                "🌈 У нас вже є тривалість, інтенсивність і музика! "
+                "Маєш побажання до атмосфери чи улюблених виконавців? "
+                "Наприклад: 'нічний синтвейв 🌌', 'рок з жіночим вокалом 🎤'. "
+                "Якщо без додаткових побажань — просто скажи про це."
+            )
 
-        if not prompts:
-            if self._needs_optional_prompt(collected):
-                return (
-                    "🌈 У нас уже є всі параметри! Маєш побажання до атмосфери або настрою "
-                    "(наприклад: 'нічний драйв', 'спокійний ранок', 'агресивний техно')? "
-                    "Можеш описати будь-які деталі або сказати, що їх нема."
-                )
-            return None
+        duration_missing = missing["duration"]
+        intensity_missing = missing["intensity"]
+        genres_missing = missing["genres"]
 
-        if len(prompts) == 1:
-            target = prompts[0]
-        elif len(prompts) == 2:
-            target = f"{prompts[0]} та {prompts[1]}"
-        else:
-            target = f"{', '.join(prompts[:-1])} і {prompts[-1]}"
+        if duration_missing and intensity_missing and genres_missing:
+            state.last_question = "duration"
+            return (
+                "👋 Розкажи, скільки хвилин і з яким темпом плануєш бігти "
+                "(наприклад 30 хв + легка 😊 чи 40 хв + середня 💪), "
+                "а ще напиши 1–2 жанри для плейлиста 🎶 (рок 🤘, поп 💃, electro ⚡️)."
+            )
 
-        return f"Щоб підібрати воркаут, мені ще потрібна {target}. Поділися, будь ласка."
+        if duration_missing and intensity_missing:
+            state.last_question = "duration"
+            return (
+                "⏱️ Скільки хвилин та якою буде інтенсивність? "
+                "Приклади: 25 хв + легка 😊, 40 хв + середня 💪, 30 хв + висока ⚡️."
+            )
+
+        if duration_missing:
+            state.last_question = "duration"
+            return (
+                f"⏱️ {('Маємо ' + (collected.get('intensity') or 'обрану інтенсивність'))}. "
+                "Скільки хвилин плануєш бігти? Наприклад 20, 30 чи 45 хв."
+            )
+
+        if intensity_missing:
+            state.last_question = "intensity"
+            duration = collected.get("duration_minutes")
+            duration_txt = f"{duration} хв" if duration else "тренування"
+            return (
+                f"💪 {duration_txt} — чудово! Обери інтенсивність: легка 😊, середня 💪 чи висока ⚡️."
+            )
+
+        if genres_missing:
+            state.last_question = "genres"
+            return (
+                "🎵 Яку музику або виконавців ставимо? Напиши, наприклад: рок 🤘, поп 💃, techno ⚡️ чи улюбленого артиста."
+            )
+
+        return None

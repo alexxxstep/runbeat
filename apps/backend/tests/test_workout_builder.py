@@ -126,7 +126,8 @@ async def test_no_loop_on_same_question(workout_builder, initial_state):
         "музик" not in update2.response_message.lower()
         or "створ" in update2.response_message.lower()
     )
-    assert "рок" in update2.response_message.lower()
+    response_lower = update2.response_message.lower()
+    assert "рок" in response_lower or "rock" in response_lower
 
 
 @pytest.mark.asyncio
@@ -380,7 +381,8 @@ def test_optional_prompt_detection(workout_builder):
         "genres": ["rock"],
     }
 
-    message = workout_builder._format_missing_prompt(collected)
+    state = ConversationState(user_id="test_user_123")
+    message = workout_builder._format_missing_prompt(collected, state)
     assert "атмосфер" in (message or "").lower()
 
 

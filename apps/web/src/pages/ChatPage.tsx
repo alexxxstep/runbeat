@@ -51,6 +51,7 @@ export function ChatPage() {
     new Set()
   );
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const handledActivationMessageIdsRef = useRef<Set<string>>(new Set());
 
   const syncPromptFromWorkout = useCallback(
     (workoutData?: Workout | null) => {
@@ -100,7 +101,12 @@ export function ChatPage() {
           msg.workout
       );
 
-    if (activationMessage && activationMessage.workout) {
+    if (
+      activationMessage &&
+      activationMessage.workout &&
+      !handledActivationMessageIdsRef.current.has(activationMessage.id)
+    ) {
+      handledActivationMessageIdsRef.current.add(activationMessage.id);
       const workout = activationMessage.workout;
       // Only update if not already set or if workout ID changed
       if (
@@ -143,6 +149,7 @@ export function ChatPage() {
     setActiveWorkoutId(null);
     setShowPlaylistQuestion(false);
     setExcludedTrackIds(new Set()); // Clear excluded tracks
+    handledActivationMessageIdsRef.current = new Set();
   };
 
   const handleSend = async (text: string) => {
