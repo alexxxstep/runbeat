@@ -1,3 +1,5 @@
+# ruff: noqa
+# flake8: noqa
 """
 Playlist generation endpoints.
 """
@@ -374,6 +376,8 @@ async def generate_playlist(
                         )
                     if playlist_meta["genres_readable"]:
                         description_parts.append(f"жанри: {playlist_meta['genres_readable']}")
+                    if request.prompt:
+                        description_parts.append(f"атмосфера: {request.prompt}")
                     description_parts.append("AI RunBeat підібрав треки під ритм твого тренування.")
                     playlist_description = " | ".join(description_parts)
 

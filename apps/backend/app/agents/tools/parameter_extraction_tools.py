@@ -184,11 +184,10 @@ def _merge_parameters(current: Dict[str, Any], extracted: Dict[str, Any]) -> Dic
     """
     merged = current.copy()
 
-    # Update duration, intensity, workout_type if extracted and not already set
+    # Update duration, intensity, workout_type when new values arrive
     for key in ["duration_minutes", "intensity", "workout_type"]:
         if key in extracted and extracted[key] is not None:
-            if key not in merged or merged[key] is None:
-                merged[key] = extracted[key]
+            merged[key] = extracted[key]
 
     # Accumulate genres (don't replace)
     if "genres" in extracted and extracted["genres"]:

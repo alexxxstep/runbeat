@@ -60,7 +60,10 @@ class PlaylistGenerator:
 
         # 2. Fetch tracks for each segment in the profile
         all_tracks = await self._fetch_tracks_for_profile(
-            profile, user_token=user_token, excluded_track_ids=excluded_track_ids or []
+            profile,
+            user_token=user_token,
+            excluded_track_ids=excluded_track_ids or [],
+            prompt=prompt,
         )
 
         # 3. Assemble the final playlist from the fetched tracks
@@ -85,12 +88,13 @@ class PlaylistGenerator:
         profile: List[WorkoutSegment],
         user_token: Optional[str],
         excluded_track_ids: List[str],
+        prompt: Optional[str] = None,
     ) -> Dict[str, List[Track]]:
         """Fetch all tracks for the entire profile, segment by segment."""
 
         tasks = []
         for segment in profile:
-            tasks.append(self._fetch_tracks_for_segment(segment, user_token))
+            tasks.append(self._fetch_tracks_for_segment(segment, user_token, prompt))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -118,7 +122,10 @@ class PlaylistGenerator:
         return all_tracks
 
     async def _fetch_tracks_for_segment(
-        self, segment: WorkoutSegment, user_token: Optional[str]
+        self,
+        segment: WorkoutSegment,
+        user_token: Optional[str],
+        prompt: Optional[str] = None,
     ) -> List[Track]:
         """Fetch candidate tracks for a single workout segment."""
 
@@ -127,14 +134,25 @@ class PlaylistGenerator:
         num_tracks_needed = math.ceil(segment.duration_seconds / avg_track_duration_s)
         limit = int(num_tracks_needed * 3) + 10  # Fetch plenty of candidates
 
+        seed_genres = list(segment.genres or [])
+        prompt_genres = self._infer_prompt_genres(prompt)
+        if prompt_genres:
+            for genre in prompt_genres:
+                if genre not in seed_genres:
+                    seed_genres.append(genre)
+        if not seed_genres:
+            seed_genres = ["pop"]
+
+        target_energy = self._apply_prompt_energy_bias(segment.target_energy, prompt)
+
         try:
             spotify_tracks = await self.spotify.get_recommendations(
-                seed_genres=segment.genres[:2],
+                seed_genres=seed_genres[:2],
                 seed_artists=[],  # Add missing seed_artists
                 target_tempo=int((segment.min_bpm + segment.max_bpm) / 2),
                 min_tempo=segment.min_bpm,
                 max_tempo=segment.max_bpm,
-                target_energy=segment.target_energy,
+                target_energy=target_energy,
                 limit=limit,
                 user_token=user_token,
             )
@@ -205,6 +223,50 @@ class PlaylistGenerator:
                     current_duration_ms += track.duration_ms
 
         return playlist
+
+    @staticmethod
+    def _infer_prompt_genres(prompt: Optional[str]) -> List[str]:
+        """Map free-form prompt text to Spotify-friendly genre hints."""
+        if not prompt:
+            return []
+
+        prompt_lower = prompt.lower()
+        genre_map = {
+            "electronic": ["електрон", "edm", "synth", "техно", "techno", "хаус", "house"],
+            "rock": ["рок", "guitar", "grunge", "punk", "індастр", "alt rock"],
+            "metal": ["метал", "metal", "heavy", "агрес", "power"],
+            "pop": ["поп", "dance", "radio", "hit"],
+            "hip-hop": ["хіп", "hip-hop", "рап", "rap", "trap"],
+            "latin": ["латино", "latin", "reggaeton", "salsa", "bachata"],
+            "jazz": ["джаз", "jazz", "swing"],
+            "classical": ["оркестр", "класик", "piano", "струнн"],
+            "ambient": ["спок", "chill", "ambient", "lofi", "relax"],
+        }
+
+        inferred: List[str] = []
+        for genre, keywords in genre_map.items():
+            if any(keyword in prompt_lower for keyword in keywords):
+                inferred.append(genre)
+        return inferred
+
+    @staticmethod
+    def _apply_prompt_energy_bias(base_energy: float, prompt: Optional[str]) -> float:
+        """Adjust target energy based on textual mood hints."""
+        if not prompt:
+            return base_energy
+
+        lower = prompt.lower()
+        bias = 0.0
+        calm_keywords = ["спок", "chill", "relax", "ambient", "lofi", "dreamy", "нічний"]
+        hype_keywords = ["агрес", "драйв", "power", "epic", "потуж", "вибух", "party"]
+
+        if any(keyword in lower for keyword in calm_keywords):
+            bias -= 0.15
+        if any(keyword in lower for keyword in hype_keywords):
+            bias += 0.15
+
+        adjusted = max(0.05, min(1.0, base_energy + bias))
+        return adjusted
 
     def _spotify_to_track(self, spotify_track: Dict) -> Optional[Track]:
         """

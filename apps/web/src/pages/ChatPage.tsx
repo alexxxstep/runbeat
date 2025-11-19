@@ -52,6 +52,21 @@ export function ChatPage() {
   );
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
+  const syncPromptFromWorkout = useCallback(
+    (workoutData?: Workout | null) => {
+      if (!workoutData) {
+        return;
+      }
+      if (typeof workoutData.prompt !== 'undefined') {
+        setWorkoutSettings((prev) => ({
+          ...prev,
+          prompt: workoutData.prompt ?? '',
+        }));
+      }
+    },
+    [setWorkoutSettings]
+  );
+
   // Handle window resize for mobile/desktop sidebar state
   useEffect(() => {
     const handleResize = () => {
@@ -103,9 +118,10 @@ export function ChatPage() {
         }
         setShowPlaylistQuestion(true);
         setExcludedTrackIds(new Set()); // Reset excluded tracks
+        syncPromptFromWorkout(workout);
       }
     }
-  }, [messages, activeWorkout, activeWorkoutId]);
+  }, [messages, activeWorkout, activeWorkoutId, syncPromptFromWorkout]);
 
   // Debug: Log variants state changes
   useEffect(() => {
@@ -144,6 +160,7 @@ export function ChatPage() {
       // No need to show playlist question - it's already in the chat
       setActiveWorkout(workout);
       setShowPlaylistQuestion(false);
+      syncPromptFromWorkout(workout);
       return;
     }
 
@@ -153,6 +170,7 @@ export function ChatPage() {
       setActiveWorkout(workout);
       setActiveWorkoutId(workout.id);
       setExcludedTrackIds(new Set()); // Reset excluded tracks for new workout
+      syncPromptFromWorkout(workout);
       // Refresh workout history to show new workout
       setRefreshTrigger((prev) => prev + 1);
       // Show question about generating playlist
@@ -174,6 +192,7 @@ export function ChatPage() {
       setActiveWorkout(workout);
       setActiveWorkoutId(null); // Not created yet, waiting for confirmation
       setExcludedTrackIds(new Set()); // Reset excluded tracks for new workout
+      syncPromptFromWorkout(workout);
       // Show buttons to confirm workout creation
       setShowPlaylistQuestion(true);
     }
@@ -421,6 +440,7 @@ export function ChatPage() {
                   duration_minutes: workout.duration_minutes,
                   intensity: workout.intensity as Workout['intensity'],
                   hr_zones: workout.hr_zones,
+                  prompt: workout.prompt ?? undefined,
                 };
                 setActiveWorkout(workoutData);
                 setActiveWorkoutId(workoutId); // Set workout ID to prevent duplicate creation

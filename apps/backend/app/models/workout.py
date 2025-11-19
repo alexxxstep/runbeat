@@ -22,6 +22,10 @@ class Workout(BaseModel):
         max_length=2,
         description="Heart rate zones [min, max]",
     )
+    prompt: Optional[str] = Field(
+        default=None,
+        description="Optional music/style prompt describing atmosphere or extra wishes",
+    )
     confidence: float = Field(
         default=0.5, ge=0.0, le=1.0, description="Confidence score (0-1)"
     )

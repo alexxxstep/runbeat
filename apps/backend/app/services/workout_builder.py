@@ -165,6 +165,8 @@ class WorkoutBuilder(BaseAgent):
 
         # Auto-extract parameters every turn to keep state in sync
         self._auto_extract_parameters(state=state, user_message=user_message)
+        # Capture optional prompt answers when applicable
+        self._capture_prompt_response_if_needed(state=state, user_message=user_message)
 
         # Build context for the agent
         conversation_context = self._build_conversation_context(state, user_message)
@@ -366,7 +368,10 @@ class WorkoutBuilder(BaseAgent):
                 state.collected_parameters = collected
 
                 if extracted.get("all_collected"):
-                    state.last_question = "final_confirmation"
+                    if self._needs_optional_prompt(collected):
+                        state.last_question = "prompt"
+                    else:
+                        state.last_question = "final_confirmation"
 
                 logger.info(
                     f"[Conversation] user={state.user_id} parameters updated -> {state.collected_parameters}"
@@ -390,6 +395,7 @@ class WorkoutBuilder(BaseAgent):
                                 duration_minutes=duration,
                                 intensity=intensity,
                                 hr_zones=hr_zones,
+                                prompt=workout_data.get("prompt"),
                                 confidence=0.95,
                                 needs_clarification=False,
                             )
@@ -432,7 +438,10 @@ class WorkoutBuilder(BaseAgent):
             state.collected_parameters = merged
 
             if extracted.get("all_collected"):
-                state.last_question = "final_confirmation"
+                if self._needs_optional_prompt(merged):
+                    state.last_question = "prompt"
+                else:
+                    state.last_question = "final_confirmation"
 
             logger.info(
                 f"[Conversation] user={state.user_id} params auto-update -> {state.collected_parameters}"
@@ -441,6 +450,45 @@ class WorkoutBuilder(BaseAgent):
             logger.warning(
                 f"Auto parameter extraction failed for user {state.user_id}: {exc}"
             )
+
+    def _capture_prompt_response_if_needed(
+        self, state: ConversationState, user_message: str
+    ) -> None:
+        """
+        Store optional music/style prompt when the previous assistant turn asked for it.
+        """
+        if state.last_question != "prompt":
+            return
+
+        cleaned = (user_message or "").strip()
+        if not cleaned:
+            return
+
+        lower = cleaned.lower()
+        negative_keywords = [
+            "нема",
+            "немає",
+            "без побаж",
+            "нічого",
+            "none",
+            "skip",
+        ]
+        confirmation_keywords = ["створ", "згенер", "ок", "yes", "да", "так"]
+
+        # If user says there are no extra wishes, just mark prompt as checked
+        if any(keyword in lower for keyword in negative_keywords):
+            state.collected_parameters.pop("prompt", None)
+            state.collected_parameters["_prompt_checked"] = True
+            return
+
+        # If user rushed to confirmation words, do not treat as prompt but mark as checked
+        if any(keyword in lower for keyword in confirmation_keywords):
+            state.collected_parameters["_prompt_checked"] = True
+            return
+
+        # Save trimmed prompt (limit to avoid extremely long strings)
+        state.collected_parameters["prompt"] = cleaned[:400]
+        state.collected_parameters["_prompt_checked"] = True
 
     @staticmethod
     def _merge_collected_parameters(current: Dict[str, Any], extracted: Dict[str, Any]) -> Dict[str, Any]:
@@ -451,7 +499,7 @@ class WorkoutBuilder(BaseAgent):
             if normalized is not None:
                 merged["duration_minutes"] = normalized
                 merged.pop("_duration_invalid", None)
-                else:
+            else:
                 merged.pop("duration_minutes", None)
                 merged["_duration_invalid"] = extracted["duration_minutes"]
 
@@ -553,7 +601,7 @@ class WorkoutBuilder(BaseAgent):
             for canonical, variations in genre_map.items():
                 if any(var in genre_lower for var in variations):
                     matched = canonical
-                        break
+                    break
             normalized.append(matched or genre_lower)
         return normalized
 
@@ -611,10 +659,14 @@ class WorkoutBuilder(BaseAgent):
         context_parts.append("2. Check what parameters are now collected")
         context_parts.append("3. Respond naturally in Ukrainian")
         context_parts.append("4. Guide user to next step if info is missing")
-        context_parts.append("5. If all collected → ask for confirmation")
-        context_parts.append("6. If user confirms → call create_workout_from_params tool")
         context_parts.append(
-            f"7. CRITICAL: use user_id='{state.user_id}' when calling create_workout_from_params"
+            "5. Once duration + intensity + genres are collected, ask ONE short question about optional wishes "
+            "(atmosphere/mood/extra hints) and store the answer in `prompt` (or mark that there are none)."
+        )
+        context_parts.append("6. If everything is ready → summarize and ask for confirmation")
+        context_parts.append("7. If user confirms → call create_workout_from_params tool")
+        context_parts.append(
+            f"8. CRITICAL: use user_id='{state.user_id}' when calling create_workout_from_params"
         )
 
         return "\n".join(context_parts)
@@ -638,21 +690,27 @@ class WorkoutBuilder(BaseAgent):
 
         missing_prompt = self._format_missing_prompt(collected)
         if missing_prompt:
+            if self._needs_optional_prompt(collected):
+                state.last_question = "prompt"
             return missing_prompt
 
-            # We have everything, ask for confirmation
-            duration = collected.get("duration_minutes", 30)
+        # We have everything, ask for confirmation
+        duration = collected.get("duration_minutes", 30)
         intensity_map = {"low": "легка", "moderate": "середня", "high": "висока"}
         intensity_uk = intensity_map.get(collected.get("intensity", "moderate"), "середня")
-            genres_list = collected.get("genres", [])
+        genres_list = collected.get("genres", [])
         genres_str = (
             ", ".join(genres_list) if isinstance(genres_list, list) else str(genres_list)
         )
+        prompt_text = collected.get("prompt")
+        prompt_suffix = ""
+        if isinstance(prompt_text, str) and prompt_text.strip():
+            prompt_suffix = f" Атмосфера: {prompt_text.strip()}."
 
-            return (
-                f"Супер! Отже, {intensity_uk} пробіжка на {duration} хвилин "
-                f"під {genres_str}. Створюємо воркаут?"
-            )
+        return (
+            f"Супер! Отже, {intensity_uk} пробіжка на {duration} хвилин "
+            f"під {genres_str}.{prompt_suffix} Створюємо воркаут?"
+        )
 
     def _determine_question_type_from_response(
         self, response: str, state: ConversationState
@@ -666,6 +724,19 @@ class WorkoutBuilder(BaseAgent):
         # Check if asking for confirmation
         if any(k in response_lower for k in ["створ", "create", "підтверд", "confirm"]):
             return "final_confirmation"
+
+        # Check if asking for optional prompt / vibe
+        prompt_keywords = [
+            "побаж",
+            "атмосфер",
+            "настр",
+            "опис",
+            "віб",
+            "додатков",
+            "prompt",
+        ]
+        if any(k in response_lower for k in prompt_keywords):
+            return "prompt"
 
         # Check if asking for genres
         if any(k in response_lower for k in ["музик", "music", "жанр", "genre"]):
@@ -682,6 +753,8 @@ class WorkoutBuilder(BaseAgent):
             return "genres"
         elif not all(k in collected for k in ["duration_minutes", "intensity"]):
             return "goal_clarification"
+        elif self._needs_optional_prompt(collected):
+            return "prompt"
         else:
             return "final_confirmation"
 
@@ -693,6 +766,24 @@ class WorkoutBuilder(BaseAgent):
             "duration_invalid": "_duration_invalid" in collected,
             "intensity_invalid": "_intensity_invalid" in collected,
         }
+
+    @staticmethod
+    def _needs_optional_prompt(collected: Dict[str, Any]) -> bool:
+        """Check whether we should ask about optional music/vibe prompt."""
+        has_duration = bool(collected.get("duration_minutes"))
+        has_intensity = bool(collected.get("intensity"))
+        genres = collected.get("genres")
+        has_genres = isinstance(genres, list) and bool(genres)
+        has_core = has_duration and has_intensity and has_genres
+
+        if not has_core:
+            return False
+
+        prompt_value = collected.get("prompt")
+        prompt_checked = bool(collected.get("_prompt_checked"))
+        has_prompt_text = isinstance(prompt_value, str) and prompt_value.strip() != ""
+
+        return not prompt_checked and not has_prompt_text
 
     def _format_missing_prompt(self, collected: Dict[str, Any]) -> Optional[str]:
         missing = self._missing_parameters(collected)
@@ -716,6 +807,12 @@ class WorkoutBuilder(BaseAgent):
             prompts.append("музика (жанри)")
 
         if not prompts:
+            if self._needs_optional_prompt(collected):
+                return (
+                    "🌈 У нас уже є всі параметри! Маєш побажання до атмосфери або настрою "
+                    "(наприклад: 'нічний драйв', 'спокійний ранок', 'агресивний техно')? "
+                    "Можеш описати будь-які деталі або сказати, що їх нема."
+                )
             return None
 
         if len(prompts) == 1:

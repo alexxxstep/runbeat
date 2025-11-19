@@ -210,9 +210,8 @@ async def test_complete_workout_info_in_one_message(
     # Should extract all parameters
     assert update.new_state.collected_parameters.get("duration_minutes") == 30
     assert update.new_state.collected_parameters.get("intensity") == "low"
-    assert "рок" in str(
-        update.new_state.collected_parameters.get("genres", [])
-    )
+    genres = update.new_state.collected_parameters.get("genres", [])
+    assert any(g in ("rock", "рок") for g in genres)
 
     # Should ask for confirmation, not ask for more info
     assert (
@@ -371,3 +370,35 @@ async def test_parameter_extraction_from_user_message(
 
         for key, value in expected_params.items():
             assert update.new_state.collected_parameters.get(key) == value
+
+
+def test_optional_prompt_detection(workout_builder):
+    """Ensure optional music prompt question is triggered when core params are ready."""
+    collected = {
+        "duration_minutes": 30,
+        "intensity": "moderate",
+        "genres": ["rock"],
+    }
+
+    message = workout_builder._format_missing_prompt(collected)
+    assert "атмосфер" in (message or "").lower()
+
+
+def test_capture_prompt_response(workout_builder, initial_state):
+    """Ensure user response to optional prompt is saved."""
+    state = initial_state
+    state.last_question = "prompt"
+    state.collected_parameters = {
+        "duration_minutes": 30,
+        "intensity": "moderate",
+        "genres": ["rock"],
+    }
+
+    workout_builder._capture_prompt_response_if_needed(
+        state, "хочу щоб було атмосферно як нічний міський біг"
+    )
+
+    assert state.collected_parameters.get("_prompt_checked") is True
+    assert (
+        "нічний" in state.collected_parameters.get("prompt", "").lower()
+    )

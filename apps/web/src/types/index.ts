@@ -21,6 +21,7 @@ export interface Workout {
   duration_minutes: number;
   intensity: 'low' | 'moderate' | 'high';
   hr_zones: number[];
+  prompt?: string;
   confidence?: number;
   needs_clarification?: boolean;
   clarification_question?: string;

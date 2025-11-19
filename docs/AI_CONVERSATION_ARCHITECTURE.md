@@ -13,14 +13,15 @@
 
 ## 🔄 Що нового у v2.1
 
-| Напрямок | Опис |
-| --- | --- |
-| Автологування | Кожен виклик `WorkoutBuilder` логує вхідне повідомлення, зібрані параметри, усі tool-calls та статус (`needs_clarification`, `is_complete`). |
-| Автопарсинг | Навіть якщо LLM не викликає `extract_workout_parameters`, інструмент проганяється автоматично на кожне повідомлення. |
-| Валідація | Тривалість/інтенсивність нормалізуються й перевіряються. Відхилені значення не блокують розмову. |
-| Supervisor | `ConversationUpdate` повертає `created_workout`, `needs_clarification`, `is_complete`. Supervisor очищає state лише після реального завершення. |
-| API/Frontend | `/chat/message` прокидає нові прапорці; UI більше не показує «Потрібна додаткова інформація», а рендерить акуратні бейджі. |
-| Деплой | Web застосунок збирається через `nixpacks.toml` без кастомного Dockerfile, що усуває `EBUSY` під час build. |
+| Напрямок           | Опис                                                                                                                                            |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Автологування      | Кожен виклик `WorkoutBuilder` логує вхідне повідомлення, зібрані параметри, усі tool-calls та статус (`needs_clarification`, `is_complete`).    |
+| Автопарсинг        | Навіть якщо LLM не викликає `extract_workout_parameters`, інструмент проганяється автоматично на кожне повідомлення.                            |
+| Валідація          | Тривалість/інтенсивність нормалізуються й перевіряються. Відхилені значення не блокують розмову.                                                |
+| Supervisor         | `ConversationUpdate` повертає `created_workout`, `needs_clarification`, `is_complete`. Supervisor очищає state лише після реального завершення. |
+| API/Frontend       | `/chat/message` прокидає нові прапорці; UI більше не показує «Потрібна додаткова інформація», а рендерить акуратні бейджі.                      |
+| Music prompt stage | Після збору основних даних агент питає необов’язкові побажання (настрій/атмосфера), зберігає їх у `prompt` та передає до плейлиста/Spotify.     |
+| Деплой             | Web застосунок збирається через `nixpacks.toml` без кастомного Dockerfile, що усуває `EBUSY` під час build.                                     |
 
 ---
 
@@ -99,6 +100,7 @@ apps/backend/app/
 **Файл**: `apps/backend/app/agents/supervisor.py`
 
 **Відповідальність**:
+
 - Зберігає `ConversationState` між повідомленнями
 - Делегує увесь діалог `WorkoutBuilder`
 - Логує стан після кожного turn’у (`last_question`, `collected_parameters`, `created_workout`)
@@ -108,6 +110,7 @@ apps/backend/app/
 - Зберігає історію розмови в Supabase (`conversation_service`)
 
 **Методи**:
+
 - `handle_message(user_id, message)` — головний entry point, повертає `ConversationUpdate`
 - `_get_or_create_state(user_id)` — ініціалізує стан
 - `clear_state(user_id)` — очищує state після успішного завершення або відмови
@@ -119,6 +122,7 @@ apps/backend/app/
 **Файл**: `apps/backend/app/services/workout_builder.py`
 
 **Відповідальність**:
+
 - Веде природний діалог і формує контекст
 - Викликає LangChain tools та дублює `extract_workout_parameters` автоматично, щоб завжди мати свіжі параметри
 - Нормалізує/валідує дані (5–180 хв, intensity ∈ {low, moderate, high}, жанри → англійські назви)
@@ -126,6 +130,7 @@ apps/backend/app/
 - Повертає `ConversationUpdate` з `created_workout`, `needs_clarification`, `is_complete`
 
 **Ключові зміни (v2.1)**:
+
 - ✅ Автовиклик `extract_workout_parameters` та злиття параметрів у state
 - ✅ Нормалізація й чіткі повідомлення, якщо тривалість/intensity некоректні
 - ✅ `return_intermediate_steps=true` + розбір tool-результатів
@@ -133,6 +138,7 @@ apps/backend/app/
 - ✅ Темп 0.8, `max_iterations=5`, таймаут 20 s
 
 **Методи**:
+
 - `process_message(state, user_message)` — обробка повідомлення
 - `_auto_extract_parameters(...)` — внутрішній автозапуск tool
 - `_process_tool_steps(...)` — обробка `intermediate_steps`
@@ -149,11 +155,13 @@ apps/backend/app/
 **Призначення**: AI-driven витягування параметрів з контексту розмови
 
 **Параметри**:
+
 - `user_message` — поточне повідомлення користувача
 - `conversation_history` — JSON історії розмови
 - `current_params` — JSON поточних параметрів
 
 **Повертає**:
+
 ```json
 {
   "duration_minutes": int | null,
@@ -165,6 +173,7 @@ apps/backend/app/
 ```
 
 **Особливості**:
+
 - ✅ Параметри **акумулюються** (не перезаписуються)
 - ✅ Genres **нормалізуються** до англійських назв
 - ✅ Підтримка української та англійської мов
@@ -177,6 +186,7 @@ apps/backend/app/
 **Файл**: `apps/backend/app/agents/prompts/conversation_prompts.py`
 
 **Особливості**:
+
 - 📝 Промпт на **англійській мові** (для кращої роботи GPT)
 - 🇺🇦 Агент відповідає **українською**
 - 🧠 Чіткі інструкції для **context awareness**
@@ -184,6 +194,7 @@ apps/backend/app/
 - 🚫 Правила для уникнення loops
 
 **Структура**:
+
 1. ROLE & PERSONALITY
 2. MISSION & GOALS
 3. CRITICAL: CONTEXT AWARENESS
@@ -205,14 +216,14 @@ apps/backend/app/
   - `is_complete: bool`
 - **ChatResponse** (`apps/backend/app/schemas/chat.py`):
   - `message`
-  - `workout` (Pydantic `Workout`, якщо `created_workout` валідний)
+  - `workout` (Pydantic `Workout`, якщо `created_workout` валідний, включно з `prompt`)
   - `needs_clarification`
   - `is_complete`
   - `conversation_id` (для майбутнього трекінгу)
 - **Frontend**:
   - `useChat.sendMessage` повертає `SendMessageResult` з тими ж прапорцями.
   - `MessageBubble` читає `_metadata` й показує акуратний бейдж «Ще уточнюємо деталі» замість старого тексту.
-  - `ChatPage` активує CTA для генерації плейлиста тільки коли `is_complete=true`.
+  - `ChatPage` активує CTA для генерації плейлиста тільки коли `is_complete=true` та автоматично синхронізує `workout.prompt` з `WorkoutSettings.prompt`.
 
 ---
 
@@ -239,9 +250,13 @@ apps/backend/app/
 
 5. User: "рок"
    → `genres=['rock']`, `all_collected=true`
-   → AI: «Супер! 44 хв, середня інтенсивність, рок. Створюємо воркаут?»
+   → AI: «🎶 Маємо середню пробіжку на 44 хв під rock. Маєш ще побажання до атмосфери?»
 
-6. User: "так"
+6. User: "нічний вайб, трохи синтвейву"
+   → `prompt="нічний вайб, трохи синтвейву"`, `_prompt_checked=true`
+   → AI: «Супер! 44 хв, середня інтенсивність, рок + нічний вайб. Створюємо воркаут?»
+
+7. User: "так"
    → AI викликає `create_workout_from_params` → `created_workout`
    → У чаті: «✅ Воркаут успішно створено! Тепер можна згенерувати плейлист.»
    → Supervisor очищає state, зберігає історію як completed
@@ -252,6 +267,7 @@ apps/backend/app/
 ## 🧪 Тестування
 
 ### Unit тести (29):
+
 - `test_parameter_extraction_tools.py`
   - Витягування duration (3 тести)
   - Витягування intensity (3 тести)
@@ -262,6 +278,7 @@ apps/backend/app/
   - Tool integration (4 тести)
 
 ### Integration тести (12):
+
 - `test_workout_builder_integration.py`
   - Проблемний сценарій (1 тест)
   - All info at once (1 тест)
@@ -341,6 +358,7 @@ logger.error(f"Error in WorkoutBuilder.process_message: {e}")
 **Причина**: Параметри не витягуються або не зберігаються
 
 **Рішення**:
+
 1. Перевірити що `extract_workout_parameters` викликається
 2. Перевірити що `collected_parameters` оновлюються
 3. Перевірити логи: `logger.debug(f"Updated collected_parameters: {collected}")`
@@ -350,6 +368,7 @@ logger.error(f"Error in WorkoutBuilder.process_message: {e}")
 **Причина**: Не всі параметри зібрані або user не підтвердив
 
 **Рішення**:
+
 1. Перевірити `all_collected` в response від `extract_workout_parameters`
 2. Перевірити що user сказав "так"/"yes"/"ok"
 3. Перевірити `state.last_question == "final_confirmation"`
@@ -359,6 +378,7 @@ logger.error(f"Error in WorkoutBuilder.process_message: {e}")
 **Причина**: Workout model validation error
 
 **Рішення**:
+
 1. Перевірити що `created_workout` має всі required поля
 2. Додати валідацію перед створенням `Workout(**created_workout)`
 3. Перевірити логи backend
@@ -368,16 +388,19 @@ logger.error(f"Error in WorkoutBuilder.process_message: {e}")
 ## 🔮 Майбутні покращення
 
 ### Phase 1 (Short-term):
+
 - [ ] Streaming responses для швидшої відповіді
 - [ ] Персоналізація на основі user patterns
 - [ ] A/B тестування різних промптів
 
 ### Phase 2 (Mid-term):
+
 - [ ] Мультимовність (English, Polish, etc.)
 - [ ] Голосовий ввід (speech-to-text)
 - [ ] Рекомендації на основі історії
 
 ### Phase 3 (Long-term):
+
 - [ ] Adaptive learning (покращення на основі feedback)
 - [ ] Інтеграція з wearables (Garmin, Apple Watch)
 - [ ] Predictive workout suggestions
@@ -386,7 +409,7 @@ logger.error(f"Error in WorkoutBuilder.process_message: {e}")
 
 ## 📞 Контакти та підтримка
 
-**Документація**: `docs/AI_CONVERSATION_IMPROVEMENT_PLAN.md`
+**Документація**: `docs/AI_CONVERSATION_ARCHITECTURE.md`
 **Тести**: `apps/backend/tests/test_*`
 **Issues**: GitHub Issues
 
@@ -395,4 +418,3 @@ logger.error(f"Error in WorkoutBuilder.process_message: {e}")
 **Версія документації**: 1.0
 **Останнє оновлення**: 2025-11-18
 **Автор**: AI Assistant
-

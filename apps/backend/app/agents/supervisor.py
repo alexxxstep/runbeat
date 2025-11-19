@@ -132,13 +132,19 @@ class SupervisorAgent:
                             else:
                                 genres_str = str(genres_list)
 
+                    prompt_value = collected.get("prompt")
+                    if isinstance(prompt_value, str):
+                        prompt_value = prompt_value.strip() or None
+                    else:
+                        prompt_value = None
+
                         result = _create_workout_from_params_internal(
                             user_id=user_id,
                             workout_type=workout_type,
                             duration_minutes=duration,
                             intensity=intensity,
                             genres=genres_str,
-                            prompt=None,
+                        prompt=prompt_value,
                         )
 
                         if "error" not in result.lower():
