@@ -74,12 +74,13 @@ User: Selects & saves to Spotify 🎵
 
 ### Backend
 
-- **Framework:** FastAPI + Python 3.11
+- **Framework:** FastAPI + Python 3.11+
 - **AI/LLM:** OpenAI GPT-4 + LangChain 0.1.0
 - **Architecture:** Multi-agent system (Supervisor, WorkoutBuilder, MusicCurator, WorkoutManager)
 - **Database:** Supabase PostgreSQL
 - **Music API:** Spotify API (spotipy)
-- **Logging:** Loguru + Database error logging
+- **Logging:** Loguru + Async Database error logging
+- **Validation:** Pydantic V2 with LangChain tool compatibility
 
 ### Frontend
 
@@ -177,7 +178,7 @@ See [DEPLOYMENT.md](./docs/DEPLOYMENT.md) for detailed deployment instructions.
 
 ## 🎯 Feature Status
 
-### ✅ Completed (v3.3 - Production Ready)
+### ✅ Completed (v3.3.2 - Production Ready)
 
 #### Core Features
 
@@ -188,6 +189,8 @@ See [DEPLOYMENT.md](./docs/DEPLOYMENT.md) for detailed deployment instructions.
 - ✅ BPM & genre matching with fuzzy recognition
 - ✅ Spotify OAuth integration & playlist creation
 - ✅ Manual workout creation via settings panel
+- ✅ Pydantic V2 compatibility with LangChain tools
+- ✅ Frontend integration with AI conversation states
 
 #### AI Learning & Personalization (v3.3)
 
@@ -205,14 +208,18 @@ See [DEPLOYMENT.md](./docs/DEPLOYMENT.md) for detailed deployment instructions.
 - ✅ Real-time chat with typing indicators
 - ✅ Error handling with user-friendly messages
 - ✅ Auto-refresh history panels
+- ✅ Visual conversation state indicators (needs_clarification, is_complete)
+- ✅ Context-aware AI responses without repetition
 
 #### Backend Infrastructure
 
-- ✅ Comprehensive error logging to database
+- ✅ Comprehensive async error logging to database
 - ✅ Analytics endpoints for monitoring
 - ✅ Production deployment on Railway
 - ✅ Database migration scripts
-- ✅ Comprehensive test suite
+- ✅ Comprehensive test suite (70%+ coverage)
+- ✅ Pydantic V2 validation with LangChain compatibility
+- ✅ Robust error handling for AI tool validation
 
 ### 🚧 In Progress
 
@@ -342,8 +349,8 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 ---
 
 **Status:** ✅ **Production Ready** - MVP Complete, actively adding features
-**Version:** 3.3.1 (AI Learning & Personalization + Spotify Auth Fix)
-**Last Updated:** 17 November 2025
+**Version:** 3.3.2 (Pydantic V2 Compatibility + Frontend AI Integration)
+**Last Updated:** 19 November 2025
 **Deployment:** [Railway](https://railway.app/)
 **Repository:** [GitHub](https://github.com/alexxxstep/runbeat)
 

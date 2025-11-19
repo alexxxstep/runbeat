@@ -311,6 +311,7 @@ def activate_workout(workout_id: str, user_id: str) -> str:
 
 # Pydantic schema for tool arguments - explicitly marks duration and intensity as Optional
 # This prevents LangChain from failing validation when agent calls tool without these params
+# NOTE: LangChain 0.1.0+ uses Pydantic V2 internally, so we use V2 syntax
 class CreateWorkoutFromParamsInput(BaseModel):
     """Input schema for create_workout_from_params tool."""
     user_id: str = Field(..., description="User ID (required)")
@@ -323,6 +324,8 @@ class CreateWorkoutFromParamsInput(BaseModel):
     model_config = ConfigDict(extra="allow")  # Pydantic V2 syntax - allow extra fields
 
 
+# Use args_schema to explicitly define the schema for LangChain
+# This ensures proper validation and prevents errors when agent calls tool without all params
 @tool(args_schema=CreateWorkoutFromParamsInput)
 def create_workout_from_params(
     user_id: str,

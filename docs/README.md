@@ -5,9 +5,15 @@
 ## 📚 Основна документація
 
 ### Architecture & Design
-- **[ARCHITECTURE_REPORT.md](./ARCHITECTURE_REPORT.md)** - Повний звіт по архітектурі системи (v3.3)
+- **[ARCHITECTURE_REPORT.md](./ARCHITECTURE_REPORT.md)** - Повний звіт по архітектурі системи (v3.3.2)
+- **[AI_CONVERSATION_ARCHITECTURE.md](./AI_CONVERSATION_ARCHITECTURE.md)** - Архітектура AI-driven діалогу з мультиагентною системою LangChain
 - **[API.md](./API.md)** - Повна документація API endpoints з прикладами
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Покрокова інструкція з деплою всіх компонентів
+
+### Implementation Guides
+- **[FRONTEND_INTEGRATION_SUMMARY.md](./FRONTEND_INTEGRATION_SUMMARY.md)** - Підсумок інтеграції Frontend з AI агентами
+- **[PROMPT_OPTIMIZATION_RECOMMENDATIONS.md](./PROMPT_OPTIMIZATION_RECOMMENDATIONS.md)** - Рекомендації для оптимізації AI промптів
+- **[QUICK_TEST_GUIDE.md](./QUICK_TEST_GUIDE.md)** - Швидкий гайд для тестування системи
 
 ## 🔗 Інші ресурси
 
@@ -29,5 +35,13 @@
 
 ---
 
-**Останнє оновлення:** Листопад 2025
+## 📝 Примітки
 
+- Всі плани інтеграції та виправлення помилок вже реалізовані та інтегровані в основну документацію
+- Детальна інформація про AI архітектуру знаходиться в `AI_CONVERSATION_ARCHITECTURE.md`
+- Технічні деталі виправлень включені в `ARCHITECTURE_REPORT.md`
+
+---
+
+**Останнє оновлення:** 19 Листопада 2025
+**Версія документації:** 3.3.2

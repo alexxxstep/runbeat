@@ -1,9 +1,9 @@
 # 📊 RunBeat - Детальний звіт по архітектурі проекту
 
 **Дата:** Листопад 2025
-**Версія:** 3.3
+**Версія:** 3.3.2
 **Статус:** Production Ready
-**Останнє оновлення:** Листопад 2025 (AI Learning & Personalization)
+**Останнє оновлення:** 19 Листопада 2025 (Pydantic V2 Compatibility + Frontend AI Integration)
 
 ---
 
@@ -1251,9 +1251,47 @@ User Message
 ---
 
 **Дата створення:** 2024-11-15
-**Останнє оновлення:** 2025-11-17
-**Версія документа:** 3.3
-**Статус:** Актуальний - AI Learning & Personalization ✅
+**Останнє оновлення:** 2025-11-19
+**Версія документа:** 3.3.2
+**Статус:** Актуальний - Pydantic V2 Compatibility + Frontend AI Integration ✅
+
+### Останні зміни (v3.3.2) - 2025-11-19
+
+🔧 **Pydantic V2 Compatibility & LangChain Tools:**
+
+- **Оновлено tool schemas для сумісності з Pydantic V2**:
+  - Використано `ConfigDict` замість застарілого `class Config`
+  - Оновлено `CreateWorkoutFromParamsInput` schema для правильної валідації
+  - Додано `extra="allow"` для гнучкої обробки додаткових параметрів
+  - Виправлено помилку `pydantic.v1.error_wrappers.ValidationError` при ініціалізації агентів
+
+- **Покращено error handling для AI tool validation**:
+  - Додано детальну обробку помилок валідації в `WorkoutBuilder`
+  - Покращено детекцію різних форматів помилок валідації
+  - Backend тепер повертає 200 з user-friendly повідомленням замість 500 для validation errors
+
+🎨 **Frontend Integration з AI Conversation States:**
+
+- **Оновлено `useChat` hook**:
+  - Додано підтримку `needs_clarification` та `is_complete` з backend
+  - Створено `SendMessageResult` тип для структурованого повернення
+  - Додано метадані до повідомлень для відстеження стану розмови
+
+- **Оновлено `ChatPage` компонент**:
+  - Правильна обробка станів розмови (збір інформації, завершена розмова)
+  - Автоматичне відображення workout після створення
+  - Покращена логіка показу playlist question
+
+- **Оновлено `MessageBubble` компонент**:
+  - Додано візуальні індикатори стану розмови
+  - Індикатор "Потрібна додаткова інформація" (`needs_clarification`)
+  - Індикатор "✅ Розмова завершена" (`is_complete`)
+  - Зворотна сумісність з існуючим кодом
+
+- **Додано тести для `useChat` hook**:
+  - 15 unit тестів покривають всі основні сценарії
+  - Тести для обробки метаданих та станів розмови
+  - Використано Vitest та React Testing Library
 
 ### Останні зміни (v3.3) - 2024-11-15
 
