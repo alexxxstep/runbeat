@@ -24,13 +24,13 @@ RunBeat — це AI-driven застосунок, який:
 
 ### 🏗️ [Architecture Report](./docs/ARCHITECTURE_REPORT.md)
 
-Високорівневий огляд архітектури з mermaid-діаграмами:
+Високорівневий огляд архітектури з ASCII-діаграмами:
 
 - Загальна схема системи (Frontend ↔ Backend ↔ Integrations)
 - Backend layers (API → Services → AI Agents → Schemas)
-- AI Conversation Stack (sequence діаграми)
-- Playlist & Prompt Flow
-- End-to-End Data Flow
+- AI Conversation Stack (покроковий flow)
+- Playlist & Prompt Flow (детальний lifecycle)
+- End-to-End Data Flow (3 кроки: створення workout → підтвердження → генерація плейлиста)
 - Stack Snapshot та deployment
 
 ### 🤖 [AI Conversation Architecture](./docs/AI_CONVERSATION_ARCHITECTURE.md)
@@ -38,10 +38,10 @@ RunBeat — це AI-driven застосунок, який:
 Детальна документація LangChain multi-agent системи:
 
 - SupervisorAgent та WorkoutBuilder (відповідальності, методи)
-- Conversation State Machine (state діаграми)
+- Conversation State Machine (ASCII state diagram)
 - LangChain Tools (`extract_workout_parameters`, `create_workout_from_params`)
 - System Prompts та conversation flow
-- Music Prompt lifecycle
+- Music Prompt lifecycle (від збору до Spotify)
 - Backend ↔ Frontend контракт
 - Тестування (41 unit/integration тест)
 - Troubleshooting та best practices
@@ -54,7 +54,6 @@ RunBeat — це AI-driven застосунок, який:
 │   ├── backend/        # FastAPI + LangChain служба
 │   └── web/            # React + Vite клієнт
 ├── docs/               # Головні архітектурні документи
-├── PRD_CURSOR_AI.md    # Product requirements
 └── README.md           # Ви тут 🙂
 ```
 
@@ -100,10 +99,8 @@ UI доступний на `http://localhost:5173`. За замовчуванн�
 
 ## 📚 Додаткова документація
 
-- **[Backend ENV Setup](./apps/backend/ENV_SETUP_GUIDE.md)** — покрокове налаштування `.env` (OpenAI, Spotify, Supabase)
-- **[Backend README](./apps/backend/README.md)** — специфіка backend (структура, запуск, Railway деплой)
-- **[Web README](./apps/web/README.md)** — специфіка frontend (компоненти, hooks, build)
-- **[PRD](./PRD_CURSOR_AI.md)** — Product Requirements Document
+- **[Backend README](./apps/backend/README.md)** — специфіка backend (структура, запуск, Railway деплой, налаштування `.env`)
+- **[Backend Tests](./apps/backend/tests/README.md)** — інформація про тестування (unit, integration, coverage)
 
 ---
 
