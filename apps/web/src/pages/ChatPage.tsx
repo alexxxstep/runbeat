@@ -727,14 +727,14 @@ export function ChatPage() {
                         <button
                           onClick={async () => {
                             // Send "Да" to chat to confirm workout creation
-                            const confirmedWorkout = await sendMessage(
+                            const result = await sendMessage(
                               'Да',
                               user?.id
                             );
-                            if (confirmedWorkout && confirmedWorkout.id) {
+                            if (result.workout && result.workout.id) {
                               // Workout created, now show playlist generation option
-                              setActiveWorkoutId(confirmedWorkout.id);
-                              setActiveWorkout(confirmedWorkout);
+                              setActiveWorkoutId(result.workout.id);
+                              setActiveWorkout(result.workout);
                               // Refresh workout history to show new workout
                               setRefreshTrigger((prev) => prev + 1);
                             }
