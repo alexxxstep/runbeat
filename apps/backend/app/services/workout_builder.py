@@ -458,7 +458,7 @@ class WorkoutBuilder(BaseAgent):
             if extracted.get("all_collected"):
                 if self._needs_optional_prompt(merged):
                     state.last_question = "prompt"
-        else:
+                else:
                     state.last_question = "final_confirmation"
 
             logger.info(
