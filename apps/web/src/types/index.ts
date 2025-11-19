@@ -9,6 +9,10 @@ export interface Message {
   timestamp: Date;
   workout?: Workout;
   playlist?: Playlist;
+  _metadata?: {
+    needs_clarification?: boolean;
+    is_complete?: boolean;
+  };
 }
 
 export interface Workout {
@@ -138,4 +142,12 @@ export interface UserPreferences {
   top_genres: string[];
   top_artists: string[];
   avg_bpm: number;
+}
+
+// Result type for sendMessage function
+export interface SendMessageResult {
+  workout: Workout | null;
+  needs_clarification: boolean;
+  is_complete: boolean;
+  _hasPlaylist?: boolean;
 }

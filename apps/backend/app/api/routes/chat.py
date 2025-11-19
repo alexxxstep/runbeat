@@ -62,12 +62,18 @@ async def send_message(request: ChatRequest) -> ChatResponse:
 
         # Check if it's a validation error related to workout parameters
         # This might happen if error propagates from AgentExecutor
-        if (
+        # Only catch errors that specifically mention duration/intensity
+        is_validation_error = (
             ("duration" in error_str and "intensity" in error_str)
             or ("duration" in error_repr and "intensity" in error_repr)
             or ("'duration'" in error_str and "'intensity'" in error_str)
-            or error_type in ["ValidationError", "ValueError"]
-        ):
+            or (
+                error_type == "ValidationError"
+                and ("duration" in error_str or "intensity" in error_str)
+            )
+        )
+
+        if is_validation_error:
             logger.warning(
                 f"Validation error detected in chat endpoint - "
                 f"likely from tool validation. Returning user-friendly error."

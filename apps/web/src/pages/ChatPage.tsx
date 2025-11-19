@@ -130,12 +130,16 @@ export function ChatPage() {
   };
 
   const handleSend = async (text: string) => {
-    const workout = await sendMessage(text, user?.id);
+    const result = await sendMessage(text, user?.id);
+
+    // Extract values from result
+    const workout = result.workout;
+    const needsClarification = result.needs_clarification;
+    const isComplete = result.is_complete;
+    const hasPlaylist = result._hasPlaylist;
 
     // Check if playlist was generated in conversation flow
-    // The playlist is already added to messages by useChat hook
-    // Use useEffect to check after messages update, or check workout marker
-    if (workout && (workout as any)._hasPlaylist) {
+    if (hasPlaylist && workout) {
       // Playlist was generated automatically in conversation flow
       // No need to show playlist question - it's already in the chat
       setActiveWorkout(workout);
@@ -143,8 +147,8 @@ export function ChatPage() {
       return;
     }
 
-    // Check if workout was created (has workout_id) - this happens after user confirms
-    if (workout && workout.id) {
+    // If conversation is complete and workout was created
+    if (isComplete && workout?.id) {
       // Workout was created in database, now we can generate playlist
       setActiveWorkout(workout);
       setActiveWorkoutId(workout.id);
@@ -156,10 +160,15 @@ export function ChatPage() {
       return;
     }
 
-    // If workout is ready and complete, show workout info and ask for confirmation
-    // Note: If needs_clarification is true, the conversation continues automatically
-    // The AI message with clarification question is already added to messages
-    if (workout && !workout.needs_clarification) {
+    // If needs clarification, just continue the conversation
+    // The AI agent already asked the clarification question
+    if (needsClarification) {
+      // Conversation continues naturally, no action needed
+      return;
+    }
+
+    // If workout is ready but not yet created (waiting for confirmation)
+    if (workout && !needsClarification && !isComplete) {
       // Set active workout and show confirmation question
       // The AI already asked "Створити воркаут? (Да/Ні)" in the message
       setActiveWorkout(workout);
@@ -168,8 +177,6 @@ export function ChatPage() {
       // Show buttons to confirm workout creation
       setShowPlaylistQuestion(true);
     }
-    // If needs_clarification, user can continue the conversation naturally
-    // The clarification question is already displayed in the chat
   };
 
   const generateVariants = async () => {

@@ -1,6 +1,12 @@
 import { useState, useCallback } from 'react';
 import { api } from '../services/api';
-import type { Message, Workout, ChatRequest, Track } from '../types';
+import type {
+  Message,
+  Workout,
+  ChatRequest,
+  Track,
+  SendMessageResult,
+} from '../types';
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -8,8 +14,9 @@ export function useChat() {
   const [error, setError] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | undefined>();
 
-  const sendMessage = useCallback(async (text: string, userId?: string) => {
-    const userMessage: Message = {
+  const sendMessage = useCallback(
+    async (text: string, userId?: string): Promise<SendMessageResult> => {
+      const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: text,
@@ -67,26 +74,21 @@ export function useChat() {
               generation_time_seconds: undefined,
             }
           : undefined,
+        // Add metadata about conversation state
+        _metadata: {
+          needs_clarification: response.needs_clarification,
+          is_complete: response.is_complete,
+        },
       };
       setMessages((prev) => [...prev, aiMessage]);
 
-      // Return workout and playlist info if available
-      // If playlist is available, it means workout is complete and playlist is generated
-      if (response.playlist) {
-        // Playlist is already in the message, return workout for compatibility
-        // Also return a special marker to indicate playlist is available
-        return (response.workout ? { ...response.workout, _hasPlaylist: true } : null) as (Workout & { _hasPlaylist?: boolean }) | null;
-      }
-
-      // Return workout if available (may have workout_id if it was just created)
-      if (response.workout) {
-        // Check if workout has ID (was created in database)
-        // This happens after user confirms workout creation
-        return response.workout;
-      }
-
-      // If needs clarification, return null but conversation continues
-      return null;
+      // Return structured result with conversation state
+      return {
+        workout: response.workout || null,
+        needs_clarification: response.needs_clarification,
+        is_complete: response.is_complete ?? false,
+        _hasPlaylist: !!response.playlist,
+      };
     } catch (err) {
       // Better error handling
       let errorMessage = 'Не вдалося відправити повідомлення';
@@ -126,11 +128,18 @@ export function useChat() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMsg]);
-      return null;
+      // Return error state
+      return {
+        workout: null,
+        needs_clarification: false,
+        is_complete: false,
+      };
     } finally {
       setIsLoading(false);
     }
-  }, [conversationId]);
+    },
+    [conversationId]
+  );
 
   const generatePlaylist = useCallback(
     async (
