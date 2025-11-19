@@ -452,7 +452,10 @@ class WorkoutBuilder(BaseAgent):
             if not extracted:
                 return
 
-            merged = self._merge_collected_parameters(state.collected_parameters, extracted)
+            merged = self._merge_collected_parameters(
+                state.collected_parameters,
+                extracted,
+            )
             state.collected_parameters = merged
 
             if extracted.get("all_collected"):
@@ -462,7 +465,8 @@ class WorkoutBuilder(BaseAgent):
                     state.last_question = "final_confirmation"
 
             logger.info(
-                f"[Conversation] user={state.user_id} params auto-update -> {state.collected_parameters}"
+                f"[Conversation] user={state.user_id} params auto-update -> "
+                f"{state.collected_parameters}"
             )
         except Exception as exc:
             logger.warning(
@@ -535,11 +539,13 @@ class WorkoutBuilder(BaseAgent):
         merged = current.copy()
 
         if "duration_minutes" in extracted:
-            normalized = WorkoutBuilder._normalize_duration(extracted["duration_minutes"])
+            normalized = WorkoutBuilder._normalize_duration(
+                extracted["duration_minutes"]
+            )
             if normalized is not None:
                 merged["duration_minutes"] = normalized
                 merged.pop("_duration_invalid", None)
-                else:
+            else:
                 merged.pop("duration_minutes", None)
                 merged["_duration_invalid"] = extracted["duration_minutes"]
 
@@ -641,7 +647,7 @@ class WorkoutBuilder(BaseAgent):
             for canonical, variations in genre_map.items():
                 if any(var in genre_lower for var in variations):
                     matched = canonical
-                        break
+                    break
             normalized.append(matched or genre_lower)
         return normalized
 
@@ -759,25 +765,26 @@ class WorkoutBuilder(BaseAgent):
         if missing_prompt:
             return missing_prompt
 
-            # We have everything, ask for confirmation
-            duration = collected.get("duration_minutes", 30)
+        # We have everything, ask for confirmation
+        duration = collected.get("duration_minutes", 30)
         intensity_map = {"low": "легка 😊", "moderate": "середня 💪", "high": "висока ⚡️"}
         intensity_uk = intensity_map.get(collected.get("intensity", "moderate"), "середня 💪")
-            genres_list = collected.get("genres", [])
-            if isinstance(genres_list, list):
+        genres_list = collected.get("genres", [])
+        if isinstance(genres_list, list):
             genres_str = ", ".join(self._display_genre_name(g) for g in genres_list)
-            else:
-                genres_str = str(genres_list)
+        else:
+            genres_str = str(genres_list)
+
         prompt_text = collected.get("prompt")
         prompt_suffix = ""
         if isinstance(prompt_text, str) and prompt_text.strip():
             prompt_suffix = f" Атмосфера: {prompt_text.strip()}."
 
         state.last_question = "final_confirmation"
-            return (
-                f"Супер! Отже, {intensity_uk} пробіжка на {duration} хвилин "
+        return (
+            f"Супер! Отже, {intensity_uk} пробіжка на {duration} хвилин "
             f"під {genres_str}.{prompt_suffix} Створюємо воркаут?"
-            )
+        )
 
     def _determine_question_type_from_response(
         self, response: str, state: ConversationState
