@@ -102,46 +102,46 @@ def _extract_from_message(message: str) -> Dict[str, Any]:
     message_lower = message.lower().strip()
 
     # Extract duration
-        duration_patterns = [
-            r'(\d+)\s*(?:хв|хвилин|minutes?|mins?)',
-            r'(\d+\.?\d*)\s*(?:год|hours?)',
-        ]
+    duration_patterns = [
+        r"(\d+)\s*(?:хв|хвилин|minutes?|mins?)",
+        r"(\d+\.?\d*)\s*(?:год|hours?)",
+    ]
 
-        for pattern in duration_patterns:
-            match = re.search(pattern, message_lower)
-            if match:
-                value = float(match.group(1))
-                unit = match.group(0).lower()
+    for pattern in duration_patterns:
+        match = re.search(pattern, message_lower)
+        if match:
+            value = float(match.group(1))
+            unit = match.group(0).lower()
 
-                if "год" in unit or "hour" in unit:
+            if "год" in unit or "hour" in unit:
                 params["duration_minutes"] = int(value * 60)
-                else:
+            else:
                 params["duration_minutes"] = int(value)
-                break
+            break
 
     # Extract intensity
-        intensity_keywords = {
+    intensity_keywords = {
         "low": ["легк", "easy", "low", "recovery", "відновлювальн", "повільн", "спокійн"],
-            "moderate": ["середн", "moderate", "темпов", "tempo", "звичайн", "нормальн"],
-            "high": ["висок", "важк", "high", "hard", "інтенсивн", "intense", "швидк"],
-        }
+        "moderate": ["середн", "moderate", "темпов", "tempo", "звичайн", "нормальн"],
+        "high": ["висок", "важк", "high", "hard", "інтенсивн", "intense", "швидк"],
+    }
 
-        for intensity, keywords in intensity_keywords.items():
+    for intensity, keywords in intensity_keywords.items():
         if any(keyword in message_lower for keyword in keywords):
             params["intensity"] = intensity
-                break
+            break
 
     # Extract workout type
     workout_keywords = {
-            "intervals": ["інтервал", "interval", "інтервальн"],
-            "fartlek": ["фартлек", "fartlek"],
+        "intervals": ["інтервал", "interval", "інтервальн"],
+        "fartlek": ["фартлек", "fartlek"],
         "steady": ["біг", "пробіжк", "run", "running", "steady", "стабільн", "постійн", "темпов"],
-        }
+    }
 
     for workout_type, keywords in workout_keywords.items():
         if any(keyword in message_lower for keyword in keywords):
             params["workout_type"] = workout_type
-                break
+            break
 
     # Extract genres (normalize to English)
     genre_mapping = {
