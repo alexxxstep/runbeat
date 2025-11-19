@@ -94,43 +94,40 @@ class SupervisorAgent:
             and state.last_question == "final_confirmation"
             and state.collected_parameters.get("duration_minutes")
             and state.collected_parameters.get("intensity")
+            and not created_workout
         ):
-            # Check if workout was already created by agent
-            success_indicators = (
-                "✅" in response_message
-                and ("створено" in response_message.lower()
-                     or "created" in response_message.lower())
-            )
+            try:
+                from app.agents.tools.workout_tools import (
+                    _create_workout_from_params_internal,
+                )
 
-            if not success_indicators:
-                # Agent didn't create workout (maybe reached limit), create it here
-                try:
-                    from app.agents.tools.workout_tools import _create_workout_from_params_internal
+                collected = state.collected_parameters
+                workout_type = (
+                    collected.get("workout_type")
+                    or collected.get("type")
+                    or "steady"
+                )
+                duration = collected.get("duration_minutes")
+                intensity = collected.get("intensity")
 
-                    collected = state.collected_parameters
-                    workout_type = collected.get("type", "steady")
-                    duration = collected.get("duration_minutes")
-                    intensity = collected.get("intensity")
-
-                    # Validate required parameters before calling
-                    if not duration or not intensity:
-                        logger.warning(
-                            f"Cannot create workout: missing parameters. "
-                            f"duration={duration}, intensity={intensity} for user {user_id}"
-                        )
-                        response_message = (
-                            "Вибачте, мені потрібно знати тривалість та інтенсивність. "
-                            "Можете повторити?"
-                        )
-                        needs_clarification = True
-                    else:
-                        genres_list = collected.get("genres", [])
-                        genres_str = None
-                        if genres_list:
-                            if isinstance(genres_list, list):
-                                genres_str = ",".join(genres_list)
-                            else:
-                                genres_str = str(genres_list)
+                if not duration or not intensity:
+                    logger.warning(
+                        f"Cannot create workout: missing parameters. "
+                        f"duration={duration}, intensity={intensity} for user {user_id}"
+                    )
+                    response_message = (
+                        "Вибачте, мені потрібно знати тривалість та інтенсивність. "
+                        "Можете повторити?"
+                    )
+                    needs_clarification = True
+                else:
+                    genres_list = collected.get("genres", [])
+                    genres_str = None
+                    if genres_list:
+                        if isinstance(genres_list, list):
+                            genres_str = ",".join(genres_list)
+                        else:
+                            genres_str = str(genres_list)
 
                     prompt_value = collected.get("prompt")
                     if isinstance(prompt_value, str):
@@ -138,50 +135,48 @@ class SupervisorAgent:
                     else:
                         prompt_value = None
 
-                        result = _create_workout_from_params_internal(
-                            user_id=user_id,
-                            workout_type=workout_type,
-                            duration_minutes=duration,
-                            intensity=intensity,
-                            genres=genres_str,
+                    result = _create_workout_from_params_internal(
+                        user_id=user_id,
+                        workout_type=workout_type,
+                        duration_minutes=duration,
+                        intensity=intensity,
+                        genres=genres_str,
                         prompt=prompt_value,
-                        )
-
-                        if "error" not in result.lower():
-                            # Parse workout object from result
-                            if result.startswith("workout_created:"):
-                                try:
-                                    import json
-                                    parts = result.split("|", 1)
-                                    if len(parts) == 2:
-                                        created_workout = json.loads(parts[1])
-                                except Exception as e:
-                                    logger.error(f"Failed to parse workout object: {e}")
-
-                            response_message = "✅ Воркаут успішно створено! Тепер ви можете згенерувати плейлист."
-                            is_complete = True
-                            needs_clarification = False
-                            logger.info(
-                                f"Workout created via supervisor fallback for user {user_id}"
-                            )
-                        else:
-                            response_message = f"Вибачте, не вдалося створити воркаут: {result}"
-                            logger.error(
-                                f"Failed to create workout via supervisor fallback: {result}"
-                            )
-                except Exception as e:
-                    logger.error(
-                        f"Error creating workout via supervisor fallback: {e}",
-                        exc_info=True,
                     )
-                    response_message = "Вибачте, виникла помилка при створенні воркауту. Спробуйте ще раз."
 
-        # Check if workout was successfully created
-        success_indicators = (
-            "✅" in response_message
-            and ("створено" in response_message.lower()
-                 or "created" in response_message.lower())
-        )
+                    if "error" not in result.lower():
+                        if result.startswith("workout_created:"):
+                            try:
+                                import json
+
+                                parts = result.split("|", 1)
+                                if len(parts) == 2:
+                                    created_workout = json.loads(parts[1])
+                            except Exception as e:
+                                logger.error(f"Failed to parse workout object: {e}")
+
+                        response_message = (
+                            "✅ Воркаут успішно створено! Тепер ви можете згенерувати плейлист."
+                        )
+                        is_complete = True
+                        needs_clarification = False
+                        logger.info(
+                            f"Workout created via supervisor fallback for user {user_id}"
+                        )
+                    else:
+                        response_message = (
+                            f"Вибачте, не вдалося створити воркаут: {result}"
+                        )
+                        logger.error(
+                            f"Failed to create workout via supervisor fallback: {result}"
+                        )
+            except Exception as e:
+                logger.error(
+                    f"Error creating workout via supervisor fallback: {e}",
+                    exc_info=True,
+                )
+                response_message = "Вибачте, виникла помилка при створенні воркауту. Спробуйте ще раз."
+
         # Log state before potential clearing
         if user_id in self.states:
             logger.debug(
@@ -189,7 +184,7 @@ class SupervisorAgent:
                 f"{self.states[user_id].model_dump_json(indent=2)}"
             )
 
-        if success_indicators:
+        if created_workout or is_complete:
             # Check if response contains error before clearing state
             if "error" not in response_message.lower():
                 # Workout was successfully created - clear state and mark completed

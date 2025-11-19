@@ -89,7 +89,9 @@ async def test_supervisor_state_clearing_on_success(supervisor):
     ) as mock_process:
         mock_process.return_value = ConversationUpdate(
             new_state=ConversationState(user_id="test_user"),
-            response_message="✅ Воркаут успішно створено!"
+                response_message="✅ Воркаут успішно створено!",
+                is_complete=True,
+                created_workout={"id": "w1", "type": "steady", "duration_minutes": 30, "intensity": "low", "hr_zones": [110, 150]},
         )
 
         response = await supervisor.handle_message("test_user", "так")
@@ -127,7 +129,9 @@ async def test_supervisor_no_keyerror_after_clear(supervisor):
     ) as mock_process:
         mock_process.return_value = ConversationUpdate(
             new_state=ConversationState(user_id="test_user"),
-            response_message="✅ Воркаут успішно створено!"
+                response_message="✅ Воркаут успішно створено!",
+                is_complete=True,
+                created_workout={"id": "w2", "type": "steady", "duration_minutes": 30, "intensity": "low", "hr_zones": [110, 150]},
         )
 
         # Should not raise KeyError
