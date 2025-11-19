@@ -3,7 +3,7 @@ AI-powered workout builder using LangChain for natural conversation.
 Optimized version with extract_workout_parameters tool.
 """
 
-from typing import Any
+from typing import Any, Dict, Optional
 import json
 from loguru import logger
 
@@ -16,6 +16,7 @@ from app.agents.base import BaseAgent
 from app.agents.prompts.conversation_prompts import CONVERSATION_AGENT_SYSTEM_PROMPT
 from app.agents.tools.workout_tools import create_workout_from_params
 from app.agents.tools.parameter_extraction_tools import extract_workout_parameters
+from app.models.workout import Workout
 
 
 class WorkoutBuilder(BaseAgent):
@@ -113,6 +114,7 @@ class WorkoutBuilder(BaseAgent):
             tools=self.tools,
             verbose=True,  # Enable for debugging
             handle_parsing_errors=handle_error,
+            return_intermediate_steps=True,
             max_iterations=5,  # Reduced - agent should be more efficient now
             max_execution_time=20,  # 20 seconds timeout
         )
@@ -156,6 +158,10 @@ class WorkoutBuilder(BaseAgent):
 
         # Add user message to history
         state.history.append({"role": "user", "content": user_message})
+        logger.info(
+            f"[Conversation] user={state.user_id} -> '{user_message}' "
+            f"(collected={state.collected_parameters})"
+        )
 
         # Build context for the agent
         conversation_context = self._build_conversation_context(state, user_message)
@@ -226,6 +232,9 @@ class WorkoutBuilder(BaseAgent):
                 invoke_agent, max_retries=3, base_delay=1.0, max_delay=5.0
             )
 
+            intermediate_steps = response.get("intermediate_steps", [])
+            created_workout: Optional[dict] = None
+
             response_message = response.get("output", "Вибачте, я не зрозумів. Можете повторити?")
 
             # Check if agent stopped due to iteration/time limit
@@ -249,7 +258,36 @@ class WorkoutBuilder(BaseAgent):
             # Add assistant response to history
             state.history.append({"role": "assistant", "content": response_message})
 
-            return ConversationUpdate(new_state=state, response_message=response_message)
+            # Process intermediate tool steps to update collected parameters or detect workout creation
+            created_workout = self._process_tool_steps(
+                state=state,
+                steps=intermediate_steps,
+                user_message=user_message,
+            ) or created_workout
+
+            has_duration = bool(state.collected_parameters.get("duration_minutes"))
+            has_intensity = bool(state.collected_parameters.get("intensity"))
+            genres = state.collected_parameters.get("genres")
+            has_genres = bool(genres) and isinstance(genres, list)
+
+            needs_clarification = not (has_duration and has_intensity and has_genres)
+            is_complete = created_workout is not None
+
+            if is_complete:
+                needs_clarification = False
+
+            logger.info(
+                f"[Conversation] user={state.user_id} <- '{response_message[:120]}' "
+                f"(needs_clarification={needs_clarification}, is_complete={is_complete})"
+            )
+
+            return ConversationUpdate(
+                new_state=state,
+                response_message=response_message,
+                created_workout=created_workout,
+                needs_clarification=needs_clarification,
+                is_complete=is_complete,
+            )
 
         except Exception as e:
             error_str = str(e).lower()
@@ -283,7 +321,131 @@ class WorkoutBuilder(BaseAgent):
                 logger.error(f"Unexpected error in WorkoutBuilder: {e}", exc_info=True)
 
             state.history.append({"role": "assistant", "content": error_message})
-            return ConversationUpdate(new_state=state, response_message=error_message)
+            return ConversationUpdate(
+                new_state=state,
+                response_message=error_message,
+                needs_clarification=True,
+            )
+
+    def _process_tool_steps(
+        self,
+        state: ConversationState,
+        steps: Any,
+        user_message: str,
+    ) -> Optional[dict]:
+        """
+        Inspect intermediate tool steps to keep ConversationState in sync with AI reasoning.
+        """
+        created_workout: Optional[dict] = None
+        if not steps:
+            return None
+
+        collected = state.collected_parameters.copy()
+
+        for step in steps:
+            if not isinstance(step, (list, tuple)) or len(step) != 2:
+                continue
+
+            action, observation = step
+            tool_name = getattr(action, "tool", "") or getattr(action, "name", "")
+            observation_str = (
+                observation
+                if isinstance(observation, str)
+                else json.dumps(observation, ensure_ascii=False)
+            )
+
+            if tool_name == extract_workout_parameters.name:
+                extracted = self._safe_json_loads(observation_str)
+                if not extracted:
+                    continue
+
+                collected = self._merge_collected_parameters(collected, extracted)
+                state.collected_parameters = collected
+
+                if extracted.get("all_collected"):
+                    state.last_question = "final_confirmation"
+
+                logger.info(
+                    f"[Conversation] user={state.user_id} parameters updated -> {state.collected_parameters}"
+                )
+
+            elif tool_name == create_workout_from_params.name:
+                workout_data = self._parse_workout_creation(observation_str)
+                if workout_data:
+                    created_workout = workout_data
+                    collected = {}
+                    state.collected_parameters = {}
+                    state.last_question = "none"
+                    duration = workout_data.get("duration_minutes")
+                    intensity = workout_data.get("intensity")
+                    hr_zones = workout_data.get("hr_zones") or [110, 180]
+                    if duration and intensity:
+                        try:
+                            state.active_workout = Workout(
+                                id=workout_data.get("id"),
+                                type=workout_data.get("type", "steady"),
+                                duration_minutes=duration,
+                                intensity=intensity,
+                                hr_zones=hr_zones,
+                                confidence=0.95,
+                                needs_clarification=False,
+                            )
+                        except Exception as exc:
+                            logger.warning(
+                                f"Failed to set active workout for user {state.user_id}: {exc}"
+                            )
+
+                    logger.info(
+                        f"[Conversation] user={state.user_id} workout created via tool "
+                        f"(id={workout_data.get('id')})"
+                    )
+
+        state.collected_parameters = collected
+        return created_workout
+
+    @staticmethod
+    def _merge_collected_parameters(current: Dict[str, Any], extracted: Dict[str, Any]) -> Dict[str, Any]:
+        merged = current.copy()
+
+        for key in ["duration_minutes", "intensity", "workout_type"]:
+            value = extracted.get(key)
+            if value:
+                merged[key] = value
+
+        if "genres" in extracted and extracted["genres"]:
+            existing = merged.get("genres", [])
+            if not isinstance(existing, list):
+                existing = []
+            merged["genres"] = list({*existing, *extracted["genres"]})
+
+        if extracted.get("clarification_question"):
+            merged["clarification_question"] = extracted["clarification_question"]
+
+        return merged
+
+    @staticmethod
+    def _parse_workout_creation(observation: str) -> Optional[dict]:
+        text = observation.strip()
+        if text.startswith("error"):
+            logger.warning(f"Workout creation tool returned error: {text}")
+            return None
+
+        if text.startswith("workout_created:"):
+            parts = text.split("|", 1)
+            if len(parts) == 2:
+                return WorkoutBuilder._safe_json_loads(parts[1])
+        elif text.startswith("{"):
+            return WorkoutBuilder._safe_json_loads(text)
+
+        return None
+
+    @staticmethod
+    def _safe_json_loads(payload: str) -> Optional[dict]:
+        try:
+            return json.loads(payload)
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to decode JSON payload: {payload[:120]}")
+            return None
 
     def _build_conversation_context(self, state: ConversationState, user_message: str) -> str:
         """

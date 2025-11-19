@@ -37,7 +37,7 @@ async def test_supervisor_initial_state_creation(supervisor):
 
         response = await supervisor.handle_message("test_user", "привіт")
 
-        assert response is not None
+        assert response.response_message == "Привіт!"
         assert "test_user" in supervisor.states
         assert isinstance(supervisor.states["test_user"], ConversationState)
 
@@ -92,8 +92,9 @@ async def test_supervisor_state_clearing_on_success(supervisor):
             response_message="✅ Воркаут успішно створено!"
         )
 
-        await supervisor.handle_message("test_user", "так")
+        response = await supervisor.handle_message("test_user", "так")
 
+        assert response.is_complete
         assert "test_user" not in supervisor.states
 
 
@@ -110,9 +111,10 @@ async def test_supervisor_state_clearing_on_cancel(supervisor):
             response_message="Створення воркауту скасовано"
         )
 
-        await supervisor.handle_message("test_user", "ні")
+        response = await supervisor.handle_message("test_user", "ні")
 
         assert "test_user" not in supervisor.states
+        assert "скасовано" in response.response_message.lower()
 
 
 @pytest.mark.asyncio
@@ -131,7 +133,7 @@ async def test_supervisor_no_keyerror_after_clear(supervisor):
         # Should not raise KeyError
         response = await supervisor.handle_message("test_user", "так")
 
-        assert response is not None
+        assert response.is_complete
         assert "test_user" not in supervisor.states
 
 
@@ -190,7 +192,7 @@ async def test_supervisor_concurrent_requests(supervisor):
         responses = await asyncio.gather(*tasks)
 
         assert len(responses) == 5
-        assert all(r is not None for r in responses)
+        assert all(r.response_message == "Відповідь" for r in responses)
         # State should still exist (not cleared)
         assert "test_user" in supervisor.states
 

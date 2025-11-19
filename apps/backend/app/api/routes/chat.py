@@ -23,7 +23,7 @@ async def send_message(request: ChatRequest) -> ChatResponse:
                 detail="user_id is required for conversation management",
             )
 
-        response_message, created_workout = await supervisor_agent.handle_message(
+        update = await supervisor_agent.handle_message(
             user_id=request.user_id, message=request.message
         )
 
@@ -31,22 +31,26 @@ async def send_message(request: ChatRequest) -> ChatResponse:
         from app.models.workout import Workout
 
         workout_obj = None
-        if created_workout:
+        if update.created_workout:
             try:
                 # Validate that workout has required fields before converting
-                if all(key in created_workout for key in ["type", "duration_minutes", "intensity"]):
-                    workout_obj = Workout(**created_workout)
+                if all(
+                    key in update.created_workout for key in ["type", "duration_minutes", "intensity"]
+                ):
+                    workout_obj = Workout(**update.created_workout)
                 else:
-                    logger.warning(f"Created workout missing required fields: {created_workout}")
+                    logger.warning(
+                        f"Created workout missing required fields: {update.created_workout}"
+                    )
             except Exception as e:
                 logger.error(f"Failed to convert workout dict to Workout model: {e}")
 
         return ChatResponse(
-            message=response_message,
+            message=update.response_message,
             workout=workout_obj,  # Include created workout for frontend
             playlist=None,
-            needs_clarification=False,  # Agent manages the flow
-            is_complete=bool(workout_obj),  # Complete if workout was successfully created
+            needs_clarification=update.needs_clarification,
+            is_complete=update.is_complete or bool(workout_obj),
         )
 
     except HTTPException:

@@ -38,3 +38,6 @@ class ConversationUpdate(BaseModel):
 
     new_state: ConversationState
     response_message: str
+    created_workout: Optional[dict] = None
+    needs_clarification: bool = False
+    is_complete: bool = False

@@ -5,7 +5,7 @@ from typing import Dict
 
 from loguru import logger
 
-from app.schemas.conversation import ConversationState
+from app.schemas.conversation import ConversationState, ConversationUpdate
 from app.services.workout_builder import WorkoutBuilder
 from app.services.conversation_service import conversation_service
 
@@ -32,17 +32,14 @@ class SupervisorAgent:
             self.states[user_id] = ConversationState(user_id=user_id)
         return self.states[user_id]
 
-    async def handle_message(self, user_id: str, message: str) -> tuple[str, dict | None]:
+    async def handle_message(self, user_id: str, message: str) -> ConversationUpdate:
         """
         Main entry point for handling a user's message.
         All conversation logic is handled by the WorkoutBuilder AI agent
         via prompts.
 
-        Returns:
-            tuple: (response_message, workout_obj or None)
         """
         state = self._get_or_create_state(user_id)
-        created_workout = None  # Track created workout
 
         # Delegate the conversation to the WorkoutBuilder AI agent
         # The agent handles all logic including workout creation via its prompt
@@ -53,6 +50,9 @@ class SupervisorAgent:
 
         response_message = update.response_message
         state = update.new_state
+        created_workout = update.created_workout
+        needs_clarification = update.needs_clarification
+        is_complete = update.is_complete
 
         # Check if agent created workout (extract from response)
         if "workout_created:" in response_message:
@@ -65,6 +65,8 @@ class SupervisorAgent:
                         created_workout = json.loads(parts[1])
                         # Clean response message (remove workout data)
                         response_message = "✅ Воркаут успішно створено! Тепер ви можете згенерувати плейлист."
+                        is_complete = True
+                        needs_clarification = False
             except Exception as e:
                 logger.error(f"Failed to parse workout from agent response: {e}")
 
@@ -120,6 +122,7 @@ class SupervisorAgent:
                             "Вибачте, мені потрібно знати тривалість та інтенсивність. "
                             "Можете повторити?"
                         )
+                        needs_clarification = True
                     else:
                         genres_list = collected.get("genres", [])
                         genres_str = None
@@ -150,6 +153,8 @@ class SupervisorAgent:
                                     logger.error(f"Failed to parse workout object: {e}")
 
                             response_message = "✅ Воркаут успішно створено! Тепер ви можете згенерувати плейлист."
+                            is_complete = True
+                            needs_clarification = False
                             logger.info(
                                 f"Workout created via supervisor fallback for user {user_id}"
                             )
@@ -188,6 +193,8 @@ class SupervisorAgent:
                 )
                 await conversation_service.mark_conversation_completed(user_id)
                 self.clear_state(user_id)
+                is_complete = True
+                needs_clarification = False
             else:
                 logger.warning(
                     f"Workout creation reported success but contains error "
@@ -203,8 +210,15 @@ class SupervisorAgent:
                 f"clearing state"
             )
             self.clear_state(user_id)
+            needs_clarification = False
 
-        return response_message, created_workout
+        return ConversationUpdate(
+            new_state=state,
+            response_message=response_message,
+            created_workout=created_workout,
+            needs_clarification=needs_clarification,
+            is_complete=is_complete,
+        )
 
     def clear_state(self, user_id: str):
         """Clears the conversation state for a user."""
