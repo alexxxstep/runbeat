@@ -3,6 +3,7 @@ Workout management tools for LangChain agents.
 """
 
 from typing import Optional
+from pydantic import BaseModel, Field
 from langchain.tools import tool
 from loguru import logger
 
@@ -308,7 +309,23 @@ def activate_workout(workout_id: str, user_id: str) -> str:
         return f"error: {str(e)}"
 
 
-@tool
+# Pydantic schema for tool arguments - explicitly marks duration and intensity as Optional
+# This prevents LangChain from failing validation when agent calls tool without these params
+class CreateWorkoutFromParamsInput(BaseModel):
+    """Input schema for create_workout_from_params tool."""
+    user_id: str = Field(..., description="User ID (required)")
+    workout_type: str = Field(default="steady", description="Workout type: steady/intervals/fartlek")
+    duration_minutes: Optional[int] = Field(default=None, description="Duration in minutes (5-180) - Optional in schema but required for creation")
+    intensity: Optional[str] = Field(default=None, description="Intensity: low/moderate/high - Optional in schema but required for creation")
+    genres: Optional[str] = Field(default=None, description="Comma-separated music genres (e.g., 'rock,pop')")
+    prompt: Optional[str] = Field(default=None, description="Optional music prompt/description")
+
+    class Config:
+        # Allow extra fields to prevent validation errors from unexpected parameters
+        extra = "allow"
+
+
+@tool(args_schema=CreateWorkoutFromParamsInput)
 def create_workout_from_params(
     user_id: str,
     workout_type: str = "steady",
@@ -316,6 +333,7 @@ def create_workout_from_params(
     intensity: Optional[str] = None,
     genres: Optional[str] = None,
     prompt: Optional[str] = None,
+    **kwargs  # Accept any extra kwargs to prevent validation errors
 ) -> str:
     """
     Create a workout in the database from simple parameters (for conversation flow).
@@ -323,22 +341,24 @@ def create_workout_from_params(
     This is a simplified version that takes parameters directly from conversation state.
 
     IMPORTANT: This tool should ONLY be called when ALL required parameters are collected:
-    - duration_minutes (required)
-    - intensity (required)
+    - duration_minutes (required for creation, but Optional in schema to prevent validation errors)
+    - intensity (required for creation, but Optional in schema to prevent validation errors)
     - At least one genre is recommended
 
     The agent should NOT call this tool until user has provided all information and confirmed.
+    If called without required parameters, the tool will return an error message instead of crashing.
 
     Args:
-        user_id: User ID (required)
-        workout_type: Workout type ("steady", "progressive", "intervals", "fartlek"), defaults to "steady"
-        duration_minutes: Duration in minutes (5-180) - REQUIRED
-        intensity: Intensity level ("low", "moderate", "high") - REQUIRED
-        genres: Optional comma-separated list of music genres (e.g., "rock,pop")
-        prompt: Optional music prompt/description
+        user_id (str): User ID (required)
+        workout_type (str, optional): Workout type ("steady", "progressive", "intervals", "fartlek"). Defaults to "steady".
+        duration_minutes (int, optional): Duration in minutes (5-180). Optional - will return error if None.
+        intensity (str, optional): Intensity level ("low", "moderate", "high"). Optional - will return error if None.
+        genres (str, optional): Comma-separated list of music genres (e.g., "rock,pop")
+        prompt (str, optional): Optional music prompt/description
+        **kwargs: Additional arguments (ignored)
 
     Returns:
-        Workout ID if created successfully, "error: <message>" if failed
+        str: Workout ID if created successfully, "error: <message>" if failed
     """
     from loguru import logger
 

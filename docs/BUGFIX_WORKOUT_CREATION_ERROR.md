@@ -185,7 +185,7 @@ git push
 
 ### Проблема все ще виникала після першого виправлення
 
-**Причина**: Помилка виникала **всередині** `agent_executor.ainvoke()` до того як доходили до tool виклику. Можливо це була помилка валідації Pydantic при парсингу tool parameters від агента.
+**Причина**: Помилка виникала **всередині** `agent_executor.ainvoke()` до того як доходили до tool виклику. Це була помилка валідації Pydantic при парсингу tool parameters від агента. Навіть якщо параметри були Optional в Python функції, LangChain генерував Pydantic схему на основі docstring або type hints, і ця схема могла позначати поля як required.
 
 ### Додаткові виправлення:
 
@@ -198,8 +198,9 @@ git push
 
    - Custom error handler для AgentExecutor
    - Catch помилок в `invoke_agent()` функції
-   - Детекція validation errors (`duration` + `intensity`)
+   - Детекція validation errors (`duration` + `intensity`) з різними форматами помилок
    - Повернення fallback response замість crash
+   - Додано перевірку `repr(error)` для кращої детекції помилок
 
 3. **workout_tools.py** — Додано детальне логування
    - Логування всіх параметрів що приходять в tool
@@ -207,7 +208,51 @@ git push
 
 ---
 
+## 🔄 Оновлення (Round 3) - Ключове виправлення
+
+### Проблема: LangChain валідація Pydantic на рівні схеми
+
+**Причина**: LangChain's `@tool` decorator автоматично генерує Pydantic схему для валідації аргументів. Навіть якщо параметри Optional в Python функції, LangChain може інтерпретувати docstring ("REQUIRED") і створити схему з required полями, що призводить до помилки валідації **до** виклику функції.
+
+### Рішення: Явна Pydantic схема з Optional полями
+
+**Файл**: `apps/backend/app/agents/tools/workout_tools.py`
+
+Додано явну Pydantic схему `CreateWorkoutFromParamsInput` з `Optional` полями для `duration_minutes` та `intensity`:
+
+```python
+class CreateWorkoutFromParamsInput(BaseModel):
+    """Input schema for create_workout_from_params tool."""
+    user_id: str = Field(..., description="User ID (required)")
+    workout_type: str = Field(default="steady", description="Workout type: steady/intervals/fartlek")
+    duration_minutes: Optional[int] = Field(default=None, description="Duration in minutes (5-180) - Optional in schema but required for creation")
+    intensity: Optional[str] = Field(default=None, description="Intensity: low/moderate/high - Optional in schema but required for creation")
+    genres: Optional[str] = Field(default=None, description="Comma-separated music genres")
+    prompt: Optional[str] = Field(default=None, description="Optional music prompt/description")
+
+@tool(args_schema=CreateWorkoutFromParamsInput)
+def create_workout_from_params(...):
+    ...
+```
+
+**Чому це працює**:
+
+- `args_schema` параметр перевизначає автоматичну генерацію схеми LangChain
+- Явно позначаємо `duration_minutes` та `intensity` як `Optional` в Pydantic схемі
+- LangChain тепер дозволяє викликати tool без цих параметрів
+- Валідація всередині функції повертає зрозумілу помилку замість crash
+
+### Покращена детекція помилок
+
+Оновлено error handling для кращої детекції різних форматів помилок:
+
+- Перевірка `str(error)` та `repr(error)`
+- Детекція `"'duration'"` та `"'intensity'"` в рядку помилки
+- Детальне логування типу помилки
+
+---
+
 **Дата виправлення**: 2025-11-19
-**Оновлення**: Round 2 - Додаткова обробка помилок
+**Оновлення**: Round 3 - Явна Pydantic схема з Optional полями
 **Автор**: AI Assistant
 **Статус**: ✅ Ready for deployment

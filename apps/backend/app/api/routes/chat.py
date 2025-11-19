@@ -1,6 +1,7 @@
 """
 Chat API endpoints with conversation flow management.
 """
+
 from fastapi import APIRouter, HTTPException
 from loguru import logger
 
@@ -28,6 +29,7 @@ async def send_message(request: ChatRequest) -> ChatResponse:
 
         # Return workout object if created (for frontend to update history & show as active)
         from app.models.workout import Workout
+
         workout_obj = None
         if created_workout:
             try:
@@ -50,5 +52,36 @@ async def send_message(request: ChatRequest) -> ChatResponse:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in chat endpoint: {e}")
+        error_str = str(e).lower()
+        error_repr = repr(e).lower()
+        error_type = type(e).__name__
+
+        logger.error(
+            f"Error in chat endpoint: {e} " f"(type: {error_type}, str: {error_str[:200]})"
+        )
+
+        # Check if it's a validation error related to workout parameters
+        # This might happen if error propagates from AgentExecutor
+        if (
+            ("duration" in error_str and "intensity" in error_str)
+            or ("duration" in error_repr and "intensity" in error_repr)
+            or ("'duration'" in error_str and "'intensity'" in error_str)
+            or error_type in ["ValidationError", "ValueError"]
+        ):
+            logger.warning(
+                f"Validation error detected in chat endpoint - "
+                f"likely from tool validation. Returning user-friendly error."
+            )
+            # Return a 200 response with error message instead of 500
+            return ChatResponse(
+                message=(
+                    "Вибачте, мені потрібно спочатку зібрати всі параметри. "
+                    "Повідомте тривалість та інтенсивність тренування."
+                ),
+                workout=None,
+                playlist=None,
+                needs_clarification=True,
+                is_complete=False,
+            )
+
         raise HTTPException(status_code=500, detail=str(e))

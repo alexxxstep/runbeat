@@ -2,6 +2,7 @@
 AI-powered workout builder using LangChain for natural conversation.
 Optimized version with extract_workout_parameters tool.
 """
+
 from typing import Any
 import json
 from loguru import logger
@@ -28,22 +29,24 @@ class WorkoutBuilder(BaseAgent):
         super().__init__(
             temperature=0.8,  # Higher temperature for more natural conversation
             max_tokens=500,
-            agent_type="conversation"  # Uses OPENAI_MODEL_CONVERSATION from config
+            agent_type="conversation",  # Uses OPENAI_MODEL_CONVERSATION from config
         )
 
         # Tools for the agent
         self.tools = [
             extract_workout_parameters,  # NEW: AI-driven parameter extraction
-            create_workout_from_params,   # EXISTING: Workout creation
+            create_workout_from_params,  # EXISTING: Workout creation
         ]
 
         # Create prompt with tools
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", CONVERSATION_AGENT_SYSTEM_PROMPT),
-            MessagesPlaceholder(variable_name="chat_history", optional=True),
-            ("human", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ])
+        self.prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", CONVERSATION_AGENT_SYSTEM_PROMPT),
+                MessagesPlaceholder(variable_name="chat_history", optional=True),
+                ("human", "{input}"),
+                MessagesPlaceholder(variable_name="agent_scratchpad"),
+            ]
+        )
 
         # Create LangChain agent
         self.agent = create_structured_chat_agent(
@@ -56,17 +59,53 @@ class WorkoutBuilder(BaseAgent):
         def handle_error(error: Exception) -> str:
             """Handle parsing and validation errors gracefully."""
             error_str = str(error).lower()
-            logger.warning(f"AgentExecutor error: {error}")
+            error_repr = repr(error).lower()
+            error_type = type(error).__name__
+
+            logger.warning(
+                f"AgentExecutor error: {error} "
+                f"(type: {error_type}, str: {error_str[:200]}, "
+                f"repr: {error_repr[:200]})"
+            )
 
             # Check if it's a Pydantic validation error related to workout parameters
-            if "duration" in error_str and "intensity" in error_str:
+            # The error might be formatted as "'duration', 'intensity'" or similar
+            # Also check for common Pydantic validation error patterns
+            is_validation_error = (
+                ("duration" in error_str and "intensity" in error_str)
+                or ("duration" in error_repr and "intensity" in error_repr)
+                or ("'duration'" in error_str and "'intensity'" in error_str)
+                or (
+                    "missing" in error_str and ("duration" in error_str or "intensity" in error_str)
+                )
+                or (
+                    "required" in error_str
+                    and ("duration" in error_str or "intensity" in error_str)
+                )
+                or (
+                    "validation" in error_str
+                    and ("duration" in error_str or "intensity" in error_str)
+                )
+                or (
+                    error_type in ["ValidationError", "ValueError"]
+                    and ("duration" in error_str or "intensity" in error_str)
+                )
+            )
+
+            if is_validation_error:
+                logger.warning(
+                    f"Pydantic validation error detected - agent tried to call "
+                    f"create_workout_from_params without required parameters. "
+                    f"Error type: {error_type}. Returning user-friendly message."
+                )
                 return (
-                    "I apologize, but I need more information before creating the workout. "
-                    "Please provide the duration and intensity first."
+                    "Вибачте, мені потрібно спочатку зібрати всі параметри. "
+                    "Повідомте тривалість та інтенсивність тренування."
                 )
 
             # Generic error handling
-            return f"I encountered an error: {str(error)}. Could you please rephrase your request?"
+            logger.error(f"Unexpected error in AgentExecutor: {error_type} - {error}")
+            return "Вибачте, виникла помилка. Можете повторити ваше запитання?"
 
         # Agent executor
         self.agent_executor = AgentExecutor(
@@ -147,19 +186,28 @@ class WorkoutBuilder(BaseAgent):
 
             async def invoke_agent():
                 try:
-                    return await self.agent_executor.ainvoke({
-                        "input": conversation_context,
-                        "chat_history": temp_memory.chat_memory.messages,
-                    })
+                    return await self.agent_executor.ainvoke(
+                        {
+                            "input": conversation_context,
+                            "chat_history": temp_memory.chat_memory.messages,
+                        }
+                    )
                 except Exception as e:
-                    error_str = str(e)
+                    error_str = str(e).lower()
+                    error_repr = repr(e).lower()
                     logger.error(
-                        f"Error in agent_executor.ainvoke for user {state.user_id}: {error_str}",
-                        exc_info=True
+                        f"Error in agent_executor.ainvoke for user {state.user_id}: {error_str} "
+                        f"(type: {type(e).__name__})",
+                        exc_info=True,
                     )
 
                     # Check if it's a validation error related to workout parameters
-                    if "duration" in error_str.lower() and "intensity" in error_str.lower():
+                    # The error might be formatted as "'duration', 'intensity'" or similar
+                    if (
+                        ("duration" in error_str and "intensity" in error_str)
+                        or ("duration" in error_repr and "intensity" in error_repr)
+                        or ("'duration'" in error_str and "'intensity'" in error_str)
+                    ):
                         logger.warning(
                             f"Validation error in agent execution - agent likely tried to create workout "
                             f"without all parameters. User: {state.user_id}"
@@ -167,7 +215,7 @@ class WorkoutBuilder(BaseAgent):
                         # Return a response that will trigger fallback
                         return {
                             "output": "Вибачте, мені потрібно спочатку зібрати всі параметри. "
-                                    "Повідомте тривалість та інтенсивність тренування."
+                            "Повідомте тривалість та інтенсивність тренування."
                         }
 
                     # Re-raise other errors
@@ -175,10 +223,7 @@ class WorkoutBuilder(BaseAgent):
 
             # Use retry logic for rate limits
             response = await OpenAIErrorHandler.handle_with_retry(
-                invoke_agent,
-                max_retries=3,
-                base_delay=1.0,
-                max_delay=5.0
+                invoke_agent, max_retries=3, base_delay=1.0, max_delay=5.0
             )
 
             response_message = response.get("output", "Вибачте, я не зрозумів. Можете повторити?")
@@ -197,7 +242,9 @@ class WorkoutBuilder(BaseAgent):
                 response_message = self._get_fallback_response(state, user_message)
 
             # Determine question type based on response
-            state.last_question = self._determine_question_type_from_response(response_message, state)
+            state.last_question = self._determine_question_type_from_response(
+                response_message, state
+            )
 
             # Add assistant response to history
             state.history.append({"role": "assistant", "content": response_message})
@@ -205,16 +252,23 @@ class WorkoutBuilder(BaseAgent):
             return ConversationUpdate(new_state=state, response_message=response_message)
 
         except Exception as e:
-            error_str = str(e)
+            error_str = str(e).lower()
+            error_repr = repr(e).lower()
             logger.error(
-                f"Error in WorkoutBuilder.process_message for user {state.user_id}: {error_str}",
-                exc_info=True
+                f"Error in WorkoutBuilder.process_message for user {state.user_id}: {error_str} "
+                f"(type: {type(e).__name__})",
+                exc_info=True,
             )
 
             from app.utils.openai_error_handler import OpenAIErrorHandler
 
             # Check if it's a Pydantic validation error related to workout parameters
-            if "duration" in error_str.lower() and "intensity" in error_str.lower():
+            # The error might be formatted as "'duration', 'intensity'" or similar
+            if (
+                ("duration" in error_str and "intensity" in error_str)
+                or ("duration" in error_repr and "intensity" in error_repr)
+                or ("'duration'" in error_str and "'intensity'" in error_str)
+            ):
                 logger.warning(
                     f"Validation error detected - likely agent tried to create workout without all parameters. "
                     f"User: {state.user_id}, Message: {user_message[:50]}"
@@ -263,7 +317,9 @@ class WorkoutBuilder(BaseAgent):
         context_parts.append("4. Guide user to next step if info is missing")
         context_parts.append("5. If all collected → ask for confirmation")
         context_parts.append("6. If user confirms → call create_workout_from_params tool")
-        context_parts.append(f"7. CRITICAL: use user_id='{state.user_id}' when calling create_workout_from_params")
+        context_parts.append(
+            f"7. CRITICAL: use user_id='{state.user_id}' when calling create_workout_from_params"
+        )
 
         return "\n".join(context_parts)
 
@@ -276,7 +332,10 @@ class WorkoutBuilder(BaseAgent):
 
         # Check if waiting for confirmation
         if state.last_question == "final_confirmation":
-            if any(word in message_lower for word in ["так", "yes", "да", "ок", "ok", "створ", "create"]):
+            if any(
+                word in message_lower
+                for word in ["так", "yes", "да", "ок", "ok", "створ", "create"]
+            ):
                 return "Добре! Створюю воркаут..."
             elif any(word in message_lower for word in ["ні", "no", "не треба", "скасу"]):
                 return "Зрозуміло! Якщо потрібна допомога ще - звертайся. Успішного тренування! 🏃‍♂️"
@@ -284,7 +343,11 @@ class WorkoutBuilder(BaseAgent):
         # Check what we have and what we need
         has_duration = "duration_minutes" in collected and collected["duration_minutes"]
         has_intensity = "intensity" in collected and collected["intensity"]
-        has_genres = "genres" in collected and collected.get("genres") and len(collected.get("genres", [])) > 0
+        has_genres = (
+            "genres" in collected
+            and collected.get("genres")
+            and len(collected.get("genres", [])) > 0
+        )
 
         # Provide appropriate response based on what's missing
         if not has_duration or not has_intensity:
@@ -303,7 +366,9 @@ class WorkoutBuilder(BaseAgent):
             intensity_map = {"low": "легка", "moderate": "середня", "high": "висока"}
             intensity_uk = intensity_map.get(collected.get("intensity", "moderate"), "середня")
             genres_list = collected.get("genres", [])
-            genres_str = ", ".join(genres_list) if isinstance(genres_list, list) else str(genres_list)
+            genres_str = (
+                ", ".join(genres_list) if isinstance(genres_list, list) else str(genres_list)
+            )
 
             return (
                 f"Супер! Отже, {intensity_uk} пробіжка на {duration} хвилин "
@@ -328,7 +393,9 @@ class WorkoutBuilder(BaseAgent):
             return "genres"
 
         # Check if asking for workout goal
-        if any(k in response_lower for k in ["тривалість", "duration", "інтенсивність", "intensity"]):
+        if any(
+            k in response_lower for k in ["тривалість", "duration", "інтенсивність", "intensity"]
+        ):
             return "goal_clarification"
 
         # Default based on what's missing
