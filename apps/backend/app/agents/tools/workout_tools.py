@@ -3,7 +3,18 @@ Workout management tools for LangChain agents.
 """
 
 from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict  # LangChain 0.1.0 uses Pydantic V2 internally
+
+# LangChain uses Pydantic V1 internally for tool schemas
+# Use langchain_core.pydantic_v1 for compatibility with LangChain
+try:
+    from langchain_core.pydantic_v1 import BaseModel, Field
+except ImportError:
+    # Fallback: try pydantic.v1
+    try:
+        from pydantic.v1 import BaseModel, Field
+    except ImportError:
+        # Last resort: use regular pydantic (may cause issues with LangChain)
+        from pydantic import BaseModel, Field
 from langchain.tools import tool
 from loguru import logger
 
@@ -311,17 +322,43 @@ def activate_workout(workout_id: str, user_id: str) -> str:
 
 # Pydantic schema for tool arguments - explicitly marks duration and intensity as Optional
 # This prevents LangChain from failing validation when agent calls tool without these params
-# NOTE: LangChain 0.1.0 uses Pydantic V2 internally, so we use V2 syntax
+# NOTE: LangChain Core 0.3.x expects Pydantic V2 with model_json_schema() method
 class CreateWorkoutFromParamsInput(BaseModel):
     """Input schema for create_workout_from_params tool."""
+
     user_id: str = Field(..., description="User ID (required)")
-    workout_type: str = Field(default="steady", description="Workout type: steady/intervals/fartlek")
-    duration_minutes: Optional[int] = Field(default=None, description="Duration in minutes (5-180) - Optional in schema but required for creation")
-    intensity: Optional[str] = Field(default=None, description="Intensity: low/moderate/high - Optional in schema but required for creation")
-    genres: Optional[str] = Field(default=None, description="Comma-separated music genres (e.g., 'rock,pop')")
+    workout_type: str = Field(
+        default="steady", description="Workout type: steady/intervals/fartlek"
+    )
+    duration_minutes: Optional[int] = Field(
+        default=None,
+        description="Duration in minutes (5-180) - Optional in schema but required for creation",
+    )
+    intensity: Optional[str] = Field(
+        default=None,
+        description="Intensity: low/moderate/high - Optional in schema but required for creation",
+    )
+    genres: Optional[str] = Field(
+        default=None, description="Comma-separated music genres (e.g., 'rock,pop')"
+    )
     prompt: Optional[str] = Field(default=None, description="Optional music prompt/description")
 
-    model_config = ConfigDict(extra="allow")  # Pydantic V2 syntax - allow extra fields
+    class Config:
+        extra = "allow"  # Allow extra fields
+
+    @classmethod
+    def model_json_schema(cls, **kwargs):
+        """Compatibility method for LangChain Core which expects model_json_schema()."""
+        # If using Pydantic V1, use schema() method
+        if hasattr(cls, "schema"):
+            return cls.schema(**kwargs)
+        # If using Pydantic V2, use model_json_schema() method
+        elif hasattr(super(), "model_json_schema"):
+            return super().model_json_schema(**kwargs)
+        else:
+            # Fallback: convert schema() to JSON schema format
+            schema = cls.schema(**kwargs) if hasattr(cls, "schema") else {}
+            return schema
 
 
 # Use args_schema to explicitly define the schema for LangChain
@@ -334,7 +371,7 @@ def create_workout_from_params(
     intensity: Optional[str] = None,
     genres: Optional[str] = None,
     prompt: Optional[str] = None,
-    **kwargs  # Accept any extra kwargs to prevent validation errors
+    **kwargs,  # Accept any extra kwargs to prevent validation errors
 ) -> str:
     """
     Create a workout in the database from simple parameters (for conversation flow).
