@@ -3,7 +3,7 @@ AI-powered workout builder using LangChain for natural conversation.
 Optimized version with extract_workout_parameters tool.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 import json
 from loguru import logger
 
@@ -163,6 +163,9 @@ class WorkoutBuilder(BaseAgent):
             f"(collected={state.collected_parameters})"
         )
 
+        # Auto-extract parameters every turn to keep state in sync
+        self._auto_extract_parameters(state=state, user_message=user_message)
+
         # Build context for the agent
         conversation_context = self._build_conversation_context(state, user_message)
 
@@ -265,14 +268,14 @@ class WorkoutBuilder(BaseAgent):
                 user_message=user_message,
             ) or created_workout
 
-            has_duration = bool(state.collected_parameters.get("duration_minutes"))
-            has_intensity = bool(state.collected_parameters.get("intensity"))
-            genres = state.collected_parameters.get("genres")
-            has_genres = bool(genres) and isinstance(genres, list)
-
-            needs_clarification = not (has_duration and has_intensity and has_genres)
+            missing = self._missing_parameters(state.collected_parameters)
+            needs_clarification = any(
+                missing[key] for key in ["duration", "intensity", "genres", "duration_invalid", "intensity_invalid"]
+            )
             is_complete = created_workout is not None
 
+            if state.last_question == "final_confirmation" and not is_complete:
+                needs_clarification = False
             if is_complete:
                 needs_clarification = False
 
@@ -403,25 +406,156 @@ class WorkoutBuilder(BaseAgent):
         state.collected_parameters = collected
         return created_workout
 
+    def _auto_extract_parameters(self, state: ConversationState, user_message: str) -> None:
+        """
+        Run extract_workout_parameters tool on every user turn to keep state fresh,
+        even if the agent fails to call the tool.
+        """
+        if not user_message:
+            return
+
+        try:
+            history_slice = state.history[-10:]
+            history_json = json.dumps(history_slice, ensure_ascii=False)
+            params_json = json.dumps(state.collected_parameters, ensure_ascii=False)
+            tool_input = {
+                "user_message": user_message,
+                "conversation_history": history_json,
+                "current_params": params_json,
+            }
+            raw = extract_workout_parameters.invoke(tool_input)
+            extracted = self._safe_json_loads(raw)
+            if not extracted:
+                return
+
+            merged = self._merge_collected_parameters(state.collected_parameters, extracted)
+            state.collected_parameters = merged
+
+            if extracted.get("all_collected"):
+                state.last_question = "final_confirmation"
+
+            logger.info(
+                f"[Conversation] user={state.user_id} params auto-update -> {state.collected_parameters}"
+            )
+        except Exception as exc:
+            logger.warning(
+                f"Auto parameter extraction failed for user {state.user_id}: {exc}"
+            )
+
     @staticmethod
     def _merge_collected_parameters(current: Dict[str, Any], extracted: Dict[str, Any]) -> Dict[str, Any]:
         merged = current.copy()
 
-        for key in ["duration_minutes", "intensity", "workout_type"]:
-            value = extracted.get(key)
-            if value:
-                merged[key] = value
+        if "duration_minutes" in extracted:
+            normalized = WorkoutBuilder._normalize_duration(extracted["duration_minutes"])
+            if normalized is not None:
+                merged["duration_minutes"] = normalized
+                merged.pop("_duration_invalid", None)
+            else:
+                merged.pop("duration_minutes", None)
+                merged["_duration_invalid"] = extracted["duration_minutes"]
+
+        if "intensity" in extracted:
+            normalized_intensity = WorkoutBuilder._normalize_intensity(extracted["intensity"])
+            if normalized_intensity:
+                merged["intensity"] = normalized_intensity
+                merged.pop("_intensity_invalid", None)
+            else:
+                merged.pop("intensity", None)
+                merged["_intensity_invalid"] = extracted["intensity"]
+
+        if "workout_type" in extracted and extracted["workout_type"]:
+            merged["workout_type"] = extracted["workout_type"]
 
         if "genres" in extracted and extracted["genres"]:
-            existing = merged.get("genres", [])
-            if not isinstance(existing, list):
-                existing = []
-            merged["genres"] = list({*existing, *extracted["genres"]})
+            normalized_genres = WorkoutBuilder._normalize_genres(extracted["genres"])
+            if normalized_genres:
+                existing = merged.get("genres", [])
+                if not isinstance(existing, list):
+                    existing = []
+                merged["genres"] = list(dict.fromkeys(existing + normalized_genres))
 
         if extracted.get("clarification_question"):
             merged["clarification_question"] = extracted["clarification_question"]
 
         return merged
+
+    @staticmethod
+    def _normalize_duration(value: Any) -> Optional[int]:
+        try:
+            minutes = int(float(value))
+        except (TypeError, ValueError):
+            return None
+        if 5 <= minutes <= 180:
+            return minutes
+        return None
+
+    @staticmethod
+    def _normalize_intensity(value: Any) -> Optional[str]:
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip().lower()
+        mapping = {
+            "легка": "low",
+            "easy": "low",
+            "низька": "low",
+            "recovery": "low",
+            "середня": "moderate",
+            "темпова": "moderate",
+            "moderate": "moderate",
+            "tempo": "moderate",
+            "висока": "high",
+            "hard": "high",
+            "high": "high",
+            "інтенсивна": "high",
+        }
+        if normalized in ["low", "moderate", "high"]:
+            return normalized
+        return mapping.get(normalized)
+
+    @staticmethod
+    def _normalize_genres(genres: Any) -> List[str]:
+        normalized: List[str] = []
+        if isinstance(genres, str):
+            genres_iter = [genres]
+        elif isinstance(genres, list):
+            genres_iter = genres
+        else:
+            genres_iter = []
+
+        genre_map = {
+            "electronic": ["electronic", "electric", "electro", "електро", "електронн", "едм", "edm"],
+            "rock": ["rock", "рок"],
+            "pop": ["pop", "поп"],
+            "classical": ["classic", "classical", "класик", "класична", "класичну"],
+            "hip-hop": ["hip-hop", "hip hop", "хіп-хоп", "реп", "rap"],
+            "jazz": ["jazz", "джаз"],
+            "metal": ["metal", "метал"],
+            "indie": ["indie", "інді"],
+            "alternative": ["alternative", "альтернатив"],
+            "dance": ["dance", "данс"],
+            "house": ["house", "хаус"],
+            "techno": ["techno", "техно"],
+            "trance": ["trance", "транс"],
+            "reggae": ["reggae", "регі"],
+            "country": ["country", "кантрі"],
+            "blues": ["blues", "блюз"],
+            "folk": ["folk", "фолк"],
+            "ambient": ["ambient", "ембієнт", "chill", "релакс"],
+            "r&b": ["r&b", "rnb"],
+        }
+
+        for genre in genres_iter:
+            if not isinstance(genre, str):
+                continue
+            genre_lower = genre.lower()
+            matched = None
+            for canonical, variations in genre_map.items():
+                if any(var in genre_lower for var in variations):
+                    matched = canonical
+                    break
+            normalized.append(matched or genre_lower)
+        return normalized
 
     @staticmethod
     def _parse_workout_creation(observation: str) -> Optional[dict]:
@@ -502,40 +636,23 @@ class WorkoutBuilder(BaseAgent):
             elif any(word in message_lower for word in ["ні", "no", "не треба", "скасу"]):
                 return "Зрозуміло! Якщо потрібна допомога ще - звертайся. Успішного тренування! 🏃‍♂️"
 
-        # Check what we have and what we need
-        has_duration = "duration_minutes" in collected and collected["duration_minutes"]
-        has_intensity = "intensity" in collected and collected["intensity"]
-        has_genres = (
-            "genres" in collected
-            and collected.get("genres")
-            and len(collected.get("genres", [])) > 0
+        missing_prompt = self._format_missing_prompt(collected)
+        if missing_prompt:
+            return missing_prompt
+
+        # We have everything, ask for confirmation
+        duration = collected.get("duration_minutes", 30)
+        intensity_map = {"low": "легка", "moderate": "середня", "high": "висока"}
+        intensity_uk = intensity_map.get(collected.get("intensity", "moderate"), "середня")
+        genres_list = collected.get("genres", [])
+        genres_str = (
+            ", ".join(genres_list) if isinstance(genres_list, list) else str(genres_list)
         )
 
-        # Provide appropriate response based on what's missing
-        if not has_duration or not has_intensity:
-            return (
-                "Чудово! Яка планується тривалість та інтенсивність тренування? "
-                "(наприклад: легка пробіжка 30 хвилин)"
-            )
-        elif not has_genres:
-            return (
-                "Добре! А яку музику ти хочеш слухати під час тренування? "
-                "Можна назвати кілька жанрів."
-            )
-        else:
-            # We have everything, ask for confirmation
-            duration = collected.get("duration_minutes", 30)
-            intensity_map = {"low": "легка", "moderate": "середня", "high": "висока"}
-            intensity_uk = intensity_map.get(collected.get("intensity", "moderate"), "середня")
-            genres_list = collected.get("genres", [])
-            genres_str = (
-                ", ".join(genres_list) if isinstance(genres_list, list) else str(genres_list)
-            )
-
-            return (
-                f"Супер! Отже, {intensity_uk} пробіжка на {duration} хвилин "
-                f"під {genres_str}. Створюємо воркаут?"
-            )
+        return (
+            f"Супер! Отже, {intensity_uk} пробіжка на {duration} хвилин "
+            f"під {genres_str}. Створюємо воркаут?"
+        )
 
     def _determine_question_type_from_response(
         self, response: str, state: ConversationState
@@ -567,3 +684,45 @@ class WorkoutBuilder(BaseAgent):
             return "goal_clarification"
         else:
             return "final_confirmation"
+
+    def _missing_parameters(self, collected: Dict[str, Any]) -> Dict[str, bool]:
+        return {
+            "duration": not bool(collected.get("duration_minutes")),
+            "intensity": not bool(collected.get("intensity")),
+            "genres": not (collected.get("genres") and isinstance(collected.get("genres"), list)),
+            "duration_invalid": "_duration_invalid" in collected,
+            "intensity_invalid": "_intensity_invalid" in collected,
+        }
+
+    def _format_missing_prompt(self, collected: Dict[str, Any]) -> Optional[str]:
+        missing = self._missing_parameters(collected)
+
+        if missing["duration_invalid"]:
+            invalid_value = collected.get("_duration_invalid")
+            return (
+                f"Тривалість тренування має бути від 5 до 180 хвилин. "
+                f"Вкажи, будь ласка, адекватний час (зараз: {invalid_value})."
+            )
+
+        if missing["intensity_invalid"]:
+            return "Яку інтенсивність ти плануєш: легку, середню чи високу?"
+
+        prompts: List[str] = []
+        if missing["duration"]:
+            prompts.append("тривалість")
+        if missing["intensity"]:
+            prompts.append("інтенсивність")
+        if missing["genres"]:
+            prompts.append("музика (жанри)")
+
+        if not prompts:
+            return None
+
+        if len(prompts) == 1:
+            target = prompts[0]
+        elif len(prompts) == 2:
+            target = f"{prompts[0]} та {prompts[1]}"
+        else:
+            target = f"{', '.join(prompts[:-1])} і {prompts[-1]}"
+
+        return f"Щоб підібрати воркаут, мені ще потрібна {target}. Поділися, будь ласка."

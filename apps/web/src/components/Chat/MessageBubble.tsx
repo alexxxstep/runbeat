@@ -43,7 +43,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               </svg>
               <div className='flex-1'>
                 <p className='text-subhead font-semibold text-app-text mb-1'>
-                  Потрібна додаткова інформація
+                  Ще уточнюємо деталі
                 </p>
                 {message.workout?.clarification_question && (
                   <p className='text-body text-app-text-secondary italic'>

@@ -5,8 +5,22 @@
 Система AI-driven діалогу для створення workout в RunBeat. Використовує мультиагентну LangChain архітектуру з акцентом на природний діалог і context awareness.
 
 **Дата створення**: 2025-11-18
-**Версія**: 2.0
+**Останнє оновлення**: 2025-11-19
+**Версія**: 2.1
 **Статус**: ✅ Production Ready
+
+---
+
+## 🔄 Що нового у v2.1
+
+| Напрямок | Опис |
+| --- | --- |
+| Автологування | Кожен виклик `WorkoutBuilder` логує вхідне повідомлення, зібрані параметри, усі tool-calls та статус (`needs_clarification`, `is_complete`). |
+| Автопарсинг | Навіть якщо LLM не викликає `extract_workout_parameters`, інструмент проганяється автоматично на кожне повідомлення. |
+| Валідація | Тривалість/інтенсивність нормалізуються й перевіряються. Відхилені значення не блокують розмову. |
+| Supervisor | `ConversationUpdate` повертає `created_workout`, `needs_clarification`, `is_complete`. Supervisor очищає state лише після реального завершення. |
+| API/Frontend | `/chat/message` прокидає нові прапорці; UI більше не показує «Потрібна додаткова інформація», а рендерить акуратні бейджі. |
+| Деплой | Web застосунок збирається через `nixpacks.toml` без кастомного Dockerfile, що усуває `EBUSY` під час build. |
 
 ---
 
@@ -24,7 +38,8 @@
 │                   SupervisorAgent                            │
 │  • Управляє conversation state                               │
 │  • Делегує WorkoutBuilder                                    │
-│  • Обробляє створення workout                                │
+│  • Обробляє fallback створення workout                       │
+│  • Зберігає історію в Supabase                               │
 │  Model: OPENAI_MODEL_SUPERVISOR (gpt-3.5-turbo)             │
 └────────────────────────┬─────────────────────────────────────┘
                          │
@@ -32,8 +47,8 @@
 ┌──────────────────────────────────────────────────────────────┐
 │                   WorkoutBuilder                             │
 │  • Веде діалог з користувачем                                │
-│  • Використовує LangChain tools                              │
-│  • Повертає ConversationUpdate                               │
+│  • Використовує LangChain tools + автопарсинг                │
+│  • Повертає ConversationUpdate (resp + metadata)             │
 │  Model: OPENAI_MODEL_CONVERSATION (gpt-4-turbo/gpt-4o)      │
 └────────────────────────┬─────────────────────────────────────┘
                          │
@@ -42,12 +57,13 @@
 │                   LangChain Tools                            │
 │                                                              │
 │  1. extract_workout_parameters                               │
-│     • Витягує параметри з контексту                          │
-│     • Повертає structured JSON                               │
+│     • Викликається агентом і системою                        │
+│     • Витягує/нормалізує параметри                           │
+│     • Позначає all_collected                                 │
 │                                                              │
 │  2. create_workout_from_params                               │
 │     • Створює workout в БД                                   │
-│     • Викликається при підтвердженні                         │
+│     • Викликається лише після підтвердження                  │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -83,15 +99,18 @@ apps/backend/app/
 **Файл**: `apps/backend/app/agents/supervisor.py`
 
 **Відповідальність**:
-- Управління conversation state для кожного користувача
-- Делегування WorkoutBuilder для обробки повідомлень
-- Обробка підтвердження та створення workout
-- Збереження conversation в БД
+- Зберігає `ConversationState` між повідомленнями
+- Делегує увесь діалог `WorkoutBuilder`
+- Логує стан після кожного turn’у (`last_question`, `collected_parameters`, `created_workout`)
+- Працює з `ConversationUpdate`:
+  - якщо `created_workout` або `is_complete=true` — маркує розмову як завершену й очищає state
+  - якщо користувач підтвердив, але агент не створив воркаут, викликає `_create_workout_from_params_internal`
+- Зберігає історію розмови в Supabase (`conversation_service`)
 
 **Методи**:
-- `handle_message(user_id, message)` — головний entry point
-- `_get_or_create_state(user_id)` — отримання/створення стану
-- `clear_state(user_id)` — очищення після створення workout
+- `handle_message(user_id, message)` — головний entry point, повертає `ConversationUpdate`
+- `_get_or_create_state(user_id)` — ініціалізує стан
+- `clear_state(user_id)` — очищує state після успішного завершення або відмови
 
 ---
 
@@ -100,23 +119,26 @@ apps/backend/app/
 **Файл**: `apps/backend/app/services/workout_builder.py`
 
 **Відповідальність**:
-- Ведення природного діалогу з користувачем
-- Використання LangChain tools для витягування параметрів
-- Генерація відповідей українською мовою
-- Управління conversation flow
+- Веде природний діалог і формує контекст
+- Викликає LangChain tools та дублює `extract_workout_parameters` автоматично, щоб завжди мати свіжі параметри
+- Нормалізує/валідує дані (5–180 хв, intensity ∈ {low, moderate, high}, жанри → англійські назви)
+- Логує кожний turn: повідомлення, параметри, tool-calls, статус (`needs_clarification`, `is_complete`)
+- Повертає `ConversationUpdate` з `created_workout`, `needs_clarification`, `is_complete`
 
-**Ключові зміни (v2.0)**:
-- ✅ Додано `extract_workout_parameters` tool
-- ✅ Видалено rule-based parsing (~400 рядків коду)
-- ✅ Спрощено `_build_conversation_context()`
-- ✅ Підвищено temperature до 0.8
-- ✅ Зменшено max_iterations до 5
+**Ключові зміни (v2.1)**:
+- ✅ Автовиклик `extract_workout_parameters` та злиття параметрів у state
+- ✅ Нормалізація й чіткі повідомлення, якщо тривалість/intensity некоректні
+- ✅ `return_intermediate_steps=true` + розбір tool-результатів
+- ✅ Нові логи `[Conversation] ...`
+- ✅ Темп 0.8, `max_iterations=5`, таймаут 20 s
 
 **Методи**:
 - `process_message(state, user_message)` — обробка повідомлення
+- `_auto_extract_parameters(...)` — внутрішній автозапуск tool
+- `_process_tool_steps(...)` — обробка `intermediate_steps`
 - `_build_conversation_context(state, user_message)` — побудова контексту
-- `_get_fallback_response(state, user_message)` — fallback при помилках
-- `_determine_question_type_from_response(response, state)` — визначення типу питання
+- `_get_fallback_response(...)` + `_format_missing_prompt(...)` — дружні підказки, без повторення шаблону
+- `_determine_question_type_from_response(...)` — визначення типу питання
 
 ---
 
@@ -174,45 +196,55 @@ apps/backend/app/
 
 ---
 
+## 🔌 Контракт Backend ↔ Frontend
+
+- **ConversationUpdate** (backend внутрішній клас):
+  - `response_message: str`
+  - `created_workout: dict | None`
+  - `needs_clarification: bool`
+  - `is_complete: bool`
+- **ChatResponse** (`apps/backend/app/schemas/chat.py`):
+  - `message`
+  - `workout` (Pydantic `Workout`, якщо `created_workout` валідний)
+  - `needs_clarification`
+  - `is_complete`
+  - `conversation_id` (для майбутнього трекінгу)
+- **Frontend**:
+  - `useChat.sendMessage` повертає `SendMessageResult` з тими ж прапорцями.
+  - `MessageBubble` читає `_metadata` й показує акуратний бейдж «Ще уточнюємо деталі» замість старого тексту.
+  - `ChatPage` активує CTA для генерації плейлиста тільки коли `is_complete=true`.
+
+---
+
 ## 🔄 Conversation Flow
 
 ### Типовий діалог:
 
 ```
 1. User: "інтервальна"
-   ↓
-   AI calls: extract_workout_parameters
-   ↓
-   AI: "Чудово! Інтервальна тренування — це дуже ефективно!
-        Скільки часу плануєш бігти і яка буде інтенсивність?"
+   → Автовиклик `extract_workout_parameters` → `workout_type=intervals`
+   → AI: «Супер! Скільки хвилин і яка інтенсивність?»
 
-2. User: "44 хвилин"
-   ↓
-   AI calls: extract_workout_parameters
-   ↓
-   AI: "Супер! 44 хвилини інтервалів. Яка буде інтенсивність?"
+2. User: "355 хвилин" (помилкове значення)
+   → Авто-парсер повертає `_duration_invalid`
+   → AI: «Тривалість має бути 5–180 хв. Вкажи реальний час?»
 
-3. User: "класика джаз"
-   ↓
-   AI calls: extract_workout_parameters
-   ↓
-   AI: "Бачу ти обрав музику (classical і jazz — чудовий вибір!),
-        але мені ще потрібно знати інтенсивність."
+3. User: "44 хвилини"
+   → `duration_minutes=44`
+   → AI: «Прийнято. Яку інтенсивність хочеш?»
 
 4. User: "середня"
-   ↓
-   AI calls: extract_workout_parameters
-   ↓
-   AI: "Відмінно! Отже, середня інтервальна тренування на 44 хвилини
-        під classical і jazz. Створюємо воркаут?"
+   → `intensity=moderate`
+   → AI: «Чудово. Яку музику ставимо?»
 
-5. User: "так"
-   ↓
-   AI calls: create_workout_from_params
-   ↓
-   AI: "✅ Чудово! Створюю твій workout..."
-   ↓
-   Supervisor: Очищує state, зберігає workout
+5. User: "рок"
+   → `genres=['rock']`, `all_collected=true`
+   → AI: «Супер! 44 хв, середня інтенсивність, рок. Створюємо воркаут?»
+
+6. User: "так"
+   → AI викликає `create_workout_from_params` → `created_workout`
+   → У чаті: «✅ Воркаут успішно створено! Тепер можна згенерувати плейлист.»
+   → Supervisor очищає state, зберігає історію як completed
 ```
 
 ---
@@ -264,14 +296,20 @@ USE_LANGCHAIN_PARSER=true
 
 ### Запуск:
 
-```bash
-# Development
-cd apps/backend
-python -m uvicorn app.main:app --reload --port 8000
+### Backend
 
-# Production
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
+- Запуск: `uvicorn app.main:app --reload --port 8000`
+- Production: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Railway: `apps/backend/railway.json` (Nixpacks)
+
+### Frontend (Web)
+
+- Build: `npm run build`
+- Serve: `npx serve -s dist -l $PORT`
+- Railway:
+  - `apps/web/nixpacks.toml` (вказує Node 20, `npm ci`, `npm run build`)
+  - `apps/web/railway.json` → `"builder": "NIXPACKS"`
+  - Dockerfile не використовується → немає конфлікту `/app/node_modules/.cache`
 
 ---
 
@@ -288,9 +326,10 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ```python
 # Всі важливі події логуються через loguru
-logger.info("WorkoutBuilder initialized with 2 tools")
-logger.debug(f"Extracted parameters: {params}")
-logger.error(f"Error in process_message: {e}")
+logger.info(f"[Conversation] user={state.user_id} -> '{user_message}' (collected={...})")
+logger.info(f"[Conversation] user={state.user_id} <- '{response}' (needs={...}, complete={...})")
+logger.debug(f"Parameter extraction: extracted={extracted}, merged={merged}")
+logger.error(f"Error in WorkoutBuilder.process_message: {e}")
 ```
 
 ---
