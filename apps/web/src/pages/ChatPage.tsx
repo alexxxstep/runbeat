@@ -842,10 +842,7 @@ export function ChatPage() {
                                 setActiveWorkoutId(null);
                                 setShowPlaylistQuestion(false); // Hide buttons after playlist is created
                                 // Refresh history after successful generation
-                                if (
-                                  playlist?.spotify_url ||
-                                  playlist?.playlist_id
-                                ) {
+                                if (playlist) {
                                   // Refresh once after a short delay to ensure data is saved
                                   setTimeout(() => {
                                     setRefreshTrigger((prev) => prev + 1);
@@ -998,10 +995,7 @@ export function ChatPage() {
                                 setActiveWorkoutId(null);
                                 setShowPlaylistQuestion(false); // Hide buttons after playlist is created
                                 // Refresh history after successful generation
-                                if (
-                                  playlist?.spotify_url ||
-                                  playlist?.playlist_id
-                                ) {
+                                if (playlist) {
                                   // Refresh once after a short delay to ensure data is saved
                                   setTimeout(() => {
                                     setRefreshTrigger((prev) => prev + 1);

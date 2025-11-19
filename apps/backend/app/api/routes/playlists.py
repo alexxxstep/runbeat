@@ -8,7 +8,7 @@ import asyncio
 import time
 import random
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
@@ -29,6 +29,64 @@ router = APIRouter(prefix="/playlists", tags=["playlists"])
 
 # Singleton instance to avoid creating new clients on every request
 _supabase_service_instance: Optional[SupabaseService] = None
+
+
+def build_playlist_title(
+    *,
+    intensity: Optional[str],
+    hr_zones: Optional[Sequence[int]] = None,
+    total_duration_seconds: Optional[float] = None,
+    duration_minutes: Optional[int] = None,
+    genres: Optional[Sequence[str]] = None,
+) -> tuple[str, dict]:
+    """Build a short playlist title and metadata summary."""
+    intensity_map = {
+        "low": ("Легка", "😊"),
+        "moderate": ("Середня", "💪"),
+        "high": ("Висока", "⚡️"),
+    }
+    intensity_value = (intensity or "moderate").lower()
+    intensity_label, intensity_emoji = intensity_map.get(
+        intensity_value, (intensity_value.capitalize(), "🏃‍♂️")
+    )
+
+    hr_min = None
+    hr_max = None
+    if hr_zones and len(hr_zones) >= 2:
+        hr_min, hr_max = hr_zones[0], hr_zones[1]
+
+    actual_minutes = 0
+    if total_duration_seconds and total_duration_seconds > 0:
+        actual_minutes = int(total_duration_seconds / 60)
+    if actual_minutes <= 0 and duration_minutes:
+        actual_minutes = int(duration_minutes)
+    if actual_minutes <= 0:
+        actual_minutes = 1
+
+    genres_raw = list(genres or [])
+    genres_clean = [str(genre).strip() for genre in genres_raw if str(genre).strip()][:3]
+    genres_short = "+".join(genres_clean)
+
+    playlist_parts = [
+        "RunBeat",
+        f"{intensity_emoji}{intensity_label}".strip(),
+        f"{actual_minutes}хв",
+    ]
+    if hr_min is not None and hr_max is not None:
+        playlist_parts.append(f"❤️{hr_min}-{hr_max}")
+    if genres_short:
+        playlist_parts.append(f"🎵{genres_short}")
+
+    playlist_name = " ".join(part for part in playlist_parts if part)
+    metadata = {
+        "intensity_label": intensity_label,
+        "intensity_emoji": intensity_emoji,
+        "hr_min": hr_min,
+        "hr_max": hr_max,
+        "genres_short": genres_short,
+        "genres_readable": ", ".join(genres_clean),
+    }
+    return playlist_name, metadata
 
 
 def get_supabase_service() -> SupabaseService:
@@ -71,56 +129,6 @@ async def generate_playlist(
         HTTPException: If generation fails
     """
     start_time = time.time()
-
-    def build_playlist_title(actual_minutes: int) -> tuple[str, dict]:
-        """Build short playlist name and metadata summary."""
-        intensity_map = {
-            "low": ("Легка", "😊"),
-            "moderate": ("Середня", "💪"),
-            "high": ("Висока", "⚡️"),
-        }
-        intensity_value = request.workout.intensity.lower()
-        intensity_label, intensity_emoji = intensity_map.get(
-            intensity_value, (intensity_value.capitalize(), "🏃‍♂️")
-        )
-
-        hr_min = None
-        hr_max = None
-        hr_zones = request.workout.hr_zones or []
-        if isinstance(hr_zones, (list, tuple)) and len(hr_zones) >= 2:
-            hr_min, hr_max = hr_zones[0], hr_zones[1]
-
-        user_prefs = request.user_preferences or {}
-        genres_raw = []
-        if isinstance(user_prefs, dict):
-            genres_candidate = user_prefs.get("top_genres") or []
-            if isinstance(genres_candidate, list):
-                genres_raw = genres_candidate
-            elif genres_candidate:
-                genres_raw = [genres_candidate]
-        genres_clean = [str(genre).strip() for genre in genres_raw if str(genre).strip()][:3]
-        genres_short = "+".join(genres_clean)
-
-        playlist_parts = [
-            "RunBeat",
-            f"{intensity_emoji}{intensity_label}".strip(),
-            f"{actual_minutes}хв",
-        ]
-        if hr_min is not None and hr_max is not None:
-            playlist_parts.append(f"❤️{hr_min}-{hr_max}")
-        if genres_short:
-            playlist_parts.append(f"🎵{genres_short}")
-
-        playlist_name = " ".join(part for part in playlist_parts if part)
-        metadata = {
-            "intensity_label": intensity_label,
-            "intensity_emoji": intensity_emoji,
-            "hr_min": hr_min,
-            "hr_max": hr_max,
-            "genres_short": genres_short,
-            "genres_readable": ", ".join(genres_clean),
-        }
-        return playlist_name, metadata
 
     try:
         logger.info(
@@ -235,6 +243,22 @@ async def generate_playlist(
                     status_code=504,
                     detail="Час генерації плейлисту вичерпано. Спробуйте ще раз.",
                 )
+
+        preferred_genres = None
+        if isinstance(request.user_preferences, dict):
+            genres_candidate = request.user_preferences.get("top_genres")
+            if isinstance(genres_candidate, list):
+                preferred_genres = genres_candidate
+            elif genres_candidate:
+                preferred_genres = [genres_candidate]
+
+        playlist_name, playlist_meta = build_playlist_title(
+            intensity=request.workout.intensity,
+            hr_zones=request.workout.hr_zones,
+            total_duration_seconds=playlist_data.total_duration,
+            duration_minutes=request.workout.duration_minutes,
+            genres=preferred_genres,
+        )
 
         generation_time = time.time() - start_time
 
@@ -361,10 +385,6 @@ async def generate_playlist(
                         "fartlek": "Фартлек",
                     }
                     workout_name = workout_type_map.get(request.workout.type, "Тренування")
-                    # Calculate actual playlist duration in minutes
-                    actual_duration_minutes = int(playlist_data.total_duration / 60)
-                    playlist_name, playlist_meta = build_playlist_title(actual_duration_minutes)
-
                     description_parts = [
                         f"{workout_name} тренування",
                         f"інтенсивність: {playlist_meta['intensity_label'].lower()}",
@@ -502,23 +522,10 @@ async def generate_playlist(
                 # Continue without playlist - return tracks anyway
 
         # Get playlist name if it was created in Spotify
-        playlist_name_response = None
-        if playlist_id and spotify_url:
-            # Reconstruct playlist name from workout type and actual duration
-            workout_type_map = {
-                "steady": "Стабільна",
-                "progressive": "Прогресивна",
-                "intervals": "Інтервальна",
-                "fartlek": "Фартлек",
-            }
-            workout_name = workout_type_map.get(request.workout.type, "Тренування")
-            actual_duration_minutes = int(playlist_data.total_duration / 60)
-            playlist_name_response, _ = build_playlist_title(actual_duration_minutes)
-
         return PlaylistGenerateResponse(
             playlist_id=playlist_id,
             spotify_url=spotify_url,
-            playlist_name=playlist_name_response,
+            playlist_name=playlist_name,
             tracks=tracks_dict,
             total_duration=playlist_data.total_duration,
             total_tracks=playlist_data.total_tracks,
@@ -562,7 +569,9 @@ async def get_playlist_history(
         result = (
             supabase.get_client()
             .table("playlists")
-            .select("*, workouts(id, type, duration_minutes, intensity, hr_zones)")
+            .select(
+                "*, workouts(id, type, duration_minutes, intensity, hr_zones, genres)"
+            )
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .limit(limit)
@@ -590,9 +599,18 @@ async def get_playlist_history(
                         "duration_minutes": workout.get("duration_minutes", 0),
                         "intensity": workout.get("intensity", "moderate"),
                         "hr_zones": workout.get("hr_zones", [110, 180]),
+                        "genres": workout.get("genres") or [],
                     }
                 else:
                     workout = None
+
+            playlist_name_value, _ = build_playlist_title(
+                intensity=workout.get("intensity") if workout else None,
+                hr_zones=workout.get("hr_zones") if workout else None,
+                total_duration_seconds=p.get("total_duration_seconds"),
+                duration_minutes=workout.get("duration_minutes") if workout else None,
+                genres=workout.get("genres") if workout else None,
+            )
 
             playlists.append(
                 {
@@ -607,6 +625,7 @@ async def get_playlist_history(
                     "share_url": p.get("share_url"),
                     "created_at": p["created_at"],
                     "workout": workout,
+                    "playlist_name": playlist_name_value,
                 }
             )
 

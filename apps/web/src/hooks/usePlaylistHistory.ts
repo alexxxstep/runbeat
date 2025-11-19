@@ -12,12 +12,14 @@ interface PlaylistHistoryItem {
   shared: boolean;
   share_url?: string;
   created_at: string;
+  playlist_name?: string | null;
   workout?: {
     id: string;
     type: string;
     duration_minutes: number;
     intensity: string;
     hr_zones: number[];
+    genres?: string[];
   } | null;
 }
 
