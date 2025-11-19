@@ -16,7 +16,7 @@ export function useChat() {
 
   const sendMessage = useCallback(
     async (text: string, userId?: string): Promise<SendMessageResult> => {
-      const userMessage: Message = {
+    const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: text,

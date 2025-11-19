@@ -1,27 +1,40 @@
-# RunBeat Architecture Overview
+# RunBeat — Архітектурний огляд
 
-Актуальний опис цільової архітектури RunBeat (листопад 2025). Документ сфокусований лише на компонентах, які визначають архітектуру системи. Для деталізації розмовного флоу та промптів дивись `AI_CONVERSATION_ARCHITECTURE.md`.
+> **Версія**: 2.1 | **Дата**: 19 листопада 2025 | **Статус**: Production Ready
+
+Цей документ описує високорівневу архітектуру RunBeat — AI-driven системи для створення персоналізованих workout-планів та Spotify плейлистів через природний діалог.
+
+**Пов'язані документи**:
+
+- [AI Conversation Architecture](./AI_CONVERSATION_ARCHITECTURE.md) — деталізація LangChain агентів, промптів та conversation flow
+- [Root README](../README.md) — швидкий старт, тести, деплой
 
 ---
 
-## 1. High-level View
+## 1. Загальна архітектура
 
-```
-User → React/Vite SPA → FastAPI backend → Supabase (Postgres)
-                               │
-                               ├─ SupervisorAgent ─▶ WorkoutBuilder (LangChain)
-                               │            │
-                               │            ├─ extract_workout_parameters tool
-                               │            └─ create_workout_from_params tool
-                               │
-                               ├─ PlaylistGenerator ─▶ Spotify API
-                               └─ ConversationService / Logging
+```mermaid
+flowchart LR
+    U(User) -->|Chat UI| W[React + Vite SPA]
+    W -->|REST /api/v1/*| B[FastAPI Backend]
+    B -->|Delegates| S[SupervisorAgent]
+    S -->|orchestrates| WB[WorkoutBuilder]
+    WB -->|LangChain Tools| T1[extract_workout_parameters]
+    WB -->|LangChain Tools| T2[create_workout_from_params]
+    B -->|Generates| PG[PlaylistGenerator]
+    PG --> SPOT[Spotify API]
+    B --> DB[Supabase (Postgres)]
+    S --> DB
+    PG --> DB
 ```
 
-- **Frontend**: React 18 + Vite, Tailwind UI, Zustand store (`useChat`) для повідомлень та стану воркаутів.
-- **Backend**: FastAPI, asyncio, Supabase client, LangChain agents, чіткі Pydantic V2 схеми.
-- **AI**: Supervisor + WorkoutBuilder агенти, що керують збором параметрів тренування, опціональним `prompt` і створенням воркаута.
-- **Інтеграції**: Spotify (playlists & recommendations), Supabase (DB/auth), OpenAI (GPT‑4/4o, моделі з `.env`).
+**Ключові компоненти**:
+
+- **Frontend**: React 18 + Vite, Tailwind CSS, Zustand (`useChat` hook), TypeScript
+- **Backend**: FastAPI (async), LangChain multi-agent (Supervisor + WorkoutBuilder), Pydantic V2
+- **AI Models**: OpenAI GPT-4/4o (конфігурується через `.env`: `OPENAI_MODEL_CONVERSATION`, `OPENAI_MODEL_SUPERVISOR`, `OPENAI_MODEL_PARSER`)
+- **Інтеграції**: Supabase (Postgres + Auth), Spotify API (OAuth + recommendations)
+- **Деплой**: Railway (Nixpacks для backend та web)
 
 ---
 
@@ -40,6 +53,32 @@ User → React/Vite SPA → FastAPI backend → Supabase (Postgres)
 ---
 
 ## 3. AI Conversation Stack
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant ChatAPI
+    participant Supervisor
+    participant WorkoutBuilder
+    participant Tools
+    participant DB as Supabase
+
+    User->>Frontend: message
+    Frontend->>ChatAPI: POST /api/v1/chat
+    ChatAPI->>Supervisor: handle_message()
+    Supervisor->>Supervisor: load ConversationState
+    Supervisor->>WorkoutBuilder: process_message(state, text)
+    WorkoutBuilder->>Tools: extract_workout_parameters
+    Tools-->>WorkoutBuilder: normalized params
+    WorkoutBuilder->>Tools: (optional) create_workout_from_params
+    Tools-->>WorkoutBuilder: created_workout / error
+    WorkoutBuilder-->>Supervisor: ConversationUpdate
+    Supervisor->>DB: save conversation snapshot
+    Supervisor-->>ChatAPI: response_message + metadata
+    ChatAPI-->>Frontend: ChatResponse
+    Frontend-->>User: render assistant reply
+```
 
 1. **SupervisorAgent**
 
@@ -73,6 +112,20 @@ User → React/Vite SPA → FastAPI backend → Supabase (Postgres)
 
 ## 4. Playlist & Prompt Flow
 
+```mermaid
+flowchart TD
+    A[WorkoutBuilder] --> B{duration & intensity & genres?}
+    B -- no --> A
+    B -- yes --> C[Ask optional prompt]
+    C -->|user reply| D[store prompt in ConversationState]
+    D --> E[create workout]
+    E --> F[ChatResponse returns workout+prompt]
+    F --> G[Frontend syncs prompt to WorkoutSettings]
+    G --> H[generatePlaylist / previewVariants]
+    H --> I[PlaylistGenerator applies prompt bias]
+    I --> J[Spotify playlist + Supabase record]
+```
+
 1. Після збирання базових параметрів WorkoutBuilder питає про додаткові музичні побажання (атмосфера, mood, виконавці). Відповідь зберігається у `collected_parameters["prompt"]` та маркер `_prompt_checked`.
 2. Коли воркаут створено, `prompt` потрапляє в `workout.prompt` і прокидується у фронтенд.
 3. На фронті `useChat` синхронізує `prompt` з `WorkoutSettings`, тож при генерації плейлистів (`generatePlaylist`, `generateVariants`) значення передається в API.
@@ -96,12 +149,24 @@ User → React/Vite SPA → FastAPI backend → Supabase (Postgres)
 
 ## 6. End-to-End Data Flow
 
-1. **User input** → `sendMessage` (frontend).
-2. **Backend**: `/api/v1/chat` → Supervisor → WorkoutBuilder. Агент збирає параметри, логуючи кожний крок.
-3. **Confirmation**: користувач підтверджує → агент/tool створює воркаут → Supervisor очищає стан, відповідає у чат.
-4. **Playlist CTA**: фронтенд показує кнопку. За потреби можна активувати історичний воркаут (кнопка з’являється знову).
-5. **Playlist API**: `generatePlaylist` або `preview-variants` → `PlaylistGenerator` будує сегменти з урахуванням `prompt`, створює плейлист у Spotify та Supabase.
-6. **UI update**: плейлист додається як нове повідомлення з треками, посиланням та CTA.
+```mermaid
+sequenceDiagram
+    User->>Frontend: type message
+    Frontend->>Backend: sendMessage()
+    Backend->>Supervisor: delegate
+    Supervisor->>WorkoutBuilder: process_message
+    WorkoutBuilder->>Tools: extract params / create workout
+    Tools-->>WorkoutBuilder: result
+    WorkoutBuilder-->>Supervisor: ConversationUpdate
+    Supervisor-->>Frontend: ChatResponse (message + metadata + workout)
+    Frontend->>User: render reply + CTA
+    User->>Frontend: click “Так, згенерувати плейлист”
+    Frontend->>Backend: generatePlaylist(prompt, genres,…)
+    Backend->>PlaylistGenerator: generate
+    PlaylistGenerator->>Spotify: recommendations / playlist create
+    PlaylistGenerator-->>Frontend: playlist payload
+    Frontend->>User: render tracks + Spotify link
+```
 
 ---
 
@@ -113,9 +178,16 @@ User → React/Vite SPA → FastAPI backend → Supabase (Postgres)
 
 ---
 
-## 8. Пов’язані документи
+## 8. Додаткові ресурси
 
-- `AI_CONVERSATION_ARCHITECTURE.md` — поглиблені деталі промптів, станів та логів.
-- `README.md` в корені — загальний огляд проєкту та операційні інструкції.
+- **[AI Conversation Architecture](./AI_CONVERSATION_ARCHITECTURE.md)** — детальна документація LangChain агентів, промптів, conversation state machine
+- **[Root README](../README.md)** — швидкий старт, команди для тестування та деплою
+- **[Backend ENV Setup](../apps/backend/ENV_SETUP_GUIDE.md)** — налаштування змінних середовища для OpenAI, Spotify, Supabase
+- **[Backend README](../apps/backend/README.md)** — специфіка запуску та структура backend
+- **[Web README](../apps/web/README.md)** — специфіка frontend застосунку
 
-> Останнє оновлення: **19 листопада 2025**
+---
+
+> **Останнє оновлення**: 19 листопада 2025
+> **Версія документації**: 2.1
+> **Автор**: RunBeat Team

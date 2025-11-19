@@ -1,15 +1,24 @@
 <!-- markdownlint-disable MD026 MD040 -->
 
-# AI Conversation Architecture Documentation
+# AI Conversation Architecture — Детальна документація
 
-## 📚 Огляд
+> **Версія**: 2.1 | **Дата**: 19 листопада 2025 | **Статус**: ✅ Production Ready
 
-Система AI-driven діалогу для створення workout в RunBeat. Використовує мультиагентну LangChain архітектуру з акцентом на природний діалог і context awareness.
+Цей документ описує внутрішню архітектуру AI-driven діалогової системи RunBeat, яка використовує LangChain multi-agent підхід для природного збору параметрів workout через розмову.
 
-**Дата створення**: 2025-11-18
-**Останнє оновлення**: 2025-11-19
-**Версія**: 2.1
-**Статус**: ✅ Production Ready
+**Пов'язані документи**:
+
+- [Architecture Report](./ARCHITECTURE_REPORT.md) — високорівневий огляд системи, backend layers, схеми потоків даних
+- [Root README](../README.md) — швидкий старт, команди запуску, тестування
+
+---
+
+## 📚 Огляд системи
+
+RunBeat використовує мультиагентну LangChain архітектуру з двома ключовими агентами:
+
+- **SupervisorAgent** — оркестратор розмови, керує станом (`ConversationState`)
+- **WorkoutBuilder** — AI-асистент, що веде діалог та збирає параметри workout
 
 ---
 
@@ -31,43 +40,16 @@
 
 ### Компоненти системи:
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                        User Input                            │
-└────────────────────────┬─────────────────────────────────────┘
-                         │
-                         ↓
-┌──────────────────────────────────────────────────────────────┐
-│                   SupervisorAgent                            │
-│  • Управляє conversation state                               │
-│  • Делегує WorkoutBuilder                                    │
-│  • Обробляє fallback створення workout                       │
-│  • Зберігає історію в Supabase                               │
-│  Model: OPENAI_MODEL_SUPERVISOR (gpt-3.5-turbo)             │
-└────────────────────────┬─────────────────────────────────────┘
-                         │
-                         ↓
-┌──────────────────────────────────────────────────────────────┐
-│                   WorkoutBuilder                             │
-│  • Веде діалог з користувачем                                │
-│  • Використовує LangChain tools + автопарсинг                │
-│  • Повертає ConversationUpdate (resp + metadata)             │
-│  Model: OPENAI_MODEL_CONVERSATION (gpt-4-turbo/gpt-4o)      │
-└────────────────────────┬─────────────────────────────────────┘
-                         │
-                         ↓
-┌──────────────────────────────────────────────────────────────┐
-│                   LangChain Tools                            │
-│                                                              │
-│  1. extract_workout_parameters                               │
-│     • Викликається агентом і системою                        │
-│     • Витягує/нормалізує параметри                           │
-│     • Позначає all_collected                                 │
-│                                                              │
-│  2. create_workout_from_params                               │
-│     • Створює workout в БД                                   │
-│     • Викликається лише після підтвердження                  │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    U(User Input) --> SA[SupervisorAgent<br/>OPENAI_MODEL_SUPERVISOR]
+    SA --> WB[WorkoutBuilder<br/>OPENAI_MODEL_CONVERSATION]
+    WB --> T1[extract_workout_parameters]
+    WB --> T2[create_workout_from_params]
+    SA --> CS[ConversationService (Supabase)]
+    T2 --> DB[(workouts table)]
+    WB -->|ConversationUpdate| SA
+    SA -->|ChatResponse| UI[Frontend Chat]
 ```
 
 ---
@@ -120,6 +102,21 @@ apps/backend/app/
 ---
 
 ### 2. WorkoutBuilder
+
+```mermaid
+stateDiagram-v2
+    [*] --> goal_question
+    goal_question --> duration_received: duration parsed
+    duration_received --> intensity_received: intensity parsed
+    intensity_received --> genres_received: genres parsed
+    genres_received --> prompt_question: all core params collected
+    prompt_question --> prompt_recorded: user answered / skipped
+    prompt_recorded --> confirmation: summary sent
+    confirmation --> created: user says "так"
+    confirmation --> clarification: missing info
+    clarification --> goal_question
+    created --> [*]
+```
 
 **Файл**: `apps/backend/app/services/workout_builder.py`
 
@@ -231,6 +228,20 @@ apps/backend/app/
 ---
 
 ## 🎵 Music Prompt / Atmosphere Flow
+
+```mermaid
+sequenceDiagram
+    participant WB as WorkoutBuilder
+    participant State as ConversationState
+    participant FE as Frontend
+    participant PG as PlaylistGenerator
+    WB->>State: store prompt/_prompt_checked
+    WB-->>FE: response + prompt summary
+    FE->>FE: sync WorkoutSettings.prompt
+    FE->>PG: generatePlaylist(prompt,...)
+    PG->>Spotify: request tracks with prompt bias
+    PG-->>FE: playlist payload (title includes prompt)
+```
 
 1. **Збір у чаті**: WorkoutBuilder після жанрів ставить одне уточнююче питання про музичні побажання (атмосфера/жанри/виконавці). Відповідь зберігається в `ConversationState.collected_parameters.prompt`. Якщо побажань немає — поле очищується, а `_prompt_checked` стає `true`.
 2. **Створення воркауту**: Supervisor та `create_workout_from_params` передають `prompt` у таблицю `workouts`. Усі API-відповіді (`ChatResponse`, `GET /workouts/:id`, історія плейлистів) повертають цю строку.
@@ -420,14 +431,15 @@ logger.error(f"Error in WorkoutBuilder.process_message: {e}")
 
 ---
 
-## 📞 Контакти та підтримка
+## 📚 Додаткові ресурси
 
-**Документація**: `docs/AI_CONVERSATION_ARCHITECTURE.md`
-**Тести**: `apps/backend/tests/test_*`
-**Issues**: GitHub Issues
+- **[Architecture Report](./ARCHITECTURE_REPORT.md)** — високорівневий огляд стеку, backend layers, mermaid-діаграми
+- **[Root README](../README.md)** — швидкий старт, команди для локального запуску та деплою
+- **[Backend Tests](../apps/backend/tests/)** — unit та integration тести для агентів, tools, API endpoints
+- **[Backend ENV Setup](../apps/backend/ENV_SETUP_GUIDE.md)** — налаштування змінних середовища
 
 ---
 
-**Версія документації**: 1.0
-**Останнє оновлення**: 2025-11-18
-**Автор**: AI Assistant
+> **Версія документації**: 2.1
+> **Останнє оновлення**: 19 листопада 2025
+> **Автор**: RunBeat Team

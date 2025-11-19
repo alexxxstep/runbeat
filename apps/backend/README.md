@@ -1,122 +1,109 @@
 # RunBeat Backend
 
-FastAPI backend for RunBeat - AI music assistant for runners.
+FastAPI + LangChain служба, що керує AI-діалогом, створює воркаути та генерує плейлисти.
 
-## Setup
+---
 
-1. Install dependencies:
+## 🔧 Prerequisites
+
+- Python **3.11+** (рекомендовано `uv` як package manager)
+- Supabase проект (Postgres)
+- Spotify Developer app
+- OpenAI API ключ
+
+---
+
+## 🚀 Setup & Local Run
+
 ```bash
-pip install -r requirements.txt
-# or using uv:
-uv pip install -r requirements.txt
-```
-
-2. Copy environment file:
-```bash
+cd apps/backend
+python -m venv .venv && source .venv/bin/activate   # або `uv venv && source .venv/bin/activate`
+pip install -r requirements.txt                     # або `uv pip install -r requirements.txt`
 cp .env.example .env
 ```
 
-3. Fill in `.env` with your credentials:
-   - Supabase URL and keys
-   - Spotify Client ID and Secret
-   - OpenAI API Key
+1. Заповніть `.env` (див. [ENV_SETUP_GUIDE.md](./ENV_SETUP_GUIDE.md)). Мінімум:
+   - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
+   - `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REDIRECT_URI`
+   - `OPENAI_API_KEY`, `OPENAI_MODEL` (+ окремі моделі для агентів за потреби)
+   - `CORS_ORIGINS=["http://localhost:5173"]`
+2. Запустіть сервер:
 
-4. Run the server:
 ```bash
 uvicorn app.main:app --reload
 ```
 
-5. Check health:
+3. Health check:
+
 ```bash
 curl http://localhost:8000/health
 ```
 
-## API Documentation
+Swagger UI доступний на `http://localhost:8000/docs`, ReDoc — `http://localhost:8000/redoc`.
 
-When running in development mode, visit:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+---
 
-## Project Structure
+## 🗂 Структура
 
 ```
 app/
-├── main.py              # FastAPI app entry
-├── core/
-│   └── config.py       # Settings (Pydantic)
-├── api/
-│   └── routes/         # API endpoints
-├── services/           # Business logic
-├── models/             # Pydantic models
-├── schemas/            # API schemas
-└── utils/              # Utilities
+├── api/routes/             # REST endpoints (chat, playlists, workouts, auth, ...)
+├── agents/                 # Supervisor + LangChain tools/prompts
+├── services/               # Conversation persistence, Spotify, playlist generator, etc.
+├── schemas/                # Pydantic V2 models (chat/workout/playlist/conversation)
+├── core/config.py          # Settings (Pydantic Settings)
+└── main.py                 # FastAPI entrypoint
 ```
 
-## Development
+Ключові сервіси:
+- `services/workout_builder.py` — головний LangChain агент.
+- `agents/supervisor.py` — оркестрація стану розмови.
+- `services/playlist_generator.py` — алгоритмічний підбір треків (Spotify API).
 
-- Format code: `black app/ --line-length 100`
-- Lint code: `ruff check app/`
-- Run tests: `pytest`
+---
 
-## Deployment
+## 🧪 Development Recipes
 
-### Railway Deployment
+| Завдання | Команда |
+| --- | --- |
+| Run tests | `pytest` |
+| Lint | `ruff check app` |
+| Format | `black app --line-length 100` |
+| Type-check prompt configs | Під час імпорту `app.core.config` (валідація Pydantic) |
 
-Для деплою на Railway через GitHub:
+Корисні scripts:
+- `test_api_endpoints.sh`, `test_chat_http.sh` – швидкі smoke-тести.
+- `run_tests.sh` – послідовний запуск тестів/лінтів у CI.
 
-1. **Швидкий старт:** Дивіться [RAILWAY_QUICK_START.md](./RAILWAY_QUICK_START.md)
-2. **Детальна інструкція:** Дивіться [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)
+---
 
-**Важливо:** Після деплою на Railway не забудьте:
-- Оновити `SPOTIFY_REDIRECT_URI` в Railway Variables
-- Додати production URL в Spotify Dashboard
+## 🗃 Database / Supabase
 
-## Database Setup
+- Початкова схема: `DATABASE_MIGRATION_COMPLETE_v2.sql` (виконайте у Supabase SQL Editor).
+- Основні таблиці: `users`, `workouts`, `playlists`, `conversations`, `error_logs`.
+- RLS правила вже включені у файл міграцій.
 
-### Initial Migration
+---
 
-Run the complete database migration in your Supabase SQL Editor:
+## ☁️ Deployment (Railway)
 
-```bash
-# Execute this file in Supabase SQL Editor
-DATABASE_MIGRATION_COMPLETE_v2.sql
-```
+- У директорії є `railway.json` (Nixpacks builder). Railway автоматично викликає:
+  - `pip install -r requirements.txt`
+  - `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Створіть сервіс → підключіть GitHub репозиторій → вкажіть environment variables.
+- Після отримання `*.up.railway.app`:
+  1. Додайте URL у Spotify Dashboard (`SPOTIFY_REDIRECT_URI=https://<domain>/auth/spotify/callback`).
+  2. Оновіть `CORS_ORIGINS` / `FRONTEND_URL`.
+  3. Перезапустіть сервіс (Railway робить це автоматично).
 
-This migration includes:
-- ✅ Users, Workouts, Playlists tables
-- ✅ Conversations table (AI chat history)
-- ✅ Error logs table
-- ✅ All indexes and RLS policies
-- ✅ Genre normalization support
+---
 
-See [DATABASE_MIGRATION_COMPLETE_v2.sql](./DATABASE_MIGRATION_COMPLETE_v2.sql) for details.
+## 📚 Додаткові матеріали
 
-## Features
+- [ENV_SETUP_GUIDE.md](./ENV_SETUP_GUIDE.md) — детальний гайд по змінним середовища.
+- [ENV_EXAMPLE.md](./ENV_EXAMPLE.md) — приклад заповненого `.env`.
+- [OPENAI_MODELS_USAGE.md](./OPENAI_MODELS_USAGE.md) — поради щодо підбору моделей та вартості.
+- [docs/LOGOUT_FEATURE.md](./docs/LOGOUT_FEATURE.md) — опис реалізації `/auth/logout`.
 
-### AI Chat System
-- 🤖 Multi-agent LangChain architecture
-- 💬 Natural language workout planning
-- 🧠 User pattern learning & personalization
-- 📊 Conversation analytics
-
-### Playlist Generation
-- 🎵 Dual variant generation
-- ⚡ BPM matching to workout intensity
-- 🎼 Genre-based track selection
-- 🔄 Track exclusion & regeneration
-
-### API Endpoints
-- `/chat/message` - AI conversation
-- `/workouts` - Workout CRUD
-- `/playlists` - Playlist generation & history
-- `/analytics` - User patterns & insights
-- `/auth/spotify` - Spotify OAuth flow
-
-## Documentation
-
-- [Environment Setup Guide](./ENV_SETUP_GUIDE.md) - Покрокова інструкція по заповненню .env
-- [OpenAI Models Usage](./OPENAI_MODELS_USAGE.md) - AI integration & costs
-- [Agents Analysis](./docs/AGENTS_ANALYSIS.md) - Multi-agent system details
-- [Railway Quick Start](./RAILWAY_QUICK_START.md) - Швидкий старт деплою на Railway
-- [Railway Deployment](./RAILWAY_DEPLOYMENT.md) - Детальна інструкція деплою
+Оновлено: **19 листопада 2025**
 

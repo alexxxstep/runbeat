@@ -96,19 +96,19 @@ class SupervisorAgent:
             and state.collected_parameters.get("intensity")
             and not created_workout
         ):
-            try:
+                try:
                 from app.agents.tools.workout_tools import (
                     _create_workout_from_params_internal,
                 )
 
-                collected = state.collected_parameters
+                    collected = state.collected_parameters
                 workout_type = (
                     collected.get("workout_type")
                     or collected.get("type")
                     or "steady"
                 )
-                duration = collected.get("duration_minutes")
-                intensity = collected.get("intensity")
+                    duration = collected.get("duration_minutes")
+                    intensity = collected.get("intensity")
 
                 if not duration or not intensity:
                     logger.warning(
@@ -170,12 +170,12 @@ class SupervisorAgent:
                         logger.error(
                             f"Failed to create workout via supervisor fallback: {result}"
                         )
-            except Exception as e:
-                logger.error(
-                    f"Error creating workout via supervisor fallback: {e}",
-                    exc_info=True,
-                )
-                response_message = "Вибачте, виникла помилка при створенні воркауту. Спробуйте ще раз."
+                except Exception as e:
+                    logger.error(
+                        f"Error creating workout via supervisor fallback: {e}",
+                        exc_info=True,
+                    )
+                    response_message = "Вибачте, виникла помилка при створенні воркауту. Спробуйте ще раз."
 
         # Log state before potential clearing
         if user_id in self.states:
