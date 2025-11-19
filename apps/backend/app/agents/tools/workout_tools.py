@@ -1,6 +1,7 @@
 """
 Workout management tools for LangChain agents.
 """
+
 from typing import Optional
 from langchain.tools import tool
 from loguru import logger
@@ -135,8 +136,7 @@ def _create_workout_from_params_internal(
                         seen.add(g)
                         unique_genres.append(g)
                 workout_data["genres"] = unique_genres
-                logger.debug(
-                    f"Normalized genres: {genres_list} → {unique_genres}")
+                logger.debug(f"Normalized genres: {genres_list} → {unique_genres}")
 
         # Add prompt if provided
         if prompt:
@@ -144,19 +144,15 @@ def _create_workout_from_params_internal(
 
         # Insert workout
         client = supabase_service.get_client()
-        result = (
-            client.table("workouts")
-            .insert(workout_data)
-            .execute()
-        )
+        result = client.table("workouts").insert(workout_data).execute()
 
         if result.data and len(result.data) > 0:
             workout_obj = result.data[0]
             workout_id = workout_obj["id"]
-            logger.info(
-                f"Created workout {workout_id} for user {user_id} from conversation params")
+            logger.info(f"Created workout {workout_id} for user {user_id} from conversation params")
             # Return workout_id|workout_json for parsing by supervisor
             import json
+
             return f"workout_created:{workout_id}|{json.dumps(workout_obj)}"
         else:
             return "error: Failed to create workout - no data returned"
@@ -180,6 +176,7 @@ def create_workout(user_id: str, workout_intent_json: str) -> str:
     """
     try:
         import json
+
         # datetime not needed - using supabase timestamps
 
         intent_dict = json.loads(workout_intent_json)
@@ -202,8 +199,7 @@ def create_workout(user_id: str, workout_intent_json: str) -> str:
             "fartlek": "fartlek",
             "recovery": "steady",
         }
-        db_workout_type = type_mapping.get(
-            workout_intent.workout_type, "steady")
+        db_workout_type = type_mapping.get(workout_intent.workout_type, "steady")
 
         # Convert WorkoutIntent to workout data
         workout_data = {
@@ -218,12 +214,14 @@ def create_workout(user_id: str, workout_intent_json: str) -> str:
         if workout_intent.intervals:
             interval_stages = []
             for interval in workout_intent.intervals:
-                interval_stages.append({
-                    "name": getattr(interval, 'name', 'work'),
-                    "duration_minutes": interval.duration_minutes,
-                    "hr_zone": [workout_intent.target_bpm_min, workout_intent.target_bpm_max],
-                    "bpm_range": [interval.target_bpm, interval.target_bpm],
-                })
+                interval_stages.append(
+                    {
+                        "name": getattr(interval, "name", "work"),
+                        "duration_minutes": interval.duration_minutes,
+                        "hr_zone": [workout_intent.target_bpm_min, workout_intent.target_bpm_max],
+                        "bpm_range": [interval.target_bpm, interval.target_bpm],
+                    }
+                )
             workout_data["interval_stages"] = interval_stages
 
         # Add music preferences if provided
@@ -233,11 +231,7 @@ def create_workout(user_id: str, workout_intent_json: str) -> str:
             workout_data["prompt"] = workout_intent.music_prompt
 
         # Insert workout
-        result = (
-            client.table("workouts")
-            .insert(workout_data)
-            .execute()
-        )
+        result = client.table("workouts").insert(workout_data).execute()
 
         if result.data and len(result.data) > 0:
             workout_id = result.data[0]["id"]
@@ -269,9 +263,7 @@ def activate_workout(workout_id: str, user_id: str) -> str:
         # Try to activate workout (if is_active column exists)
         try:
             # First, deactivate all other workouts for this user
-            client.table("workouts").update({"is_active": False}).eq(
-                "user_id", user_id
-            ).execute()
+            client.table("workouts").update({"is_active": False}).eq("user_id", user_id).execute()
 
             # Activate the specified workout
             result = (
@@ -283,18 +275,15 @@ def activate_workout(workout_id: str, user_id: str) -> str:
             )
 
             if result.data and len(result.data) > 0:
-                logger.info(
-                    f"Activated workout {workout_id} for user {user_id}")
+                logger.info(f"Activated workout {workout_id} for user {user_id}")
                 return "success"
             else:
                 return "error: Workout not found or access denied"
         except Exception as e:
-            error_dict = e if isinstance(e, dict) else {
-                "code": None, "message": str(e)}
+            error_dict = e if isinstance(e, dict) else {"code": None, "message": str(e)}
             # If column doesn't exist, just verify workout exists and return success
             if error_dict.get("code") == "42703" or "does not exist" in str(e).lower():
-                logger.debug(
-                    "is_active column does not exist, verifying workout exists")
+                logger.debug("is_active column does not exist, verifying workout exists")
                 # Just verify the workout exists for this user
                 result = (
                     client.table("workouts")
@@ -306,7 +295,8 @@ def activate_workout(workout_id: str, user_id: str) -> str:
 
                 if result.data and len(result.data) > 0:
                     logger.info(
-                        f"Workout {workout_id} exists for user {user_id} (is_active column not available)")
+                        f"Workout {workout_id} exists for user {user_id} (is_active column not available)"
+                    )
                     return "success"
                 else:
                     return "error: Workout not found or access denied"
@@ -321,9 +311,9 @@ def activate_workout(workout_id: str, user_id: str) -> str:
 @tool
 def create_workout_from_params(
     user_id: str,
-    workout_type: str,
-    duration_minutes: int,
-    intensity: str,
+    workout_type: str = "steady",
+    duration_minutes: Optional[int] = None,
+    intensity: Optional[str] = None,
     genres: Optional[str] = None,
     prompt: Optional[str] = None,
 ) -> str:
@@ -332,17 +322,37 @@ def create_workout_from_params(
 
     This is a simplified version that takes parameters directly from conversation state.
 
+    IMPORTANT: This tool should ONLY be called when ALL required parameters are collected:
+    - duration_minutes (required)
+    - intensity (required)
+    - At least one genre is recommended
+
+    The agent should NOT call this tool until user has provided all information and confirmed.
+
     Args:
-        user_id: User ID
-        workout_type: Workout type ("steady", "progressive", "intervals", "fartlek")
-        duration_minutes: Duration in minutes (5-180)
-        intensity: Intensity level ("low", "moderate", "high")
+        user_id: User ID (required)
+        workout_type: Workout type ("steady", "progressive", "intervals", "fartlek"), defaults to "steady"
+        duration_minutes: Duration in minutes (5-180) - REQUIRED
+        intensity: Intensity level ("low", "moderate", "high") - REQUIRED
         genres: Optional comma-separated list of music genres (e.g., "rock,pop")
         prompt: Optional music prompt/description
 
     Returns:
         Workout ID if created successfully, "error: <message>" if failed
     """
+    # Validate required parameters
+    if not duration_minutes:
+        return "error: duration_minutes is required. Please collect this information from the user first."
+
+    if not intensity:
+        return "error: intensity is required. Please collect this information from the user first."
+
+    if duration_minutes < 5 or duration_minutes > 180:
+        return f"error: duration_minutes must be between 5 and 180, got {duration_minutes}"
+
+    if intensity not in ["low", "moderate", "high"]:
+        return f"error: intensity must be 'low', 'moderate', or 'high', got '{intensity}'"
+
     # Call internal function
     return _create_workout_from_params_internal(
         user_id=user_id,
@@ -383,12 +393,12 @@ def get_active_workout(user_id: str) -> str:
             if result.data and len(result.data) > 0:
                 return json.dumps(result.data[0], default=str)
         except Exception as e:
-            error_dict = e if isinstance(e, dict) else {
-                "code": None, "message": str(e)}
+            error_dict = e if isinstance(e, dict) else {"code": None, "message": str(e)}
             # If column doesn't exist, fallback to getting most recent workout
             if error_dict.get("code") == "42703" or "does not exist" in str(e).lower():
                 logger.debug(
-                    "is_active column does not exist, using most recent workout as fallback")
+                    "is_active column does not exist, using most recent workout as fallback"
+                )
                 # Get most recent workout for user
                 result = (
                     client.table("workouts")

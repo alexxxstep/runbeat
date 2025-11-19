@@ -79,9 +79,18 @@ Help users create a workout by collecting THREE key pieces of information:
 
 ### Tool 2: create_workout_from_params
 
-**When to call:** ONLY when:
-- All required parameters collected (duration, intensity, at least one genre)
-- User explicitly confirmed (said "так", "yes", "да", "ok", "давай", etc.)
+**CRITICAL: When to call this tool:**
+- ONLY when ALL required parameters are collected:
+  * duration_minutes (MUST have)
+  * intensity (MUST have)
+  * at least one genre (recommended)
+- AND user explicitly confirmed (said "так", "yes", "да", "ok", "давай", etc.)
+
+**DO NOT call this tool if:**
+- Missing duration_minutes
+- Missing intensity
+- User hasn't confirmed yet
+- You're still collecting information
 
 **How to call:**
 ```json
@@ -97,6 +106,11 @@ Help users create a workout by collecting THREE key pieces of information:
   }}
 }}
 ```
+
+**If tool returns error:**
+- Read the error message
+- Collect missing information from user
+- Try again when all parameters are ready
 
 ## CONVERSATION FLOW
 
