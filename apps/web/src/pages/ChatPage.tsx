@@ -537,145 +537,47 @@ export function ChatPage() {
 
                   <div className='space-y-2 md:space-y-3'>
                     {/* Step 1 */}
-                    <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
-                      <div className='flex items-start gap-3'>
-                        <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
-                          1
-                        </div>
-                        <div className='flex-1 min-w-0'>
-                          <h3 className='text-headline font-semibold text-app-text mb-1'>
-                            Опиши своє тренування
-                          </h3>
-                          <p className='text-body text-app-text-secondary mb-2'>
-                            Просто напиши мені, що ти хочеш зробити. Я розумію
-                            природну мову! Наприклад:
-                          </p>
-                          <ul className='list-disc list-inside space-y-1 text-subhead text-app-text-secondary ml-4'>
-                            <li>"хочу легку пробіжку 30 хвилин"</li>
-                            <li>"інтервали 40 хв, рок-музика"</li>
-                            <li>
-                              "темповий біг 45 хв, енергійна музика для
-                              ранкового бігу"
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Step 2 */}
-                    <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
-                      <div className='flex items-start gap-3'>
-                        <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
-                          2
-                        </div>
-                        <div className='flex-1 min-w-0'>
-                          <h3 className='text-headline font-semibold text-app-text mb-1'>
-                            Я задам уточнюючі питання (якщо потрібно)
-                          </h3>
-                          <p className='text-body text-app-text-secondary'>
-                            Якщо мені потрібна додаткова інформація, я запитаю.
-                            Просто відповідай на мої питання.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Step 3 */}
-                    <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
-                      <div className='flex items-start gap-3'>
-                        <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
-                          3
-                        </div>
-                        <div className='flex-1 min-w-0'>
-                          <h3 className='text-headline font-semibold text-app-text mb-1'>
-                            Створюю тренування і генерую плейлист
-                          </h3>
-                          <p className='text-body text-app-text-secondary'>
-                            Після підтвердження я створю workout і згенерую 2
-                            варіанти плейлиста, підібравши треки за BPM і
-                            жанрами.
-                          </p>
+                    {[
+                      {
+                        title: 'Опиши тренування або скажи "здивуй мене"',
+                        desc: 'Я зрозумію природну мову й запропоную варіанти (легка/середня/висока, 20-60 хв).',
+                      },
+                      {
+                        title: 'Я уточню лише те, чого не вистачає',
+                        desc: 'Питаю тривалість, інтенсивність, музику максимум один раз, без повторів.',
+                      },
+                      {
+                        title: 'Після "так" створю workout і одразу показую кнопку плейлиста',
+                        desc: 'Отримуєш готове тренування та CTA "Так, згенерувати плейлист" прямо в чаті.',
+                      },
+                      {
+                        title: 'Активний workout = можливість згенерувати новий плейлист',
+                        desc: 'Вибери будь-який запис з історії — кнопка для плейлисту зʼявиться автоматично.',
+                      },
+                      {
+                        title: 'Хочеш вручну? Використай праву панель',
+                        desc: 'Створи воркаут без діалогу: задай тривалість, інтенсивність, жанри та інтервали самостійно.',
+                      },
+                    ].map((step, idx) => (
+                      <div
+                        key={idx}
+                        className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'
+                      >
+                        <div className='flex items-start gap-3'>
+                          <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
+                            {idx + 1}
+                          </div>
+                          <div className='flex-1 min-w-0'>
+                            <h3 className='text-headline font-semibold text-app-text mb-1'>
+                              {step.title}
+                            </h3>
+                            <p className='text-body text-app-text-secondary'>
+                              {step.desc}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Step 4 */}
-                    <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
-                      <div className='flex items-start gap-3'>
-                        <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
-                          4
-                        </div>
-                        <div className='flex-1 min-w-0'>
-                          <h3 className='text-headline font-semibold text-app-text mb-1'>
-                            Створюй власний воркаут через праву панель
-                          </h3>
-                          <p className='text-body text-app-text-secondary'>
-                            Не хочеш спілкуватися з AI? Натисни кнопку "Створити
-                            воркаут" у правій панелі і налаштуй всі параметри
-                            вручну (тривалість, інтенсивність, жанри,
-                            інтервали).
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Step 5 */}
-                    <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
-                      <div className='flex items-start gap-3'>
-                        <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
-                          5
-                        </div>
-                        <div className='flex-1 min-w-0'>
-                          <h3 className='text-headline font-semibold text-app-text mb-1'>
-                            Обери плейлист і збережи в Spotify
-                          </h3>
-                          <p className='text-body text-app-text-secondary'>
-                            Вибери кращий варіант з 2 згенерованих, переглянь
-                            треки, виключи небажані. Збережи готовий плейлист у
-                            свій Spotify одним кліком!
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Step 6 */}
-                    <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
-                      <div className='flex items-start gap-3'>
-                        <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
-                          6
-                        </div>
-                        <div className='flex-1 min-w-0'>
-                          <h3 className='text-headline font-semibold text-app-text mb-1'>
-                            Використовуй ліву панель історії
-                          </h3>
-                          <p className='text-body text-app-text-secondary'>
-                            У лівій панелі зберігаються всі твої воркаути і
-                            плейлисти. Натисни на workout - він стане активним.
-                            Натисни на playlist - відкриється в Spotify або
-                            покаже деталі.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Step 7 */}
-                    <div className='bg-app-surface-light rounded-xl p-3 md:p-4 border-l-4 border-app-accent'>
-                      <div className='flex items-start gap-3'>
-                        <div className='flex-shrink-0 w-8 h-8 bg-app-accent text-white rounded-full flex items-center justify-center font-bold'>
-                          7
-                        </div>
-                        <div className='flex-1 min-w-0'>
-                          <h3 className='text-headline font-semibold text-app-text mb-1'>
-                            Створюй нові плейлисти для старих workout
-                          </h3>
-                          <p className='text-body text-app-text-secondary'>
-                            Вибери workout з історії і згенеруй для нього новий
-                            плейлист. Параметри (жанри, тривалість,
-                            інтенсивність) збережуться автоматично!
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
 
@@ -702,12 +604,7 @@ export function ChatPage() {
 
             {/* Show buttons for workout confirmation or playlist generation */}
             {/* Hide buttons if playlist is already generated (variants exist or playlist in messages) */}
-            {activeWorkout &&
-              showPlaylistQuestion &&
-              !variants &&
-              !messages.some(
-                (m) => m.playlist?.spotify_url || m.playlist?.playlist_id
-              ) && (
+            {activeWorkout && showPlaylistQuestion && !variants && (
                 <div className='max-w-2xl mx-auto flex justify-start mb-4 px-2 md:px-0'>
                   <div className='flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto'>
                     {activeWorkoutId ? (

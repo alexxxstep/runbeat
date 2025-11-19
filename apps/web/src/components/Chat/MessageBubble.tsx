@@ -16,18 +16,20 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   const [showAllTracks, setShowAllTracks] = useState(false);
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 px-2 md:px-0`}>
+    <div
+      className={`flex ${
+        isUser ? 'justify-end' : 'justify-start'
+      } mb-4 px-2 md:px-0`}
+    >
       <div
         className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
           isUser
-            ? 'bg-app-accent text-white'
-            : needsClarification
-            ? 'bg-app-surface border-2 border-app-accent text-app-text'
+            ? 'bg-app-accent text-white shadow-[0_4px_30px_rgba(0,0,0,0.25)]'
             : 'bg-app-surface border border-app-border text-app-text'
         }`}
       >
         {/* Conversation state indicators */}
-        {needsClarification && (
+        {needsClarification && message.workout?.clarification_question && (
           <div className='mb-3 pb-3 border-b border-app-border'>
             <div className='flex items-start gap-2'>
               <svg
@@ -41,16 +43,9 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                   clipRule='evenodd'
                 />
               </svg>
-              <div className='flex-1'>
-                <p className='text-subhead font-semibold text-app-text mb-1'>
-                  Ще уточнюємо деталі
-                </p>
-                {message.workout?.clarification_question && (
-                  <p className='text-body text-app-text-secondary italic'>
-                    {message.workout.clarification_question}
-                  </p>
-                )}
-              </div>
+              <p className='text-body text-app-text-secondary italic'>
+                {message.workout.clarification_question}
+              </p>
             </div>
           </div>
         )}
@@ -91,7 +86,8 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                   : 'Фартлек'}
               </p>
               <p>
-                <strong className='text-app-text'>Тривалість:</strong> {message.workout.duration_minutes} хв
+                <strong className='text-app-text'>Тривалість:</strong>{' '}
+                {message.workout.duration_minutes} хв
               </p>
               <p>
                 <strong className='text-app-text'>Інтенсивність:</strong>{' '}
@@ -102,13 +98,16 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                   : 'Висока'}
               </p>
               <p>
-                <strong className='text-app-text'>ЧСС:</strong> {message.workout.hr_zones[0]} -{' '}
-                {message.workout.hr_zones[1]} уд/хв
+                <strong className='text-app-text'>ЧСС:</strong>{' '}
+                {message.workout.hr_zones[0]} - {message.workout.hr_zones[1]}{' '}
+                уд/хв
               </p>
             </div>
           </div>
         )}
-        <p className='text-body whitespace-pre-line text-app-text-secondary'>{message.content}</p>
+        <p className='text-body whitespace-pre-line text-app-text-secondary'>
+          {message.content}
+        </p>
 
         {/* Display playlist info if available */}
         {message.playlist && (
@@ -137,12 +136,12 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                     const phase = (track as any).phase || 'main';
                     const phaseColors: Record<string, string> = {
                       'warm-up': 'bg-app-surface-light border-app-accent/50',
-                      'main': 'bg-app-surface-light border-app-accent',
+                      main: 'bg-app-surface-light border-app-accent',
                       'cool-down': 'bg-app-surface-light border-app-accent/30',
                     };
                     const phaseLabels: Record<string, string> = {
                       'warm-up': '🔥 Розминка',
-                      'main': '💪 Основна',
+                      main: '💪 Основна',
                       'cool-down': '🧘 Заминка',
                     };
 
@@ -150,13 +149,16 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                       <div
                         key={track.id || idx}
                         className={`text-subhead py-2 px-3 rounded-lg border-l-4 ${
-                          phaseColors[phase] || 'bg-app-surface-light border-app-border'
+                          phaseColors[phase] ||
+                          'bg-app-surface-light border-app-border'
                         }`}
                       >
                         <div className='flex items-center justify-between'>
                           <div className='flex-1 min-w-0'>
                             <div className='flex items-center gap-2 mb-1'>
-                              <span className='font-medium truncate text-app-text'>{track.name}</span>
+                              <span className='font-medium truncate text-app-text'>
+                                {track.name}
+                              </span>
                               <span className='text-caption text-app-text-tertiary'>
                                 {phaseLabels[phase] || phase}
                               </span>
@@ -239,9 +241,16 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
         <p
           className={`text-caption mt-2 ${
-            isUser ? 'text-white/70' : 'text-app-text-tertiary'
-          }`}
+            isUser ? 'text-white/80' : 'text-app-text-tertiary'
+          } flex items-center justify-end gap-1`}
         >
+          <svg
+            className='w-3.5 h-3.5 opacity-80'
+            fill='currentColor'
+            viewBox='0 0 20 20'
+          >
+            <path d='M10 2a8 8 0 100 16 8 8 0 000-16zm.75 4a.75.75 0 00-1.5 0v4.25c0 .2.08.39.22.53l2.5 2.5a.75.75 0 001.06-1.06l-2.28-2.28V6z' />
+          </svg>
           {message.timestamp.toLocaleTimeString('uk-UA', {
             hour: '2-digit',
             minute: '2-digit',
