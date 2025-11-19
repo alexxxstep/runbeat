@@ -248,12 +248,13 @@ export function PlaylistHistorySidebar({
                           )}
                         </div>
                         <p
-                          className={`text-caption mb-3 ${
+                          className={`text-[11px] uppercase tracking-wide mb-3 ${
                             isActive
-                              ? 'text-white/80'
-                              : 'text-app-text-secondary'
+                              ? 'text-white/70'
+                              : 'text-app-text-tertiary'
                           }`}
                         >
+                          створено{' '}
                           {new Date(workout.created_at).toLocaleDateString(
                             'uk-UA',
                             {
@@ -291,42 +292,65 @@ export function PlaylistHistorySidebar({
                       </button>
                     </div>
                     <div
-                      className={`text-subhead space-y-2 ${
+                      className={`text-subhead space-y-1 ${
                         isActive
                           ? 'text-white/90'
                           : 'text-app-text-secondary'
                       }`}
                     >
-                      <div className='flex items-center gap-2 flex-wrap'>
-                        <span className='font-semibold flex items-center gap-1'>
-                          ⏱️ <span>{durationText}</span>
+                      <p className='flex items-center gap-2 font-semibold'>
+                        <span>💪</span>
+                        <span>
+                          Інтенсивність:{' '}
+                          {intensityLabels[workout.intensity] || workout.intensity}
                         </span>
-                        <span className='font-semibold flex items-center gap-1'>
-                          💪 <span>{intensityLabels[workout.intensity] || workout.intensity}</span>
-                        </span>
-                      </div>
+                      </p>
+                      <p className='flex items-center gap-2 font-semibold'>
+                        <span>⏱️</span>
+                        <span>Тривалість: {durationText}</span>
+                      </p>
                       {workout.hr_zones && workout.hr_zones.length >= 2 && (
-                        <p className='flex items-center gap-1'>
+                        <p className='flex items-center gap-2'>
                           <span>❤️</span>
-                          <span>ЧСС: {workout.hr_zones[0]} - {workout.hr_zones[1]} уд/хв</span>
+                          <span>
+                            ЧСС: {workout.hr_zones[0]} - {workout.hr_zones[1]} уд/хв
+                          </span>
                         </p>
                       )}
                       {hasGenres && (
-                        <p className={`flex items-start gap-1 ${isActive ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'}`}>
+                        <p
+                          className={`flex items-start gap-2 ${
+                            isActive ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'
+                          }`}
+                        >
                           <span>🎵</span>
-                          <span className='truncate'>{genresText}</span>
-                        </p>
-                      )}
-                      {hasStages && (
-                        <p className={`flex items-center gap-1 ${isActive ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'}`}>
-                          <span>📊</span>
-                          <span>Інтервали: {stagesCount} етапів</span>
+                          <span className='truncate'>Жанри: {genresText}</span>
                         </p>
                       )}
                       {workout.prompt && (
-                        <p className={`flex items-start gap-1 ${isActive ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'}`} title={workout.prompt}>
+                        <p
+                          className={`flex items-start gap-2 ${
+                            isActive ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'
+                          }`}
+                          title={workout.prompt}
+                        >
                           <span>💬</span>
-                          <span className='truncate italic'>{workout.prompt.length > 50 ? workout.prompt.substring(0, 50) + '...' : workout.prompt}</span>
+                          <span className='truncate italic'>
+                            Промпт:{' '}
+                            {workout.prompt.length > 50
+                              ? workout.prompt.substring(0, 50) + '...'
+                              : workout.prompt}
+                          </span>
+                        </p>
+                      )}
+                      {hasStages && (
+                        <p
+                          className={`flex items-center gap-2 ${
+                            isActive ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'
+                          }`}
+                        >
+                          <span>📊</span>
+                          <span>Інтервали: {stagesCount} етапів</span>
                         </p>
                       )}
                     </div>

@@ -42,8 +42,8 @@ class WorkoutBuilder(BaseAgent):
         # Create prompt with tools
         self.prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", CONVERSATION_AGENT_SYSTEM_PROMPT),
-                MessagesPlaceholder(variable_name="chat_history", optional=True),
+            ("system", CONVERSATION_AGENT_SYSTEM_PROMPT),
+            MessagesPlaceholder(variable_name="chat_history", optional=True),
                 ("human", "{input}"),
                 MessagesPlaceholder(variable_name="agent_scratchpad"),
             ]
@@ -197,8 +197,8 @@ class WorkoutBuilder(BaseAgent):
                 try:
                     return await self.agent_executor.ainvoke(
                         {
-                            "input": conversation_context,
-                            "chat_history": temp_memory.chat_memory.messages,
+                    "input": conversation_context,
+                    "chat_history": temp_memory.chat_memory.messages,
                         }
                     )
                 except Exception as e:
@@ -451,7 +451,7 @@ class WorkoutBuilder(BaseAgent):
             if normalized is not None:
                 merged["duration_minutes"] = normalized
                 merged.pop("_duration_invalid", None)
-            else:
+                else:
                 merged.pop("duration_minutes", None)
                 merged["_duration_invalid"] = extracted["duration_minutes"]
 
@@ -553,7 +553,7 @@ class WorkoutBuilder(BaseAgent):
             for canonical, variations in genre_map.items():
                 if any(var in genre_lower for var in variations):
                     matched = canonical
-                    break
+                        break
             normalized.append(matched or genre_lower)
         return normalized
 
@@ -640,19 +640,19 @@ class WorkoutBuilder(BaseAgent):
         if missing_prompt:
             return missing_prompt
 
-        # We have everything, ask for confirmation
-        duration = collected.get("duration_minutes", 30)
+            # We have everything, ask for confirmation
+            duration = collected.get("duration_minutes", 30)
         intensity_map = {"low": "легка", "moderate": "середня", "high": "висока"}
         intensity_uk = intensity_map.get(collected.get("intensity", "moderate"), "середня")
-        genres_list = collected.get("genres", [])
+            genres_list = collected.get("genres", [])
         genres_str = (
             ", ".join(genres_list) if isinstance(genres_list, list) else str(genres_list)
         )
 
-        return (
-            f"Супер! Отже, {intensity_uk} пробіжка на {duration} хвилин "
-            f"під {genres_str}. Створюємо воркаут?"
-        )
+            return (
+                f"Супер! Отже, {intensity_uk} пробіжка на {duration} хвилин "
+                f"під {genres_str}. Створюємо воркаут?"
+            )
 
     def _determine_question_type_from_response(
         self, response: str, state: ConversationState

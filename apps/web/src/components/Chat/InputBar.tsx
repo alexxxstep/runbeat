@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useRef, useEffect, FormEvent } from 'react';
 
 interface InputBarProps {
   onSend: (text: string) => void;
@@ -7,12 +7,20 @@ interface InputBarProps {
 
 export function InputBar({ onSend, disabled }: InputBarProps) {
   const [input, setInput] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!disabled) {
+      inputRef.current?.focus();
+    }
+  }, [disabled]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (input.trim() && !disabled) {
       onSend(input.trim());
       setInput('');
+      inputRef.current?.focus();
     }
   };
 
@@ -25,9 +33,11 @@ export function InputBar({ onSend, disabled }: InputBarProps) {
         <input
           type="text"
           value={input}
+          ref={inputRef}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Наприклад: 'хочу легку пробіжку 30 хв під електронну музику' або 'інтервали 40 хв, рок-музика'..."
           disabled={disabled}
+          autoFocus
           className="flex-1 px-4 py-3 text-body border border-app-border rounded-xl focus:outline-none focus:ring-2 focus:ring-app-accent bg-app-surface-light text-app-text placeholder-app-text-tertiary"
         />
         <button

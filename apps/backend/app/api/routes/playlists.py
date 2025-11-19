@@ -1,6 +1,7 @@
 """
 Playlist generation endpoints.
 """
+
 import asyncio
 import time
 import random
@@ -26,6 +27,7 @@ router = APIRouter(prefix="/playlists", tags=["playlists"])
 
 # Singleton instance to avoid creating new clients on every request
 _supabase_service_instance: Optional[SupabaseService] = None
+
 
 def get_supabase_service() -> SupabaseService:
     """Dependency to get SupabaseService instance (singleton)."""
@@ -68,6 +70,56 @@ async def generate_playlist(
     """
     start_time = time.time()
 
+    def build_playlist_title(actual_minutes: int) -> tuple[str, dict]:
+        """Build short playlist name and metadata summary."""
+        intensity_map = {
+            "low": ("Легка", "😊"),
+            "moderate": ("Середня", "💪"),
+            "high": ("Висока", "⚡️"),
+        }
+        intensity_value = request.workout.intensity.lower()
+        intensity_label, intensity_emoji = intensity_map.get(
+            intensity_value, (intensity_value.capitalize(), "🏃‍♂️")
+        )
+
+        hr_min = None
+        hr_max = None
+        hr_zones = request.workout.hr_zones or []
+        if isinstance(hr_zones, (list, tuple)) and len(hr_zones) >= 2:
+            hr_min, hr_max = hr_zones[0], hr_zones[1]
+
+        user_prefs = request.user_preferences or {}
+        genres_raw = []
+        if isinstance(user_prefs, dict):
+            genres_candidate = user_prefs.get("top_genres") or []
+            if isinstance(genres_candidate, list):
+                genres_raw = genres_candidate
+            elif genres_candidate:
+                genres_raw = [genres_candidate]
+        genres_clean = [str(genre).strip() for genre in genres_raw if str(genre).strip()][:3]
+        genres_short = "+".join(genres_clean)
+
+        playlist_parts = [
+            "RunBeat",
+            f"{intensity_emoji}{intensity_label}".strip(),
+            f"{actual_minutes}хв",
+        ]
+        if hr_min is not None and hr_max is not None:
+            playlist_parts.append(f"❤️{hr_min}-{hr_max}")
+        if genres_short:
+            playlist_parts.append(f"🎵{genres_short}")
+
+        playlist_name = " ".join(part for part in playlist_parts if part)
+        metadata = {
+            "intensity_label": intensity_label,
+            "intensity_emoji": intensity_emoji,
+            "hr_min": hr_min,
+            "hr_max": hr_max,
+            "genres_short": genres_short,
+            "genres_readable": ", ".join(genres_clean),
+        }
+        return playlist_name, metadata
+
     try:
         logger.info(
             f"Generating playlist for {request.workout.type} workout, "
@@ -104,7 +156,8 @@ async def generate_playlist(
                     expires_at_str = user_data.data[0].get("spotify_token_expires_at")
                     if expires_at_str:
                         from datetime import datetime
-                        expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
+
+                        expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
                         if expires_at > datetime.now(expires_at.tzinfo):
                             user_token = user_data.data[0]["spotify_access_token"]
                             logger.debug(f"Using user token for playlist generation")
@@ -119,6 +172,7 @@ async def generate_playlist(
             )
             # Convert dict tracks to Track objects
             from app.models.playlist import Track, PlaylistData
+
             selected_track_objects = []
             for track_dict in request.selected_tracks:
                 # Extract required fields, provide defaults for missing audio features
@@ -126,12 +180,20 @@ async def generate_playlist(
                     id=track_dict.get("id", ""),
                     name=track_dict.get("name", ""),
                     artist=track_dict.get("artist", ""),
-                    artist_id=track_dict.get("artist_id") or track_dict.get("id", "")[:22],  # Fallback
+                    artist_id=track_dict.get("artist_id")
+                    or track_dict.get("id", "")[:22],  # Fallback
                     duration_ms=track_dict.get("duration_ms", 0),
-                    spotify_uri=track_dict.get("spotify_uri") or f"spotify:track:{track_dict.get('id', '')}",
-                    spotify_url=track_dict.get("external_urls", {}).get("spotify") or track_dict.get("spotify_url") or f"https://open.spotify.com/track/{track_dict.get('id', '')}",
+                    spotify_uri=track_dict.get("spotify_uri")
+                    or f"spotify:track:{track_dict.get('id', '')}",
+                    spotify_url=track_dict.get("external_urls", {}).get("spotify")
+                    or track_dict.get("spotify_url")
+                    or f"https://open.spotify.com/track/{track_dict.get('id', '')}",
                     preview_url=track_dict.get("preview_url"),
-                    album=track_dict.get("album", {}).get("name") if isinstance(track_dict.get("album"), dict) else track_dict.get("album"),
+                    album=(
+                        track_dict.get("album", {}).get("name")
+                        if isinstance(track_dict.get("album"), dict)
+                        else track_dict.get("album")
+                    ),
                     tempo=track_dict.get("tempo") or track_dict.get("bpm") or 120.0,
                     bpm=track_dict.get("bpm") or track_dict.get("tempo") or 120.0,
                     energy=track_dict.get("energy", 0.5),
@@ -163,7 +225,7 @@ async def generate_playlist(
                         prompt=request.prompt,
                         user_token=user_token,
                     ),
-                    timeout=90.0  # 90 seconds timeout for single playlist generation
+                    timeout=90.0,  # 90 seconds timeout for single playlist generation
                 )
             except asyncio.TimeoutError:
                 logger.error("Timeout generating playlist (90s)")
@@ -188,8 +250,7 @@ async def generate_playlist(
         # If user_id provided, try to create playlist in Spotify
         if request.user_id and playlist_data.tracks:
             try:
-                logger.info(
-                    f"Creating Spotify playlist for user {request.user_id}")
+                logger.info(f"Creating Spotify playlist for user {request.user_id}")
 
                 # Get user's Spotify token from database
                 supabase = SupabaseService().get_client()
@@ -207,8 +268,7 @@ async def generate_playlist(
                 # (for users who signed in with Google but haven't connected Spotify)
                 if not user_data.data:
                     logger.info(
-                        f"User {request.user_id} not found in users table, "
-                        "creating entry"
+                        f"User {request.user_id} not found in users table, " "creating entry"
                     )
                     # Get user email from Supabase Auth (if available)
                     # For now, create minimal entry
@@ -234,11 +294,8 @@ async def generate_playlist(
                 if user_data.data and user_data.data[0].get("spotify_access_token"):
                     spotify_user_id = user_data.data[0]["spotify_user_id"]
                     access_token = user_data.data[0]["spotify_access_token"]
-                    refresh_token = user_data.data[0].get(
-                        "spotify_refresh_token")
-                    expires_at_str = user_data.data[0].get(
-                        "spotify_token_expires_at"
-                    )
+                    refresh_token = user_data.data[0].get("spotify_refresh_token")
+                    expires_at_str = user_data.data[0].get("spotify_token_expires_at")
 
                     # Check if token is expired and refresh if needed
                     if expires_at_str:
@@ -252,8 +309,7 @@ async def generate_playlist(
                             ):
                                 if refresh_token:
                                     logger.info(
-                                        f"Refreshing expired token for user "
-                                        f"{request.user_id}"
+                                        f"Refreshing expired token for user " f"{request.user_id}"
                                     )
                                     # Refresh token using SpotifyOAuth
                                     from spotipy.oauth2 import SpotifyOAuth
@@ -263,20 +319,15 @@ async def generate_playlist(
                                         client_secret=settings.SPOTIFY_CLIENT_SECRET,
                                         redirect_uri=settings.SPOTIFY_REDIRECT_URI,
                                     )
-                                    token_info = oauth.refresh_access_token(
-                                        refresh_token
-                                    )
+                                    token_info = oauth.refresh_access_token(refresh_token)
 
                                     # Update token in database
                                     new_expires_at = datetime.now() + timedelta(
-                                        seconds=token_info.get(
-                                            "expires_in", 3600)
+                                        seconds=token_info.get("expires_in", 3600)
                                     )
                                     supabase.table("users").update(
                                         {
-                                            "spotify_access_token": token_info[
-                                                "access_token"
-                                            ],
+                                            "spotify_access_token": token_info["access_token"],
                                             "spotify_refresh_token": token_info.get(
                                                 "refresh_token", refresh_token
                                             ),
@@ -290,9 +341,7 @@ async def generate_playlist(
                                     access_token = token_info["access_token"]
                                     logger.info("Token refreshed successfully")
                                 else:
-                                    logger.warning(
-                                        f"No refresh token for user {request.user_id}"
-                                    )
+                                    logger.warning(f"No refresh token for user {request.user_id}")
                         except Exception as token_error:
                             logger.warning(
                                 f"Failed to check/refresh token: {token_error}. "
@@ -309,21 +358,28 @@ async def generate_playlist(
                         "intervals": "Інтервальна",
                         "fartlek": "Фартлек",
                     }
-                    workout_name = workout_type_map.get(
-                        request.workout.type, "Тренування"
-                    )
+                    workout_name = workout_type_map.get(request.workout.type, "Тренування")
                     # Calculate actual playlist duration in minutes
                     actual_duration_minutes = int(playlist_data.total_duration / 60)
-                    playlist_name = (
-                        f"RunBeat: {workout_name} пробіжка "
-                        f"({actual_duration_minutes} хв)"
-                    )
+                    playlist_name, playlist_meta = build_playlist_title(actual_duration_minutes)
+
+                    description_parts = [
+                        f"{workout_name} тренування",
+                        f"інтенсивність: {playlist_meta['intensity_label'].lower()}",
+                        f"тривалість: {request.workout.duration_minutes} хв",
+                    ]
+                    if playlist_meta["hr_min"] is not None and playlist_meta["hr_max"] is not None:
+                        description_parts.append(
+                            f"цільова ЧСС: {playlist_meta['hr_min']}-{playlist_meta['hr_max']} уд/хв"
+                        )
+                    if playlist_meta["genres_readable"]:
+                        description_parts.append(f"жанри: {playlist_meta['genres_readable']}")
+                    description_parts.append("AI RunBeat підібрав треки під ритм твого тренування.")
+                    playlist_description = " | ".join(description_parts)
 
                     # Get track URIs
                     track_uris = [
-                        track.spotify_uri
-                        for track in playlist_data.tracks
-                        if track.spotify_uri
+                        track.spotify_uri for track in playlist_data.tracks if track.spotify_uri
                     ]
 
                     if track_uris:
@@ -333,21 +389,13 @@ async def generate_playlist(
                             user_id=spotify_user_id,
                             name=playlist_name,
                             tracks=track_uris,
-                            description=(
-                                f"AI-згенерований плейлист для "
-                                f"{workout_name.lower()} тренування. "
-                                f"Тривалість плейлиста: {actual_duration_minutes} хв. "
-                                f"Тривалість воркауту: {request.workout.duration_minutes} хв. "
-                                f"Інтенсивність: {request.workout.intensity}."
-                            ),
+                            description=playlist_description,
                         )
 
                         playlist_id = playlist_info["id"]
                         spotify_url = playlist_info["url"]
 
-                        logger.info(
-                            f"Playlist created in Spotify: {spotify_url}"
-                        )
+                        logger.info(f"Playlist created in Spotify: {spotify_url}")
 
                         # Save playlist to database
                         try:
@@ -404,9 +452,7 @@ async def generate_playlist(
                                         {
                                             "user_id": request.user_id,
                                             "type": request.workout.type,
-                                            "duration_minutes": (
-                                                request.workout.duration_minutes
-                                            ),
+                                            "duration_minutes": (request.workout.duration_minutes),
                                             "intensity": request.workout.intensity,
                                             "hr_zones": request.workout.hr_zones,
                                         }
@@ -428,12 +474,8 @@ async def generate_playlist(
                                         "spotify_playlist_id": playlist_id,
                                         "spotify_url": spotify_url,
                                         "tracks": tracks_dict,
-                                        "total_duration_seconds": int(
-                                            playlist_data.total_duration
-                                        ),
-                                        "generation_time_seconds": (
-                                            generation_time
-                                        ),
+                                        "total_duration_seconds": int(playlist_data.total_duration),
+                                        "generation_time_seconds": (generation_time),
                                     }
                                 )
                                 .execute()
@@ -443,24 +485,16 @@ async def generate_playlist(
                                 f"{playlist_db_result.data[0]['id']}"
                             )
                         except Exception as db_error:
-                            logger.error(
-                                f"Failed to save playlist to database: "
-                                f"{db_error}"
-                            )
+                            logger.error(f"Failed to save playlist to database: " f"{db_error}")
                             # Continue - playlist is created in Spotify anyway
                     else:
-                        logger.warning(
-                            "No track URIs available to create playlist"
-                        )
+                        logger.warning("No track URIs available to create playlist")
                 else:
                     logger.warning(
-                        f"User {request.user_id} not found or "
-                        "not authenticated with Spotify"
+                        f"User {request.user_id} not found or " "not authenticated with Spotify"
                     )
             except Exception as create_error:
-                logger.error(
-                    f"Failed to create Spotify playlist: {create_error}"
-                )
+                logger.error(f"Failed to create Spotify playlist: {create_error}")
                 # Continue without playlist - return tracks anyway
 
         # Get playlist name if it was created in Spotify
@@ -473,14 +507,9 @@ async def generate_playlist(
                 "intervals": "Інтервальна",
                 "fartlek": "Фартлек",
             }
-            workout_name = workout_type_map.get(
-                request.workout.type, "Тренування"
-            )
+            workout_name = workout_type_map.get(request.workout.type, "Тренування")
             actual_duration_minutes = int(playlist_data.total_duration / 60)
-            playlist_name_response = (
-                f"RunBeat: {workout_name} пробіжка "
-                f"({actual_duration_minutes} хв)"
-            )
+            playlist_name_response, _ = build_playlist_title(actual_duration_minutes)
 
         return PlaylistGenerateResponse(
             playlist_id=playlist_id,
@@ -503,8 +532,7 @@ async def generate_playlist(
 @router.get("/history")
 async def get_playlist_history(
     user_id: str = Query(..., description="User ID"),
-    limit: int = Query(
-        10, ge=1, le=100, description="Number of playlists to return"),
+    limit: int = Query(10, ge=1, le=100, description="Number of playlists to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     supabase: SupabaseService = Depends(get_supabase_service),
 ) -> dict:
@@ -612,9 +640,7 @@ async def delete_playlist(
         HTTPException: If deletion fails or playlist not found
     """
     try:
-        logger.info(
-            f"Deleting playlist {playlist_id} for user {user_id}"
-        )
+        logger.info(f"Deleting playlist {playlist_id} for user {user_id}")
 
         # Check if playlist exists and belongs to user
         playlist_result = (
@@ -627,10 +653,7 @@ async def delete_playlist(
         )
 
         if not playlist_result.data:
-            raise HTTPException(
-                status_code=404,
-                detail="Playlist not found or access denied"
-            )
+            raise HTTPException(status_code=404, detail="Playlist not found or access denied")
 
         # Delete playlist from database
         (
@@ -644,10 +667,7 @@ async def delete_playlist(
 
         logger.info(f"Playlist {playlist_id} deleted successfully")
 
-        return {
-            "success": True,
-            "message": "Playlist deleted successfully"
-        }
+        return {"success": True, "message": "Playlist deleted successfully"}
 
     except HTTPException:
         raise
@@ -719,7 +739,11 @@ async def _generate_variants_internal(
     start_time = time.time()
 
     try:
-        interval_stages = [stage.model_dump() for stage in request.interval_stages] if request.interval_stages else None
+        interval_stages = (
+            [stage.model_dump() for stage in request.interval_stages]
+            if request.interval_stages
+            else None
+        )
 
         # --- Generate Variant 1 (Primary) ---
         playlist_data_variant1 = await generator.generate(

@@ -340,23 +340,23 @@ export function SettingsSidebar({
       <div
         className={`flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-6 transition-opacity duration-300 ${contentOpacityClass} ${contentVisibilityClass}`}
       >
-        {/* Workout Type */}
+        {/* Intensity */}
         <div>
           <label className='block text-subhead font-semibold text-app-text mb-3'>
-            Тип тренування
+            Інтенсивність
           </label>
-          <div className='grid grid-cols-2 gap-2'>
-            {WORKOUT_TYPES.map((type) => (
+          <div className='flex gap-2'>
+            {INTENSITIES.map((intensity) => (
               <button
-                key={type.value}
-                onClick={() => updateSettings({ type: type.value })}
-                className={`px-3 py-2.5 text-subhead rounded-xl border transition-colors ${
-                  localSettings.type === type.value
+                key={intensity.value}
+                onClick={() => updateSettings({ intensity: intensity.value })}
+                className={`flex-1 px-3 py-2.5 text-subhead rounded-xl border transition-colors ${
+                  localSettings.intensity === intensity.value
                     ? 'bg-app-accent text-white border-app-accent'
                     : 'bg-app-surface-light text-app-text border-app-border hover:bg-app-surface'
                 }`}
               >
-                {type.label}
+                {intensity.label}
               </button>
             ))}
           </div>
@@ -401,23 +401,23 @@ export function SettingsSidebar({
           </div>
         </div>
 
-        {/* Intensity */}
+        {/* Music Genres */}
         <div>
           <label className='block text-subhead font-semibold text-app-text mb-3'>
-            Інтенсивність
+            Жанри музики
           </label>
-          <div className='flex gap-2'>
-            {INTENSITIES.map((intensity) => (
+          <div className='flex flex-wrap gap-2'>
+            {MUSIC_GENRES.map((genre) => (
               <button
-                key={intensity.value}
-                onClick={() => updateSettings({ intensity: intensity.value })}
-                className={`flex-1 px-3 py-2.5 text-subhead rounded-xl border transition-colors ${
-                  localSettings.intensity === intensity.value
+                key={genre}
+                onClick={() => toggleGenre(genre)}
+                className={`px-3 py-1.5 text-caption rounded-full border transition-colors ${
+                  localSettings.genres.includes(genre)
                     ? 'bg-app-accent text-white border-app-accent'
                     : 'bg-app-surface-light text-app-text border-app-border hover:bg-app-surface'
                 }`}
               >
-                {intensity.label}
+                {genre}
               </button>
             ))}
           </div>
@@ -473,6 +473,28 @@ export function SettingsSidebar({
               Діапазон: {localSettings.hrZones[0]} - {localSettings.hrZones[1]}{' '}
               уд/хв
             </p>
+          </div>
+        </div>
+
+        {/* Workout Type */}
+        <div>
+          <label className='block text-subhead font-semibold text-app-text mb-3'>
+            Тип тренування
+          </label>
+          <div className='grid grid-cols-2 gap-2'>
+            {WORKOUT_TYPES.map((type) => (
+              <button
+                key={type.value}
+                onClick={() => updateSettings({ type: type.value })}
+                className={`px-3 py-2.5 text-subhead rounded-xl border transition-colors ${
+                  localSettings.type === type.value
+                    ? 'bg-app-accent text-white border-app-accent'
+                    : 'bg-app-surface-light text-app-text border-app-border hover:bg-app-surface'
+                }`}
+              >
+                {type.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -714,28 +736,6 @@ export function SettingsSidebar({
             </div>
           </div>
         )}
-
-        {/* Music Genres */}
-        <div>
-          <label className='block text-subhead font-semibold text-app-text mb-3'>
-            Жанри музики
-          </label>
-          <div className='flex flex-wrap gap-2'>
-            {MUSIC_GENRES.map((genre) => (
-              <button
-                key={genre}
-                onClick={() => toggleGenre(genre)}
-                className={`px-3 py-1.5 text-caption rounded-full border transition-colors ${
-                  localSettings.genres.includes(genre)
-                    ? 'bg-app-accent text-white border-app-accent'
-                    : 'bg-app-surface-light text-app-text border-app-border hover:bg-app-surface'
-                }`}
-              >
-                {genre}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Prompt Field */}
         <div>
