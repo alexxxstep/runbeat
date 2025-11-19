@@ -3,7 +3,7 @@ Workout management tools for LangChain agents.
 """
 
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from langchain.tools import tool
 from loguru import logger
 
@@ -320,9 +320,7 @@ class CreateWorkoutFromParamsInput(BaseModel):
     genres: Optional[str] = Field(default=None, description="Comma-separated music genres (e.g., 'rock,pop')")
     prompt: Optional[str] = Field(default=None, description="Optional music prompt/description")
 
-    class Config:
-        # Allow extra fields to prevent validation errors from unexpected parameters
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")  # Pydantic V2 syntax - allow extra fields
 
 
 @tool(args_schema=CreateWorkoutFromParamsInput)

@@ -165,6 +165,8 @@ class TestValidationErrorHandling:
             extra_field="should_be_allowed",
         )
         assert schema.user_id == "test_user"
-        # Extra field should be allowed but not in model_fields
-        assert hasattr(schema, "extra_field") or True  # Config.extra='allow' allows it
+        # Extra field should be allowed (Pydantic V2 stores in model_extra)
+        # Check if extra_field is accessible via model_extra or directly
+        assert hasattr(schema, "model_extra") and schema.model_extra is not None
+        assert "extra_field" in schema.model_extra or hasattr(schema, "extra_field")
 
